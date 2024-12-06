@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
+use serde::{ Serialize, Deserialize };
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq)] // Traits similar to Scala's case class behavior
+#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
     pub x: u32,
     pub y: u32
@@ -14,7 +15,7 @@ impl Default for Coordinates {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)] // Traits similar to Scala's case class behavior
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MazeType {
     Orthogonal,
     // Sigma,
@@ -22,13 +23,13 @@ pub enum MazeType {
     // Polar
 }
 
-#[derive(Debug, Clone, PartialEq)] // Traits similar to Scala's case class behavior
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CellOrientation {
     Normal,
     // Inverted
 }
 
-#[derive(Debug, Clone, PartialEq)] // Traits similar to Scala's case class behavior
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Cell {
     pub coords: Coordinates,
     pub maze_type: MazeType,

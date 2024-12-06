@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, PartialEq)]
+use serde::{ Serialize, Deserialize };
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HexDirection {
     Northwest,
     North,
@@ -8,7 +10,7 @@ pub enum HexDirection {
     Southeast,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PolarDirection {
     Clockwise,
     CounterClockwise,
@@ -16,7 +18,7 @@ pub enum PolarDirection {
     Outward,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SquareDirection {
     North,
     East,
@@ -24,7 +26,7 @@ pub enum SquareDirection {
     West
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TriangleDirection {
     UpperLeft,
     UpperRight,

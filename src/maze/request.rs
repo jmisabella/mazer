@@ -1,7 +1,8 @@
 use crate::maze::cell::Coordinates;
 use crate::maze::cell::MazeType;
+use serde::{ Serialize, Deserialize };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Algorithm {
     BinaryTree,
     Sidewinder,
@@ -11,7 +12,7 @@ pub enum Algorithm {
     RecursiveBacktracker
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MazeRequest {
     maze_type: MazeType,
     width: u32,
