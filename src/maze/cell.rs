@@ -40,7 +40,6 @@ pub struct Cell {
     pub is_goal: bool,                                       // Boolean
     pub on_solution_path: bool,                              // Boolean
     pub orientation: CellOrientation,                        // CellOrientation (enum)
-    pub visited: bool,                                       // Boolean
 }
 
 impl Default for Cell {
@@ -55,8 +54,13 @@ impl Default for Cell {
             is_goal: false,
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
-            visited: false,
         }
+    }
+}
+
+impl Cell {
+    pub fn neighbors(&self) -> HashSet<Coordinates> {
+        return self.neighbors_by_direction.values().cloned().collect();        
     }
 }
 
@@ -84,7 +88,6 @@ mod tests {
             is_goal: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
-            visited: true,
         };
 
         let json = serde_json::to_string(&cell).expect("Serialization failed");
@@ -115,8 +118,7 @@ mod tests {
             "is_start": true,
             "is_goal": true,
             "on_solution_path": false,
-            "orientation": "Inverted",
-            "visited": false
+            "orientation": "Inverted"
         }
         "#;
 
@@ -133,7 +135,6 @@ mod tests {
         assert!(cell.is_start);
         assert!(cell.is_goal);
         assert_eq!(cell.orientation, CellOrientation::Inverted);
-        assert!(!cell.visited);
     }
 
     #[test]
