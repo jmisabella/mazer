@@ -1,6 +1,8 @@
 use serde::{ Serialize, Deserialize };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub trait Direction { }
+
+#[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HexDirection {
     Northwest,
     North,
@@ -21,8 +23,9 @@ impl From<HexDirection> for String {
         }
     }
 }
+impl Direction for HexDirection {}
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PolarDirection {
     Clockwise,
     CounterClockwise,
@@ -39,8 +42,9 @@ impl From<PolarDirection> for String {
         }
     }
 }
+impl Direction for PolarDirection {}
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SquareDirection {
     North,
     East,
@@ -57,8 +61,9 @@ impl From<SquareDirection> for String {
         }
     }
 }
+impl Direction for SquareDirection {}
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TriangleDirection {
     UpperLeft,
     UpperRight,
@@ -79,3 +84,4 @@ impl From<TriangleDirection> for String {
         }
     }
 }
+impl Direction for TriangleDirection {}

@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 use serde::{ Serialize, Deserialize };
-use crate::maze::direction::{ SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+use serde::ser::{SerializeStruct, Serializer};
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+
+#[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
     pub x: u32,
     pub y: u32
@@ -16,7 +18,7 @@ impl Default for Coordinates {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MazeType {
     Orthogonal,
     Sigma,
@@ -24,13 +26,13 @@ pub enum MazeType {
     Polar
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CellOrientation {
     Normal,
     Inverted
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
     pub coords: Coordinates,
     pub maze_type: MazeType,
@@ -59,6 +61,23 @@ impl Default for Cell {
     }
 }
 
+impl Serialize for Cell {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Cell", 7)?;
+        state.serialize_field("coords", &self.coords)?;
+        // Transform `linked` from coordinates to directions
+        let linked_dirs: HashSet<String> = self.linked_directions();
+        state.serialize_field("linked", &linked_dirs)?;
+        state.serialize_field("distance", &self.distance)?;
+        state.serialize_field("is_start", &self.is_start)?;
+        state.serialize_field("is_goal", &self.is_goal)?;
+        state.serialize_field("on_solution_path", &self.on_solution_path)?;
+        state.end()
+    }
+}
 impl Cell {
     pub fn new(x: u32, y: u32, maze_type: MazeType) -> Self {
         Self {
@@ -82,6 +101,35 @@ impl Cell {
         let all_neighbors = self.neighbors();
         return all_neighbors.difference(&self.linked).cloned().collect();
     }
+
+    pub fn linked_directions(&self) -> HashSet<String> {
+        // Assuming neighbors_by_direction provides the mapping
+        self.neighbors_by_direction
+            .iter()
+            .filter_map(|(direction, coords)| {
+                if self.linked.contains(coords) {
+                    // Return direction if the corresponding cell is linked
+                    Some(direction.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    // pub fn linked_directions(&self) -> HashSet<String> {
+    //     let mut linked_dirs = HashSet::new();
+    
+    //     for (direction, coords) in &self.neighbors_by_direction {
+    //         if self.linked.contains(coords) {
+    //             // Debugging: print directions and coordinates
+    //             println!("Linked direction: {}, Coordinates: {:?}", direction, coords);
+    //             linked_dirs.insert(direction.clone());
+    //         }
+    //     }
+    
+    //     linked_dirs
+    // }
 
     pub fn is_linked_direction<D>(&self, direction: D) -> bool
     where
@@ -107,6 +155,10 @@ impl Cell {
             Some(coords) => self.is_linked(coords),
             None => false,
         }
+    }
+
+    pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
+        self.linked = linked;
     }
 
 }
@@ -161,8 +213,8 @@ mod tests {
         linked.insert(north.clone());
         linked.insert(south.clone());
         let cell2 = Cell {
-            neighbors_by_direction: neighbors,
-            linked: linked,
+            neighbors_by_direction: neighbors.clone(),
+            linked: linked.clone(),
             ..cell1
         };
         assert!(cell2.linked.contains(&north));
@@ -179,6 +231,33 @@ mod tests {
         assert!(cell2.is_linked(south));
         assert!(!cell2.is_linked(east));
         assert!(!cell2.is_linked(west));
+        assert!(cell2.linked_directions().contains("North"));
+        assert!(cell2.linked_directions().contains("South"));
+        assert!(cell2.linked_directions().len() == 2);
+        let mut cell3 = Cell {
+            neighbors_by_direction: neighbors,
+            ..cell1
+        }; // nothing linked yet
+        assert!(cell3.linked.is_empty());
+        cell3.set_linked(linked.clone());
+        assert!(cell3.linked.contains(&north));
+        assert!(cell3.linked.contains(&south));
+        assert!(cell3.linked.len() == 2);
+        assert!(cell3.unlinked_neighbors().contains(&east));
+        assert!(cell3.unlinked_neighbors().contains(&west));
+        assert!(cell3.unlinked_neighbors().len() == 2);
+        assert!(cell3.is_linked_direction(SquareDirection::North));
+        assert!(cell3.is_linked_direction(SquareDirection::South));
+        assert!(!cell3.is_linked_direction(SquareDirection::East));
+        assert!(!cell3.is_linked_direction(SquareDirection::West));
+        assert!(cell3.is_linked(north));
+        assert!(cell3.is_linked(south));
+        assert!(!cell3.is_linked(east));
+        assert!(!cell3.is_linked(west));
+        assert!(cell3.linked_directions().contains("North"));
+        assert!(cell3.linked_directions().contains("South"));
+        assert!(cell3.linked_directions().len() == 2);
+
     }
 
     #[test]
@@ -189,6 +268,7 @@ mod tests {
 
         let mut linked = HashSet::new();
         linked.insert(Coordinates { x: 1, y: 0 });
+        linked.insert(Coordinates { x: 0, y: 1 });
 
         let cell = Cell {
             coords: Coordinates { x: 1, y: 1 },
@@ -207,56 +287,10 @@ mod tests {
 
         assert!(json.contains("\"x\":1"));
         assert!(json.contains("\"y\":1"));
-        assert!(json.contains("\"Orthogonal\""));
         assert!(json.contains("\"East\""));
+        assert!(json.contains("\"South\"")); //// why does our linked_directions method only have "East" but not "South" ???
         assert!(json.contains("\"on_solution_path\":true"));
     }
 
-    #[test]
-    fn deserialize_json_to_cell() {
-        let json = r#"
-        {
-            "coords": { "x": 2, "y": 3 },
-            "maze_type": "Delta",
-            "neighbors_by_direction": {
-                "LowerLeft": { "x": 3, "y": 3 },
-                "Up": { "x": 1, "y": 3 }
-            },
-            "linked": [
-                { "x": 2, "y": 2 },
-                { "x": 2, "y": 4 }
-            ],
-            "distance": 5,
-            "is_start": true,
-            "is_goal": true,
-            "on_solution_path": false,
-            "orientation": "Inverted"
-        }
-        "#;
-
-        let cell: Cell = serde_json::from_str(json).expect("Deserialization failed");
-
-        assert_eq!(cell.coords, Coordinates { x: 2, y: 3 });
-        assert_eq!(cell.maze_type, MazeType::Delta);
-        assert_eq!(
-            cell.neighbors_by_direction.get("LowerLeft"),
-            Some(&Coordinates { x: 3, y: 3 })
-        );
-        assert!(cell.linked.contains(&Coordinates { x: 2, y: 2 }));
-        assert_eq!(cell.distance, 5);
-        assert!(cell.is_start);
-        assert!(cell.is_goal);
-        assert_eq!(cell.orientation, CellOrientation::Inverted);
-    }
-
-    #[test]
-    fn serialize_and_deserialize_cell_round_trip() {
-        let cell = Cell::default();
-
-        let json = serde_json::to_string(&cell).expect("Serialization failed");
-        let deserialized_cell: Cell = serde_json::from_str(&json).expect("Deserialization failed");
-
-        assert_eq!(cell, deserialized_cell);
-    }
 
 }
