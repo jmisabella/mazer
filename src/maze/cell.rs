@@ -59,15 +59,92 @@ impl Default for Cell {
 }
 
 impl Cell {
+    pub fn new(x: u32, y: u32, maze_type: MazeType) -> Self {
+        Self {
+            coords: Coordinates{x: x, y: y},
+            maze_type,
+            neighbors_by_direction: HashMap::new(),
+            linked: HashSet::new(),
+            distance: 0,
+            is_start: false,
+            is_goal: false,
+            on_solution_path: false,
+            orientation: CellOrientation::Normal,
+        }
+    }
+
     pub fn neighbors(&self) -> HashSet<Coordinates> {
         return self.neighbors_by_direction.values().cloned().collect();        
     }
+
+    pub fn unlinked_neighbors(&self) -> HashSet<Coordinates> {
+        let all_neighbors = self.neighbors();
+        return all_neighbors.difference(&self.linked).cloned().collect();
+    }
+    
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json;
+
+    #[test]
+    fn access_neighbors() {
+        let cell1 = Cell::new(1, 1, MazeType::Orthogonal);
+        let mut neighbors = HashMap::new();
+        neighbors.insert("North".to_string(), Coordinates{ x: 1, y: 0});
+        neighbors.insert("East".to_string(), Coordinates{ x: 2, y: 1});
+        neighbors.insert("South".to_string(), Coordinates{ x: 1, y: 2});
+        neighbors.insert("West".to_string(), Coordinates{ x: 0, y: 1});
+        let cell2 = Cell {
+            neighbors_by_direction: neighbors,
+            ..cell1
+        };
+        assert!(cell2.neighbors().contains(&Coordinates{x: 1, y: 0}));
+        assert!(cell2.neighbors().contains(&Coordinates{x: 2, y: 1}));
+        assert!(cell2.neighbors().contains(&Coordinates{x: 1, y: 2}));
+        assert!(cell2.neighbors().contains(&Coordinates{x: 0, y: 1}));
+        assert!(cell2.neighbors().len() == 4);
+        assert!(*cell2.neighbors_by_direction.get("North").expect("Missing North neighbor") == Coordinates{x: 1, y: 0});
+        assert!(*cell2.neighbors_by_direction.get("East").expect("Missing East neighbor") == Coordinates{x: 2, y: 1});
+        assert!(*cell2.neighbors_by_direction.get("South").expect("Missing South neighbor") == Coordinates{x: 1, y: 2});
+        assert!(*cell2.neighbors_by_direction.get("West").expect("Missing West neighbor") == Coordinates{x: 0, y: 1});
+
+        // cell with no neighbors assigned
+        let cell3 = Cell::new(1, 1, MazeType::Orthogonal);
+        assert!(cell3.neighbors().is_empty());
+        assert!(cell3.neighbors_by_direction.get("North").is_none());
+        
+    }
+
+    #[test]
+    fn access_linked_neighbors() {
+        let cell1 = Cell::new(1, 1, MazeType::Orthogonal);
+        let mut neighbors = HashMap::new();
+        let north = Coordinates{ x: 1, y: 0 };
+        let east = Coordinates{ x: 2, y: 1 };
+        let south = Coordinates{ x: 1, y: 2 };
+        let west = Coordinates{ x: 0, y: 1 };
+        neighbors.insert("North".to_string(), north.clone());
+        neighbors.insert("East".to_string(), east.clone());
+        neighbors.insert("South".to_string(), south.clone());
+        neighbors.insert("West".to_string(), west.clone());
+        let mut linked: HashSet<Coordinates> = HashSet::new();
+        linked.insert(north.clone());
+        linked.insert(south.clone());
+        let cell2 = Cell {
+            neighbors_by_direction: neighbors,
+            linked: linked,
+            ..cell1
+        };
+        assert!(cell2.linked.contains(&north));
+        assert!(cell2.linked.contains(&south));
+        assert!(cell2.linked.len() == 2);
+        assert!(cell2.unlinked_neighbors().contains(&east));
+        assert!(cell2.unlinked_neighbors().contains(&west));
+        assert!(cell2.unlinked_neighbors().len() == 2);
+    }
 
     #[test]
     fn serialize_cell_to_json() {

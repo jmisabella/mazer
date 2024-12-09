@@ -3,6 +3,10 @@ name = "mazer"
 version = "0.0.1"
 edition = "2021"
 
+[lib]
+name = "mazer"
+path = "src/lib.rs"
+
 [dependencies]
 rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
