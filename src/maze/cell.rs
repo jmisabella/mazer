@@ -83,9 +83,7 @@ impl Cell {
         return all_neighbors.difference(&self.linked).cloned().collect();
     }
 
-    //// TODO: test
-    //// example usage: cell.is_linked(SquareDirection::North)
-    pub fn is_linked<D>(&self, direction: D) -> bool
+    pub fn is_linked_direction<D>(&self, direction: D) -> bool
     where
         D: Into<String>,
     {
@@ -97,6 +95,17 @@ impl Cell {
             self.linked.contains(neighbor_coords)
         } else {
             false
+        }
+    }
+
+    pub fn is_linked(&self, coordinates: Coordinates) -> bool {
+        return self.linked.contains(&coordinates); 
+    }
+
+    pub fn is_linked_opt(&self, coordinates: Option<Coordinates>) -> bool {
+        match coordinates {
+            Some(coords) => self.is_linked(coords),
+            None => false,
         }
     }
 
@@ -162,10 +171,14 @@ mod tests {
         assert!(cell2.unlinked_neighbors().contains(&east));
         assert!(cell2.unlinked_neighbors().contains(&west));
         assert!(cell2.unlinked_neighbors().len() == 2);
-        assert!(cell2.is_linked(SquareDirection::North));
-        assert!(cell2.is_linked(SquareDirection::South));
-        assert!(!cell2.is_linked(SquareDirection::East));
-        assert!(!cell2.is_linked(SquareDirection::West));
+        assert!(cell2.is_linked_direction(SquareDirection::North));
+        assert!(cell2.is_linked_direction(SquareDirection::South));
+        assert!(!cell2.is_linked_direction(SquareDirection::East));
+        assert!(!cell2.is_linked_direction(SquareDirection::West));
+        assert!(cell2.is_linked(north));
+        assert!(cell2.is_linked(south));
+        assert!(!cell2.is_linked(east));
+        assert!(!cell2.is_linked(west));
     }
 
     #[test]
