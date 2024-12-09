@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use serde::{ Serialize, Deserialize };
+use crate::maze::direction::{ SquareDirection, TriangleDirection, HexDirection, PolarDirection };
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
@@ -81,7 +82,24 @@ impl Cell {
         let all_neighbors = self.neighbors();
         return all_neighbors.difference(&self.linked).cloned().collect();
     }
-    
+
+    //// TODO: test
+    //// example usage: cell.is_linked(SquareDirection::North)
+    pub fn is_linked<D>(&self, direction: D) -> bool
+    where
+        D: Into<String>,
+    {
+        // Convert direction to a string key
+        let direction_key = direction.into();
+
+        // Find the neighbor for the given direction
+        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
+            self.linked.contains(neighbor_coords)
+        } else {
+            false
+        }
+    }
+
 }
 
 #[cfg(test)]
@@ -144,6 +162,10 @@ mod tests {
         assert!(cell2.unlinked_neighbors().contains(&east));
         assert!(cell2.unlinked_neighbors().contains(&west));
         assert!(cell2.unlinked_neighbors().len() == 2);
+        assert!(cell2.is_linked(SquareDirection::North));
+        assert!(cell2.is_linked(SquareDirection::South));
+        assert!(!cell2.is_linked(SquareDirection::East));
+        assert!(!cell2.is_linked(SquareDirection::West));
     }
 
     #[test]
