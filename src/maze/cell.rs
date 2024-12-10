@@ -92,6 +92,20 @@ impl Cell {
             orientation: CellOrientation::Normal,
         }
     }
+    
+    pub fn init(x: u32, y: u32, maze_type: MazeType, is_start: bool, is_goal: bool) -> Self {
+        Self {
+            coords: Coordinates{x: x, y: y},
+            maze_type,
+            neighbors_by_direction: HashMap::new(),
+            linked: HashSet::new(),
+            distance: 0,
+            is_start: is_start,
+            is_goal: is_goal,
+            on_solution_path: false,
+            orientation: CellOrientation::Normal,
+        }
+    }
 
     pub fn neighbors(&self) -> HashSet<Coordinates> {
         return self.neighbors_by_direction.values().cloned().collect();        
@@ -117,19 +131,9 @@ impl Cell {
             .collect()
     }
 
-    // pub fn linked_directions(&self) -> HashSet<String> {
-    //     let mut linked_dirs = HashSet::new();
-    
-    //     for (direction, coords) in &self.neighbors_by_direction {
-    //         if self.linked.contains(coords) {
-    //             // Debugging: print directions and coordinates
-    //             println!("Linked direction: {}, Coordinates: {:?}", direction, coords);
-    //             linked_dirs.insert(direction.clone());
-    //         }
-    //     }
-    
-    //     linked_dirs
-    // }
+    pub fn to_string(&self) -> String {
+        return serde_json::to_string(&self).expect("Serialization failed");
+    }
 
     pub fn is_linked_direction<D>(&self, direction: D) -> bool
     where
@@ -159,6 +163,10 @@ impl Cell {
 
     pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
         self.linked = linked;
+    }
+
+    pub fn set_orientation(&mut self, orientation: CellOrientation) {
+        self.orientation = orientation;
     }
 
 }
@@ -282,7 +290,7 @@ mod tests {
             orientation: CellOrientation::Normal,
         };
 
-        let json = serde_json::to_string(&cell).expect("Serialization failed");
+        let json = cell.to_string();
         println!("Serialized JSON: {}", json);
 
         assert!(json.contains("\"x\":1"));
