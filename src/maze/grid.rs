@@ -174,22 +174,22 @@ impl Grid {
                             true => (row - 1, row),
                             false => (row, row + 1)
                         };
-                        if col > 0 && north_diagonal >= 0 && north_diagonal < height {
+                        if col > 0 && north_diagonal < height {
                             neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[(col-1)][north_diagonal].coords);
                         }
-                        if col >= 0 && col < width && row > 0 {
+                        if col < width && row > 0 {
                             neighbors.insert(HexDirection::North.to_string(), grid.cells[col][(row-1)].coords);
                         }
-                        if col < width - 1 && north_diagonal >= 0 && north_diagonal < height {
+                        if col < width - 1 && north_diagonal < height {
                             neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[(col+1)][north_diagonal].coords);
                         }
-                        if col > 0 && south_diagonal >= 0 && south_diagonal < height {
+                        if col > 0 && south_diagonal < height {
                             neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[(col-1)][south_diagonal].coords);
                         }
-                        if row < height - 1 && col >= 0 && col < width {
+                        if row < height - 1 && col < width {
                             neighbors.insert(HexDirection::South.to_string(), grid.cells[col][(row+1)].coords);
                         }
-                        if col < width - 1 && south_diagonal >= 0 && south_diagonal < height {
+                        if col < width - 1 && south_diagonal < height {
                             neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[(col+1)][south_diagonal].coords);
                         }
                         cell.set_neighbors(neighbors);
