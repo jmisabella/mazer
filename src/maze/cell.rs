@@ -6,8 +6,8 @@ use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, Hex
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
-    pub x: u32,
-    pub y: u32
+    pub x: usize,
+    pub y: usize
 }
 impl Coordinates {
     pub fn to_string(&self) -> String {
@@ -84,15 +84,15 @@ impl Serialize for Cell {
     }
 }
 impl Cell {
-    pub fn x(&self) -> u32 {
+    pub fn x(&self) -> usize {
         return self.coords.x;
     }
 
-    pub fn y(&self) -> u32 {
+    pub fn y(&self) -> usize {
         return self.coords.y;
     }
 
-    pub fn new(x: u32, y: u32, maze_type: MazeType) -> Self {
+    pub fn new(x: usize, y: usize, maze_type: MazeType) -> Self {
         Self {
             coords: Coordinates{x: x, y: y},
             maze_type,
@@ -106,7 +106,7 @@ impl Cell {
         }
     }
     
-    pub fn init(x: u32, y: u32, maze_type: MazeType, is_start: bool, is_goal: bool) -> Self {
+    pub fn init(x: usize, y: usize, maze_type: MazeType, is_start: bool, is_goal: bool) -> Self {
         Self {
             coords: Coordinates{x: x, y: y},
             maze_type,

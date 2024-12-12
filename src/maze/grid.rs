@@ -5,8 +5,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Grid {
-    width: u32,
-    height: u32,
+    width: usize,
+    height: usize,
     maze_type: MazeType,
     cells: Vec<Vec<Cell>>,
     seed: u64,
@@ -18,7 +18,7 @@ impl Grid {
         if cell.x() >= self.width || cell.y() >= self.height {
             panic!("Cell's coordinates {:?} exceed grid dimensions {:?} by {:?}", cell.coords.to_string(), self.width, self.height);
         }
-        self.cells[cell.y() as usize][cell.x() as usize] = cell.clone();
+        self.cells[cell.y()][cell.x()] = cell.clone();
     }
     pub fn set_cells(&mut self, cells: Vec<Vec<Cell>>) {
         self.cells = cells;
@@ -57,7 +57,7 @@ impl Grid {
                 let is_goal = coords == self.goal_coords;
                 let mut cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
                 cell.set_orientation(triangle_orientation(upright));
-                self.cells[row as usize].push(cell);
+                self.cells[row].push(cell);
             }
         }
     }
@@ -72,16 +72,16 @@ impl Grid {
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
                 let cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
-                self.cells[row as usize].push(cell);
+                self.cells[row].push(cell);
             }
         }
     }
 
-    pub fn new(maze_type: MazeType, width: u32, height: u32, start: Coordinates, goal: Coordinates) -> Self {
+    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
         let mut init_rng = thread_rng();
         let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
         // let mut empty: Grid = Grid { width, height, maze_type, cells: Vec::new(), seed, start_coords: start, goal_coords: goal };
-        let mut empty: Grid = Grid { width, height, maze_type, cells: Vec::with_capacity((width * height) as usize), seed, start_coords: start, goal_coords: goal };
+        let mut empty: Grid = Grid { width, height, maze_type, cells: vec![vec![Cell::new(0,0,maze_type); width]; height], seed, start_coords: start, goal_coords: goal };
         let mut grid: Grid = match maze_type {
             MazeType::Delta => {
                 empty.generate_triangle_cells();
@@ -97,21 +97,21 @@ impl Grid {
                 unimplemented!("MazeType Polar is not yet supported.");
             }
             MazeType::Orthogonal => {
-                for row in 0..height {
-                    for col in 0..width {
+                for row in 0..height as usize {
+                    for col in 0..width as usize {
                         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.cells[row as usize][col as usize].clone();
+                        let mut cell = grid.cells[row][col].clone();
                         if cell.y() != 0 {
-                            neighbors.insert(SquareDirection::North.to_string(), grid.cells[(cell.y() - 1) as usize][cell.x() as usize].coords);
+                            neighbors.insert(SquareDirection::North.to_string(), grid.cells[(cell.y() - 1)][cell.x()].coords);
                         }
                         if cell.x() < grid.width - 1 {
-                            neighbors.insert(SquareDirection::East.to_string(), grid.cells[cell.y() as usize][(cell.x() + 1) as usize].coords);
+                            neighbors.insert(SquareDirection::East.to_string(), grid.cells[cell.y()][(cell.x() + 1)].coords);
                         }
                         if cell.y() < grid.height - 1 {
-                            neighbors.insert(SquareDirection::South.to_string(), grid.cells[(cell.y() + 1) as usize][cell.x() as usize].coords);
+                            neighbors.insert(SquareDirection::South.to_string(), grid.cells[(cell.y() + 1)][cell.x()].coords);
                         }
                         if cell.x() != 0 {
-                            neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y() as usize][(cell.x() - 1) as usize].coords);
+                            neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y()][(cell.x() - 1)].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell); 
@@ -119,10 +119,10 @@ impl Grid {
                 }
             }
             MazeType::Delta => {
-                for row in 0..height {
-                    for col in 0..width {
+                for row in 0..height as usize {
+                    for col in 0..width as usize {
                         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.cells[row as usize][col as usize].clone();
+                        let mut cell = grid.cells[row][col].clone();
                         let mut left: Option<Coordinates> = if col > 0 { 
                             Some(Coordinates{x: col - 1, y: row})
                         } else { 
@@ -163,34 +163,34 @@ impl Grid {
                 }
             }
             MazeType::Sigma => {
-                for row in 0..height {
-                    for col in 0..width {
+                for row in 0..height as usize {
+                    for col in 0..width as usize {
                         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.cells[row as usize][col as usize].clone();
-                        fn is_even(value: u32) -> bool {
+                        let mut cell = grid.cells[row][col].clone();
+                        fn is_even(value: usize) -> bool {
                             return value % 2 == 0; 
                         }
-                        let (north_diagonal, south_diagonal)= match is_even(col) {
+                        let (north_diagonal, south_diagonal) = match is_even(col) {
                             true => (row - 1, row),
                             false => (row, row + 1)
                         };
                         if col > 0 && north_diagonal >= 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[(col-1) as usize][north_diagonal as usize].coords);
+                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[(col-1)][north_diagonal].coords);
                         }
                         if col >= 0 && col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col as usize][(row-1) as usize].coords);
+                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col][(row-1)].coords);
                         }
                         if col < width - 1 && north_diagonal >= 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[(col+1) as usize][north_diagonal as usize].coords);
+                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[(col+1)][north_diagonal].coords);
                         }
                         if col > 0 && south_diagonal >= 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[(col-1) as usize][south_diagonal as usize].coords);
+                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[(col-1)][south_diagonal].coords);
                         }
                         if row < height - 1 && col >= 0 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col as usize][(row+1) as usize].coords);
+                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col][(row+1)].coords);
                         }
                         if col < width - 1 && south_diagonal >= 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[(col+1) as usize][south_diagonal as usize].coords);
+                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[(col+1)][south_diagonal].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell); 
@@ -201,9 +201,9 @@ impl Grid {
         return grid;
     }
 
-    pub fn row(&self, y: u32) -> Vec<Cell> {
+    pub fn row(&self, y: usize) -> Vec<Cell> {
         // Ensure the index is within bounds
-        if let Some(row) = self.cells.get(y as usize) {
+        if let Some(row) = self.cells.get(y) {
             row.clone() // Clone the row to return a new Vec<Cell>
         } else {
             // Return an empty vector if the index is out of bounds
@@ -211,10 +211,10 @@ impl Grid {
         }
     }
 
-    pub fn column(&self, x: u32) -> Vec<Cell> {
+    pub fn column(&self, x: usize) -> Vec<Cell> {
         self.cells
             .iter()
-            .filter_map(|row| row.get(x as usize).cloned()) // Extract and clone the cell if it exists
+            .filter_map(|row| row.get(x).cloned()) // Extract and clone the cell if it exists
             .collect()
     }
 
@@ -229,6 +229,6 @@ mod tests {
     #[test]
     fn init_orthogonal_grid() {
         let grid = Grid::new(MazeType::Orthogonal, 10, 10, Coordinates{x:0, y:0}, Coordinates{x:9, y:9});
-        // assert!(grid.cells.len() != 0);
+        assert!(grid.cells.len() != 0);
     }
 }
