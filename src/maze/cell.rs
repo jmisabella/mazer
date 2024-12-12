@@ -9,6 +9,11 @@ pub struct Coordinates {
     pub x: u32,
     pub y: u32
 }
+impl Coordinates {
+    pub fn to_string(&self) -> String {
+        return serde_json::to_string(&self).expect("Error serializing Coordinates");
+    }
+}
 impl Default for Coordinates {
     fn default() -> Self {
         Self {
@@ -79,6 +84,14 @@ impl Serialize for Cell {
     }
 }
 impl Cell {
+    pub fn x(&self) -> u32 {
+        return self.coords.x;
+    }
+
+    pub fn y(&self) -> u32 {
+        return self.coords.y;
+    }
+
     pub fn new(x: u32, y: u32, maze_type: MazeType) -> Self {
         Self {
             coords: Coordinates{x: x, y: y},
@@ -135,12 +148,9 @@ impl Cell {
         return serde_json::to_string(&self).expect("Serialization failed");
     }
 
-    pub fn is_linked_direction<D>(&self, direction: D) -> bool
-    where
-        D: Into<String>,
-    {
+    pub fn is_linked_direction<D: Direction>(&self, direction: D) -> bool {
         // Convert direction to a string key
-        let direction_key = direction.into();
+        let direction_key = direction.to_string().replace("\"", "");
 
         // Find the neighbor for the given direction
         if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
@@ -167,6 +177,10 @@ impl Cell {
 
     pub fn set_orientation(&mut self, orientation: CellOrientation) {
         self.orientation = orientation;
+    }
+    
+    pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
+        self.neighbors_by_direction = neighbors_by_direction;
     }
 
 }
