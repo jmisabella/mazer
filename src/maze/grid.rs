@@ -28,25 +28,52 @@ impl Serialize for Grid {
 }
 
 impl Grid {
-    
+
+    pub fn get(&self, x: usize, y: usize) -> &Cell {
+        return &self.cells[y][x];
+    }
+
     pub fn set(&mut self, cell: Cell) {
         if cell.x() >= self.width || cell.y() >= self.height {
             panic!("Cell's coordinates {:?} exceed grid dimensions {:?} by {:?}", cell.coords.to_string(), self.width, self.height);
         }
         self.cells[cell.y()][cell.x()] = cell.clone();
     }
+
     pub fn set_cells(&mut self, cells: Vec<Vec<Cell>>) {
         self.cells = cells;
     }
+
     pub fn set_seed(&mut self, seed: u64) {
         self.seed = seed;
     }
+
+    // pub fn width(&self) -> usize {
+    //     return self.width;
+    // }
+    // pub fn height(&self) -> usize {
+    //     return self.height;
+    // }
+    // pub fn maze_type(&self) -> MazeType {
+    //     return self.maze_type;
+    // }
+    // pub fn cells(&self) -> &Vec<Vec<Cell>> {
+    //     return &self.cells;
+    // }
+    // pub fn start_coords(&self) -> Coordinates {
+    //     return self.start_coords;
+    // }
+    // pub fn goal_coords(&self) -> Coordinates {
+    //     return self.goal_coords;
+    // }
+    
     pub fn bounded_random_u64(&mut self, upper_bound: u64) -> u64 {
         let mut rng = thread_rng();
         let seed: u64 = rng.gen_range(0..upper_bound + 1);
         self.seed = seed;
         return seed;
     }
+    
     pub fn generate_triangle_cells(&mut self) {
         if self.maze_type != MazeType::Delta {
             panic!("Cannot generate triangle cells for non-Delta maze_type {:?}", self.maze_type);
@@ -267,6 +294,26 @@ impl Grid {
             .collect()
     }
 
+    pub fn link(&mut self, coord1: Coordinates, coord2: Coordinates) {
+        let (row1, col1) = (coord1.y, coord1.x);
+        let (row2, col2) = (coord2.y, coord2.x);
+    
+        // Collect indices, defer mutable access
+        let idx1 = (row1, col1);
+        let idx2 = (row2, col2);
+    
+        // Sequential mutable access
+        {
+            let cell1 = &mut self.cells[idx1.0][idx1.1];
+            cell1.linked.insert(coord2);
+        }
+        {
+            let cell2 = &mut self.cells[idx2.0][idx2.1];
+            cell2.linked.insert(coord1);
+        }
+    }
+    
+
     //// JSON representation of maze state
     pub fn to_string(&self) -> String {
         return serde_json::to_string(&self).expect("Serialization failed");
@@ -288,7 +335,7 @@ impl Grid {
                 top.push_str(body);
                 top.push_str(east_boundary);
                 let south_boundary = match cell.neighbors_by_direction.get(&SquareDirection::South.to_string()).is_some() {
-                    true if cell.is_linked_direction(SquareDirection::South) => " ",
+                    true if cell.is_linked_direction(SquareDirection::South) => "   ",
                     _ => "---"
                 };
                 let corner ="+";
@@ -318,7 +365,34 @@ mod tests {
         assert!(grid.cells.len() == 4);
         assert!(grid.cells[0].len() == 4);
         println!("\n\n{}", grid.to_string());
-        println!("\n\n{}", grid.to_asci());
-        println!("\n\n");
+        println!("\n\n{}\n\n", grid.to_asci());
     }
+
+    #[test]
+    fn link_cells_in_orthogonal_grid() {
+    let mut grid = Grid::new(
+        MazeType::Orthogonal,
+        4,
+        4,
+        Coordinates { x: 0, y: 0 },
+        Coordinates { x: 3, y: 3 },
+    );
+    let cell1 = grid.get(0, 0).coords;
+    let cell2 = grid.get(0, 1).coords;
+    let cell3 = grid.get(1, 1).coords;
+    let cell4 = grid.get(1, 2).coords;
+    let cell5 = grid.get(2, 2).coords;
+    let cell6 = grid.get(2, 3).coords;
+    let cell7 = grid.get(3, 3).coords;
+
+
+    grid.link(cell1, cell2);
+    grid.link(cell2, cell3);
+    grid.link(cell3, cell4);
+    grid.link(cell4, cell5);
+    grid.link(cell5, cell6);
+    grid.link(cell6, cell7);
+
+    println!("\n\n{}\n\n", grid.to_asci());
+}
 }
