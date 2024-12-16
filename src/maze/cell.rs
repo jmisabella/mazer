@@ -30,6 +30,11 @@ pub enum MazeType {
     Delta,
     Polar
 }
+impl MazeType {
+    pub fn to_string(&self) -> String {
+        return serde_json::to_string(&self).expect("Serialization failed").replace("\"", "");
+    }
+}
 
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CellOrientation {

@@ -1,5 +1,8 @@
 use crate::maze::cell::{ CellOrientation, MazeType, Cell, Coordinates };
 use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+
+use serde::ser::{ Serialize, Serializer, SerializeStruct };
+use serde_json::json;
 use rand::{ thread_rng, Rng };
 use std::collections::HashMap;
 
@@ -13,7 +16,19 @@ pub struct Grid {
     start_coords: Coordinates,
     goal_coords: Coordinates,
 }
+impl Serialize for Grid {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut grid_map = serializer.serialize_struct("Grid", 1)?;
+        grid_map.serialize_field("rows", &self.cells)?;
+        return grid_map.end(); 
+    }
+}
+
 impl Grid {
+    
     pub fn set(&mut self, cell: Cell) {
         if cell.x() >= self.width || cell.y() >= self.height {
             panic!("Cell's coordinates {:?} exceed grid dimensions {:?} by {:?}", cell.coords.to_string(), self.width, self.height);
@@ -57,7 +72,7 @@ impl Grid {
                 let is_goal = coords == self.goal_coords;
                 let mut cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
                 cell.set_orientation(triangle_orientation(upright));
-                self.cells[row].push(cell);
+                self.cells[row][col] = cell;
             }
         }
     }
@@ -72,7 +87,7 @@ impl Grid {
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
                 let cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
-                self.cells[row].push(cell);
+                self.cells[row][col] = cell;
             }
         }
     }
@@ -80,8 +95,26 @@ impl Grid {
     pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
         let mut init_rng = thread_rng();
         let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
-        // let mut empty: Grid = Grid { width, height, maze_type, cells: Vec::new(), seed, start_coords: start, goal_coords: goal };
-        let mut empty: Grid = Grid { width, height, maze_type, cells: vec![vec![Cell::new(0,0,maze_type); width]; height], seed, start_coords: start, goal_coords: goal };
+
+        // let mut empty: Grid = Grid { width, height, maze_type, cells: vec![vec![Cell::new(0,0,maze_type); width]; height], seed, start_coords: start, goal_coords: goal };
+
+        let mut empty: Grid = Grid { 
+            width, 
+            height, 
+            maze_type, 
+            cells: (0..height)
+                .map(|y| (0..width).map(|x| Cell::new(x, y, maze_type)).collect())
+                .collect(),
+            seed, 
+            start_coords: start, 
+            goal_coords: goal 
+        };
+
+        // println!("Initial grid cells structure:");
+        // for (row_idx, row) in empty.cells.iter().enumerate() {
+        //     println!("Row {} length: {}", row_idx, row.len());
+        // }
+
         let mut grid: Grid = match maze_type {
             MazeType::Delta => {
                 empty.generate_triangle_cells();
@@ -92,6 +125,12 @@ impl Grid {
                 empty.clone()
             }
         };
+
+        // println!("Initial grid cells structure:");
+        // for (row_idx, row) in grid.cells.iter().enumerate() {
+        //     println!("Row {} length: {}", row_idx, row.len());
+        // }
+
         match maze_type {
             MazeType::Polar => {
                 unimplemented!("MazeType Polar is not yet supported.");
@@ -218,6 +257,42 @@ impl Grid {
             .collect()
     }
 
+    //// JSON representation of maze state
+    pub fn to_string(&self) -> String {
+        return serde_json::to_string(&self).expect("Serialization failed");
+    }
+
+    //// ASCI display, only applicable to Orthogonal (square cell) mazes
+    pub fn to_asci(&self) -> String {
+        assert!(self.maze_type == MazeType::Orthogonal, "Rejecting displaying ASCI for MazeType {}! ASCI display behavior is only applicable to the Orthogonal MazeType", self.maze_type.to_string());
+        let mut output = format!("+{}\n", "---+".repeat(self.width)); 
+        for row in &self.cells {
+            let mut top =String::from( "|");
+            let mut bottom = String::from("+");
+            for cell in row {
+                let body = "   ";
+                let east_boundary = match cell.neighbors_by_direction.get(&SquareDirection::East.to_string()).is_some() {
+                    true if cell.is_linked_direction(SquareDirection::East) => " ",
+                    _ => "|",
+                };
+                top.push_str(body);
+                top.push_str(east_boundary);
+                let south_boundary = match cell.neighbors_by_direction.get(&SquareDirection::South.to_string()).is_some() {
+                    true if cell.is_linked_direction(SquareDirection::South) => " ",
+                    _ => "---"
+                };
+                let corner ="+";
+                bottom.push_str(south_boundary);
+                bottom.push_str(corner);
+            }
+            output.push_str(top.as_str());
+            output.push_str("\n");
+            output.push_str(bottom.as_str());
+            output.push_str("\n");
+        }
+        return output;
+    }
+
 
 }
 
@@ -228,7 +303,12 @@ mod tests {
 
     #[test]
     fn init_orthogonal_grid() {
-        let grid = Grid::new(MazeType::Orthogonal, 10, 10, Coordinates{x:0, y:0}, Coordinates{x:9, y:9});
+        let grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3});
         assert!(grid.cells.len() != 0);
+        assert!(grid.cells.len() == 4);
+        assert!(grid.cells[0].len() == 4);
+        println!("\n\n{}", grid.to_string());
+        println!("\n\n{}", grid.to_asci());
+        println!("\n\n");
     }
 }
