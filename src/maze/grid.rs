@@ -96,19 +96,29 @@ impl Grid {
         let mut init_rng = thread_rng();
         let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
 
-        // let mut empty: Grid = Grid { width, height, maze_type, cells: vec![vec![Cell::new(0,0,maze_type); width]; height], seed, start_coords: start, goal_coords: goal };
-
         let mut empty: Grid = Grid { 
             width, 
             height, 
             maze_type, 
-            cells: (0..height)
-                .map(|y| (0..width).map(|x| Cell::new(x, y, maze_type)).collect())
-                .collect(),
+            cells: vec![vec![Cell::new(0,0,maze_type); width]; height], 
             seed, 
-            start_coords: start, 
-            goal_coords: goal 
+            start_coords: 
+            start, 
+            goal_coords: 
+            goal 
         };
+
+        // let mut empty: Grid = Grid { 
+        //     width, 
+        //     height, 
+        //     maze_type, 
+        //     cells: (0..height)
+        //         .map(|y| (0..width).map(|x| Cell::new(x, y, maze_type)).collect())
+        //         .collect(),
+        //     seed, 
+        //     start_coords: start, 
+        //     goal_coords: goal 
+        // };
 
         // println!("Initial grid cells structure:");
         // for (row_idx, row) in empty.cells.iter().enumerate() {
