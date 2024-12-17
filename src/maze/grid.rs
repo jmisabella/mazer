@@ -4,7 +4,7 @@ use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, Hex
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use serde_json::json;
 use rand::{ thread_rng, Rng };
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, Clone)]
 pub struct Grid {
@@ -29,8 +29,16 @@ impl Serialize for Grid {
 
 impl Grid {
 
+    // retrieve a cell by its coordinates
     pub fn get(&self, x: usize, y: usize) -> &Cell {
         return &self.cells[y][x];
+    }
+    
+    // retrieve a cell as an option by its coordinates
+    pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
+        self.cells
+            .get(coords.y as usize)
+            .and_then(|row| row.get(coords.x as usize))
     }
 
     pub fn set(&mut self, cell: Cell) {
@@ -312,7 +320,36 @@ impl Grid {
             cell2.linked.insert(coord1);
         }
     }
-    
+
+
+    pub fn distances(&self, start_coords: Coordinates) -> HashMap<Coordinates, u32> {
+        let mut distances = HashMap::new(); // Map to store distances from `start_coords`
+        let mut queue = VecDeque::new(); // Queue for BFS
+
+        // Initialize the BFS with the starting point
+        distances.insert(start_coords, 0);
+        queue.push_back(start_coords);
+
+        while let Some(current) = queue.pop_front() {
+            let current_distance = distances[&current];
+
+            // Get the cell at the current coordinate
+            if let Some(cell) = self.get_cell(current) {
+                // Iterate over all linked neighbors
+                for neighbor in &cell.linked {
+                    if !distances.contains_key(neighbor) {
+                        // Update distance and enqueue the neighbor
+                        distances.insert(*neighbor, current_distance + 1);
+                        queue.push_back(*neighbor);
+                    }
+                }
+            }
+        }
+
+        distances
+    }
+
+
 
     //// JSON representation of maze state
     pub fn to_string(&self) -> String {
@@ -370,29 +407,60 @@ mod tests {
 
     #[test]
     fn link_cells_in_orthogonal_grid() {
-    let mut grid = Grid::new(
-        MazeType::Orthogonal,
-        4,
-        4,
-        Coordinates { x: 0, y: 0 },
-        Coordinates { x: 3, y: 3 },
-    );
-    let cell1 = grid.get(0, 0).coords;
-    let cell2 = grid.get(0, 1).coords;
-    let cell3 = grid.get(1, 1).coords;
-    let cell4 = grid.get(1, 2).coords;
-    let cell5 = grid.get(2, 2).coords;
-    let cell6 = grid.get(2, 3).coords;
-    let cell7 = grid.get(3, 3).coords;
+        let mut grid = Grid::new(
+            MazeType::Orthogonal,
+            4,
+            4,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 3, y: 3 },
+        );
+        let cell1 = grid.get(0, 0).coords;
+        let cell2 = grid.get(0, 1).coords;
+        let cell3 = grid.get(1, 1).coords;
+        let cell4 = grid.get(1, 2).coords;
+        let cell5 = grid.get(2, 2).coords;
+        let cell6 = grid.get(2, 3).coords;
+        let cell7 = grid.get(3, 3).coords;
 
 
-    grid.link(cell1, cell2);
-    grid.link(cell2, cell3);
-    grid.link(cell3, cell4);
-    grid.link(cell4, cell5);
-    grid.link(cell5, cell6);
-    grid.link(cell6, cell7);
+        grid.link(cell1, cell2);
+        grid.link(cell2, cell3);
+        grid.link(cell3, cell4);
+        grid.link(cell4, cell5);
+        grid.link(cell5, cell6);
+        grid.link(cell6, cell7);
 
-    println!("\n\n{}\n\n", grid.to_asci());
-}
+        println!("\n\n{}\n\n", grid.to_asci());
+    }
+
+    // #[test]
+    // fn determine_distances_to_goal() {
+    //     let mut grid = Grid::new(
+    //         MazeType::Orthogonal,
+    //         4,
+    //         4,
+    //         Coordinates { x: 0, y: 0 },
+    //         Coordinates { x: 3, y: 3 },
+    //     );
+    //     let cell1 = grid.get(0, 0).coords;
+    //     let cell2 = grid.get(0, 1).coords;
+    //     let cell3 = grid.get(1, 1).coords;
+    //     let cell4 = grid.get(1, 2).coords;
+    //     let cell5 = grid.get(2, 2).coords;
+    //     let cell6 = grid.get(2, 3).coords;
+    //     let cell7 = grid.get(3, 3).coords;
+        
+    //     grid.link(cell1, cell2);
+    //     grid.link(cell2, cell3);
+    //     grid.link(cell3, cell4);
+    //     grid.link(cell4, cell5);
+    //     grid.link(cell5, cell6);
+    //     grid.link(cell6, cell7);
+
+
+    //     let json = serde_json::to_string_pretty(&grid.to_string());
+    //     println!("{}", json.unwrap());
+
+    // }
+
 }
