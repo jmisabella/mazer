@@ -81,7 +81,33 @@ impl Grid {
         self.seed = seed;
         return seed;
     }
-    
+
+    // TODO: test
+    pub fn flatten(&self) -> Vec<Cell>
+    where
+        Cell: Clone,
+    {
+        self.cells.iter().flat_map(|row| row.clone()).collect()
+    }
+
+    // TODO: test
+    pub fn unflatten(&mut self, flattened: Vec<Cell>) {
+        if flattened.len() != (self.width * self.height) {
+            panic!(
+                "Flattened vector size does not match grid dimensions: expected {}, got {}",
+                self.width * self.height,
+                flattened.len()
+            );
+        }
+
+        // Use `chunks` to divide the flattened vector into rows
+        self.cells = flattened
+            .chunks(self.width)
+            .map(|chunk| chunk.to_vec())
+            .collect();
+    }
+
+
     pub fn generate_triangle_cells(&mut self) {
         if self.maze_type != MazeType::Delta {
             panic!("Cannot generate triangle cells for non-Delta maze_type {:?}", self.maze_type);
@@ -349,6 +375,44 @@ impl Grid {
         distances
     }
 
+    pub fn get_path_to(
+        &self,
+        start_x: usize,
+        start_y: usize,
+        goal_x: usize,
+        goal_y: usize,
+    ) -> HashMap<Coordinates, u32> {
+        // Calculate distances from the start
+        let dist = self.distances(Coordinates { x: start_x, y: start_y });
+
+        // Initialize the breadcrumbs map
+        let mut breadcrumbs = HashMap::new();
+        let mut current = Coordinates { x: goal_x, y: goal_y };
+
+        // Add the goal cell to breadcrumbs
+        if let Some(&distance) = dist.get(&current) {
+            breadcrumbs.insert(current, distance);
+        } else {
+            // Return empty if the goal is unreachable
+            return breadcrumbs;
+        }
+
+        // Trace the path back to the start
+        while current != (Coordinates { x: start_x, y: start_y }) {
+            if let Some(cell) = self.get_cell(current) {
+                for &neighbor in &cell.linked {
+                    if dist.get(&neighbor).unwrap_or(&u32::MAX) < dist.get(&current).unwrap_or(&u32::MAX) {
+                        breadcrumbs.insert(neighbor, dist[&neighbor]);
+                        current = neighbor;
+                        break;
+                    }
+                }
+            }
+        }
+
+        breadcrumbs
+    }
+
 
 
     //// JSON representation of maze state
@@ -433,34 +497,78 @@ mod tests {
         println!("\n\n{}\n\n", grid.to_asci());
     }
 
-    // #[test]
-    // fn determine_distances_to_goal() {
-    //     let mut grid = Grid::new(
-    //         MazeType::Orthogonal,
-    //         4,
-    //         4,
-    //         Coordinates { x: 0, y: 0 },
-    //         Coordinates { x: 3, y: 3 },
-    //     );
-    //     let cell1 = grid.get(0, 0).coords;
-    //     let cell2 = grid.get(0, 1).coords;
-    //     let cell3 = grid.get(1, 1).coords;
-    //     let cell4 = grid.get(1, 2).coords;
-    //     let cell5 = grid.get(2, 2).coords;
-    //     let cell6 = grid.get(2, 3).coords;
-    //     let cell7 = grid.get(3, 3).coords;
+    #[test]
+    fn determine_distances_to_goal() {
+        let mut grid = Grid::new(
+            MazeType::Orthogonal,
+            4,
+            4,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 3, y: 3 },
+        );
+        let cell1 = grid.get(0, 0).coords;
+        let cell2 = grid.get(0, 1).coords;
+        let cell3 = grid.get(1, 1).coords;
+        let cell4 = grid.get(1, 2).coords;
+        let cell5 = grid.get(2, 2).coords;
+        let cell6 = grid.get(2, 3).coords;
+        let cell7 = grid.get(3, 3).coords;
         
-    //     grid.link(cell1, cell2);
-    //     grid.link(cell2, cell3);
-    //     grid.link(cell3, cell4);
-    //     grid.link(cell4, cell5);
-    //     grid.link(cell5, cell6);
-    //     grid.link(cell6, cell7);
+        grid.link(cell1, cell2);
+        grid.link(cell2, cell3);
+        grid.link(cell3, cell4);
+        grid.link(cell4, cell5);
+        grid.link(cell5, cell6);
+        grid.link(cell6, cell7);
+
+        let distances = grid.distances(Coordinates{ x: 0, y: 0} );
+
+        for (coords, distance) in &distances {
+            println!("Distance to {:?}: {}", coords, distance);
+        }
 
 
-    //     let json = serde_json::to_string_pretty(&grid.to_string());
-    //     println!("{}", json.unwrap());
+    }
 
-    // }
+    #[test]
+    fn test_flatten_and_unflatten() {
+        // pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
+        
+        let mut grid = Grid::new(
+            MazeType::Orthogonal,
+            4,
+            4,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 3, y: 3 },
+        );
+
+        let initial_cells = grid.cells.clone();
+
+        // Flatten the grid
+        let flattened = grid.flatten();
+
+        // Unflatten the grid
+        grid.unflatten(flattened);
+
+        // Check that the cells after unflattening match the original
+        assert_eq!(grid.cells, initial_cells);
+    }
+
+    #[test]
+    fn test_get_path_to() {
+        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
+        grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
+        grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
+        grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
+        grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
+
+        let path = grid.get_path_to(0, 0, 2, 2);
+
+        assert_eq!(path.len(), 5);
+        assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
+        assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
+        assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+    }
+
 
 }
