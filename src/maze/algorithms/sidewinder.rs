@@ -76,4 +76,14 @@ mod tests {
         println!("\n\nSidewinder\n\n{}\n\n", grid.clone().to_asci());
         assert!(grid.is_perfect_maze());
     }
+
+    #[test]
+    fn print_12_x_6_maze() {
+        let mut grid = Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 });
+        assert!(!grid.is_perfect_maze());
+        Sidewinder::generate(&mut grid);
+        println!("\n\nSidewinder\n\n{}\n\n", grid.clone().to_asci());
+        assert!(grid.is_perfect_maze());
+    }
+
 }
