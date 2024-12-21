@@ -1,5 +1,6 @@
 use crate::maze::cell::{ CellOrientation, MazeType, Cell, Coordinates };
 use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+use crate::maze::request::MazeRequest;
 
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use serde_json::json;
@@ -172,23 +173,6 @@ impl Grid {
             goal 
         };
 
-        // let mut empty: Grid = Grid { 
-        //     width, 
-        //     height, 
-        //     maze_type, 
-        //     cells: (0..height)
-        //         .map(|y| (0..width).map(|x| Cell::new(x, y, maze_type)).collect())
-        //         .collect(),
-        //     seed, 
-        //     start_coords: start, 
-        //     goal_coords: goal 
-        // };
-
-        // println!("Initial grid cells structure:");
-        // for (row_idx, row) in empty.cells.iter().enumerate() {
-        //     println!("Row {} length: {}", row_idx, row.len());
-        // }
-
         let mut grid: Grid = match maze_type {
             MazeType::Delta => {
                 empty.generate_triangle_cells();
@@ -200,11 +184,6 @@ impl Grid {
             }
         };
 
-        // println!("Initial grid cells structure:");
-        // for (row_idx, row) in grid.cells.iter().enumerate() {
-        //     println!("Row {} length: {}", row_idx, row.len());
-        // }
-
         match maze_type {
             MazeType::Polar => {
                 unimplemented!("MazeType Polar is not yet supported.");
@@ -215,16 +194,16 @@ impl Grid {
                         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
                         let mut cell = grid.cells[row][col].clone();
                         if cell.y() != 0 {
-                            neighbors.insert(SquareDirection::North.to_string(), grid.cells[(cell.y() - 1)][cell.x()].coords);
+                            neighbors.insert(SquareDirection::North.to_string(), grid.cells[cell.y() - 1][cell.x()].coords);
                         }
                         if cell.x() < grid.width - 1 {
-                            neighbors.insert(SquareDirection::East.to_string(), grid.cells[cell.y()][(cell.x() + 1)].coords);
+                            neighbors.insert(SquareDirection::East.to_string(), grid.cells[cell.y()][cell.x() + 1].coords);
                         }
                         if cell.y() < grid.height - 1 {
-                            neighbors.insert(SquareDirection::South.to_string(), grid.cells[(cell.y() + 1)][cell.x()].coords);
+                            neighbors.insert(SquareDirection::South.to_string(), grid.cells[cell.y() + 1][cell.x()].coords);
                         }
                         if cell.x() != 0 {
-                            neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y()][(cell.x() - 1)].coords);
+                            neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y()][cell.x() - 1].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell); 
@@ -288,22 +267,22 @@ impl Grid {
                             false => (row, row + 1)
                         };
                         if col > 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[(col-1)][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[col-1][north_diagonal].coords);
                         }
                         if col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col][(row-1)].coords);
+                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col][row-1].coords);
                         }
                         if col < width - 1 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[(col+1)][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[col+1][north_diagonal].coords);
                         }
                         if col > 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[(col-1)][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[col-1][south_diagonal].coords);
                         }
                         if row < height - 1 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col][(row+1)].coords);
+                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col][row+1].coords);
                         }
                         if col < width - 1 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[(col+1)][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[col+1][south_diagonal].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell); 
@@ -312,6 +291,16 @@ impl Grid {
             }
         }
         return grid;
+    }
+
+    pub fn from_request(request: MazeRequest) -> Grid {
+        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal);
+        return request.algorithm.generate(&mut grid);
+    }
+
+    // TODO:test
+    pub fn from_json(json: &str) -> Grid {
+        return Grid::from_request(serde_json::from_str(json).expect(&format!("Failed to deserialize MazeRequest from json {}", json)));
     }
 
     pub fn row(&self, y: usize) -> Vec<Cell> {
@@ -653,5 +642,22 @@ mod tests {
         assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
     }
 
+    #[test]
+    fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 12,
+            "height": 12,
+            "algorithm": "RecursiveBacktracker",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 11, "y": 11 }
+        }
+        "#;
+        let maze = Grid::from_json(json);
+        assert!(maze.is_perfect_maze());
+        println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+
+    }
 
 }
