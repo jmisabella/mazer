@@ -1,23 +1,24 @@
 use crate::maze::cell::Coordinates;
 use crate::maze::cell::MazeType;
+use crate::maze::algorithms::MazeAlgorithm;
 use serde::{ Serialize, Deserialize };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Algorithm {
-    BinaryTree,
-    Sidewinder,
-    AldousBroder,
-    Wilsons,
-    HuntAndKill,
-    RecursiveBacktracker
-}
+// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+// pub enum Algorithm {
+//     BinaryTree,
+//     Sidewinder,
+//     AldousBroder,
+//     Wilsons,
+//     HuntAndKill,
+//     RecursiveBacktracker
+// }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MazeRequest {
     maze_type: MazeType,
     width: u32,
     height: u32,
-    algorithm: Algorithm,
+    algorithm: MazeAlgorithm,
     start: Coordinates,
     goal: Coordinates,
 }
@@ -33,7 +34,7 @@ mod tests {
             maze_type: MazeType::Orthogonal,
             width: 10,
             height: 10,
-            algorithm: Algorithm::BinaryTree,
+            algorithm: MazeAlgorithm::BinaryTree,
             start: Coordinates { x: 0, y: 0 },
             goal: Coordinates { x: 9, y: 9 },
         };
@@ -62,7 +63,7 @@ mod tests {
         assert_eq!(request.maze_type, MazeType::Orthogonal);
         assert_eq!(request.width, 10);
         assert_eq!(request.height, 10);
-        assert_eq!(request.algorithm, Algorithm::RecursiveBacktracker);
+        assert_eq!(request.algorithm, MazeAlgorithm::RecursiveBacktracker);
         assert_eq!(request.start, Coordinates { x: 0, y: 0 });
         assert_eq!(request.goal, Coordinates { x: 9, y: 9 });
     }

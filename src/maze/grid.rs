@@ -4,17 +4,17 @@ use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, Hex
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use serde_json::json;
 use rand::{ thread_rng, Rng };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Clone)]
 pub struct Grid {
-    width: usize,
-    height: usize,
-    maze_type: MazeType,
-    cells: Vec<Vec<Cell>>,
-    seed: u64,
-    start_coords: Coordinates,
-    goal_coords: Coordinates,
+    pub width: usize,
+    pub height: usize,
+    pub maze_type: MazeType,
+    pub cells: Vec<Vec<Cell>>,
+    pub seed: u64,
+    pub start_coords: Coordinates,
+    pub goal_coords: Coordinates,
 }
 impl Serialize for Grid {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -75,14 +75,18 @@ impl Grid {
     //     return self.goal_coords;
     // }
     
-    pub fn bounded_random_u64(&mut self, upper_bound: u64) -> u64 {
+    pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
-        let seed: u64 = rng.gen_range(0..upper_bound + 1);
-        self.seed = seed;
+        let seed= rng.gen_range(0..upper_bound + 1);
+        self.seed = seed as u64;
         return seed;
     }
 
-    // TODO: test
+    pub fn random_bool(&mut self) -> bool {
+        let rando: bool = self.bounded_random_usize(1000000) % 2 == 0;
+        return rando;
+    }
+
     pub fn flatten(&self) -> Vec<Cell>
     where
         Cell: Clone,
@@ -90,7 +94,6 @@ impl Grid {
         self.cells.iter().flat_map(|row| row.clone()).collect()
     }
 
-    // TODO: test
     pub fn unflatten(&mut self, flattened: Vec<Cell>) {
         if flattened.len() != (self.width * self.height) {
             panic!(
@@ -413,14 +416,58 @@ impl Grid {
         breadcrumbs
     }
 
+    /// Returns all cells reachable from the given start coordinates
+    pub fn all_connected_cells(&self, start: &Coordinates) -> HashSet<Coordinates> {
+        let mut connected = HashSet::new();
+        let mut frontier = VecDeque::new();
+        frontier.push_back(*start);
+        connected.insert(*start);
 
+        while let Some(current) = frontier.pop_front() {
+            let cell = &self.cells[current.y][current.x];
+            for neighbor_coords in &cell.linked {
+                if !connected.contains(neighbor_coords) {
+                    connected.insert(*neighbor_coords);
+                    frontier.push_back(*neighbor_coords);
+                }
+            }
+        }
+        connected
+    }
 
-    //// JSON representation of maze state
+    /// Counts the number of edges in the maze
+    pub fn count_edges(&self) -> usize {
+        self.cells
+            .iter()
+            .flat_map(|row| row.iter())
+            .map(|cell| cell.linked.len())
+            .sum::<usize>()
+            / 2 // Each edge is stored twice
+    }
+
+    /// Checks if the maze is perfect
+    pub fn is_perfect_maze(&self) -> bool {
+        // Total number of cells
+        let total_cells = self.cells.len() * self.cells[0].len();
+
+        // Fully connected check
+        let start_coords = self.start_coords;
+        let connected_cells = self.all_connected_cells(&start_coords);
+        if connected_cells.len() != total_cells {
+            return false;
+        }
+
+        // Tree check (no cycles)
+        let total_edges = self.count_edges();
+        total_edges == total_cells - 1
+    }
+
+    /// JSON representation of maze state
     pub fn to_string(&self) -> String {
         return serde_json::to_string(&self).expect("Serialization failed");
     }
 
-    //// ASCI display, only applicable to Orthogonal (square cell) mazes
+    /// ASCI display, only applicable to Orthogonal (square cell) mazes
     pub fn to_asci(&self) -> String {
         assert!(self.maze_type == MazeType::Orthogonal, "Rejecting displaying ASCI for MazeType {}! ASCI display behavior is only applicable to the Orthogonal MazeType", self.maze_type.to_string());
         let mut output = format!("+{}\n", "---+".repeat(self.width)); 
@@ -493,8 +540,11 @@ mod tests {
         grid.link(cell4, cell5);
         grid.link(cell5, cell6);
         grid.link(cell6, cell7);
+        // many cells are walled-off and unreachable, not a perfect maze 
+        assert!(!grid.is_perfect_maze());
 
         println!("\n\n{}\n\n", grid.to_asci());
+
     }
 
     #[test]
@@ -552,6 +602,39 @@ mod tests {
 
         // Check that the cells after unflattening match the original
         assert_eq!(grid.cells, initial_cells);
+    }
+
+    fn test_perfect_maze_detection() {
+        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(3, 1).coords, grid.get(3, 2).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(3,2).coords, grid.get(2, 2).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(2,2).coords, grid.get(1, 2).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(1,2).coords, grid.get(0, 2).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(0,2).coords, grid.get(0, 3).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(0,3).coords, grid.get(1, 3).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(1,3).coords, grid.get(2, 3).coords);
+        assert!(!grid.is_perfect_maze());
+        grid.link(grid.get(2,3).coords, grid.get(3, 3).coords);
+        // now it's a perfect maze, only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
+        assert!(grid.is_perfect_maze());
+        grid.link(grid.get(3,3).coords, grid.get(3, 2).coords);
+        // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
+        assert!(!grid.is_perfect_maze());
     }
 
     #[test]
