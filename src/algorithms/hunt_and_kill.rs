@@ -1,5 +1,5 @@
-use crate::maze::grid::Grid;
-use crate::maze::cell::{ MazeType, Coordinates };
+use crate::grid::Grid;
+use crate::cell::{ MazeType, Coordinates };
 
 pub struct HuntAndKill;
 

@@ -1,5 +1,5 @@
-use crate::maze::grid::Grid;
-use crate::maze::cell::{ MazeType, Cell, Coordinates };
+use crate::grid::Grid;
+use crate::cell::{ MazeType, Cell, Coordinates };
 
 
 pub struct BinaryTree;

@@ -1,10 +1,10 @@
 
-use crate::maze::grid::Grid;
-use crate::maze::algorithms::binary_tree::BinaryTree;
-use crate::maze::algorithms::sidewinder::Sidewinder;
-use crate::maze::algorithms::aldous_broder::AldousBroder;
-use crate::maze::algorithms::hunt_and_kill::HuntAndKill;
-use crate::maze::algorithms::recursive_backtracker::RecursiveBacktracker;
+use crate::grid::Grid;
+use crate::algorithms::binary_tree::BinaryTree;
+use crate::algorithms::sidewinder::Sidewinder;
+use crate::algorithms::aldous_broder::AldousBroder;
+use crate::algorithms::hunt_and_kill::HuntAndKill;
+use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
 use serde::{ Serialize, Deserialize };
 
 pub mod binary_tree;
@@ -40,7 +40,7 @@ impl MazeAlgorithm {
 
 #[cfg(test)]
 mod tests {
-    use crate::maze::generate;
+    use crate::generate;
 
     #[test]
     fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {

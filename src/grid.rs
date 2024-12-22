@@ -1,6 +1,6 @@
-use crate::maze::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
-use crate::maze::request::MazeRequest;
+use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
+use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+use crate::request::MazeRequest;
 
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use serde_json::json;

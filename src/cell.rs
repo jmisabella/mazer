@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
 
-use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
