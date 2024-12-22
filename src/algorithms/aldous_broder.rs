@@ -1,42 +1,56 @@
 use crate::grid::Grid;
-use crate::cell::{ MazeType, Cell, Coordinates };
-use std::collections::HashSet;
+use crate::cell::Coordinates;
 
 pub struct AldousBroder;
 
 impl AldousBroder {
     pub fn generate(grid: &mut Grid) {
-        let mut visited = HashSet::new(); // To track visited cells
-        let total_cells = grid.cells.iter().map(|row| row.len()).sum::<usize>();
+        // Step 1: Initialize visited tracking using Vec<Vec<bool>>
+        let rows = grid.cells.len();
+        let cols = grid.cells[0].len();
+        let mut visited = vec![vec![false; cols]; rows];
+        let total_cells = rows * cols;
 
-        // Choose a random starting cell
+        let rand_x = grid.bounded_random_usize(cols - 1);
+        let rand_y = grid.bounded_random_usize(rows - 1);
+        // Step 2: Choose a random starting cell
         let mut current_coords = Coordinates {
-            x: grid.bounded_random_usize(grid.cells[0].len()),
-            y: grid.bounded_random_usize(grid.cells.len()),
+            x: rand_x,
+            y: rand_y,
         };
-        visited.insert(current_coords);
+        visited[current_coords.y][current_coords.x] = true; // Mark as visited
+        let mut visited_count = 1;
 
-        while visited.len() < total_cells {
-           if let Some(current_cell) = grid.get_cell(current_coords) {
+        // Step 3: Loop until all cells are visited
+        while visited_count < total_cells {
+            if let Some(current_cell) = grid.get_cell(current_coords) {
                 // Get neighbors of the current cell
-                let neighbors: Vec<_> = current_cell.neighbors().iter().cloned().collect();
-                if neighbors.is_empty() {
-                    continue; // In case of edge issues
+                let neighbors: Vec<Coordinates> = current_cell
+                    .neighbors()
+                    .iter()
+                    .filter(|&&coords| coords.y < rows && coords.x < cols)
+                    .cloned()
+                    .collect();
+
+                if !neighbors.is_empty() {
+                    // Pick a random neighbor
+                    let random_index = grid.bounded_random_usize(neighbors.len() - 1);
+                    let random_neighbor = neighbors[random_index];
+
+                    // If the neighbor hasn't been visited, link it and update visited
+                    if !visited[random_neighbor.y][random_neighbor.x] {
+                        grid.link(current_coords, random_neighbor);
+                        visited[random_neighbor.y][random_neighbor.x] = true;
+                        visited_count += 1;
+                    }
+
+                    // Move to the selected neighbor
+                    current_coords = random_neighbor;
                 }
-
-                // Select a random neighbor
-                let random_index = grid.bounded_random_usize(neighbors.len() - 1);
-                let neighbor_coords = neighbors[random_index];
-
-                // If the neighbor hasn't been visited, link the cells
-                if !visited.contains(&neighbor_coords) {
-                    grid.link(current_coords, neighbor_coords);
-                    visited.insert(neighbor_coords);
-                }
-
-                // Move to the neighbor
-                current_coords = neighbor_coords;
-           } 
+            } else {
+                // If the current cell is invalid (edge case), break out
+                break;
+            }
         }
 
     }
@@ -45,6 +59,7 @@ impl AldousBroder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {

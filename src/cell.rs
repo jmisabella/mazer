@@ -1,8 +1,8 @@
+use crate::direction::Direction;
+
 use std::collections::{HashMap, HashSet};
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
-
-use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
@@ -193,7 +193,7 @@ impl Cell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
+    use crate::direction::SquareDirection;
 
     #[test]
     fn access_neighbors() {

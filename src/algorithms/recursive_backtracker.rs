@@ -1,5 +1,5 @@
 use crate::grid::Grid;
-use crate::cell::{ MazeType, Cell, Coordinates };
+use crate::cell::Coordinates;
 use std::collections::HashSet;
 
 pub struct RecursiveBacktracker;
@@ -49,6 +49,7 @@ impl RecursiveBacktracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {

@@ -1,5 +1,5 @@
 use crate::grid::Grid;
-use crate::cell::{ MazeType, Cell, Coordinates };
+use crate::cell::Coordinates;
 
 pub struct Sidewinder;
 
@@ -67,6 +67,7 @@ impl Sidewinder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {

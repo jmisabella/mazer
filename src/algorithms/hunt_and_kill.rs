@@ -1,5 +1,5 @@
 use crate::grid::Grid;
-use crate::cell::{ MazeType, Coordinates };
+use crate::cell::Coordinates;
 
 pub struct HuntAndKill;
 
@@ -90,6 +90,7 @@ impl HuntAndKill {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {

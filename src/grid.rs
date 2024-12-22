@@ -1,9 +1,8 @@
 use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
+use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection };
 use crate::request::MazeRequest;
 
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
-use serde_json::json;
 use rand::{ thread_rng, Rng };
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -493,7 +492,6 @@ impl Grid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn init_orthogonal_grid() {
@@ -593,35 +591,42 @@ mod tests {
         assert_eq!(grid.cells, initial_cells);
     }
 
+    #[test]
     fn test_perfect_maze_detection() {
         let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
         assert!(!grid.is_perfect_maze());
         grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
-        assert!(!grid.is_perfect_maze());
+        assert!(!grid.is_perfect_maze()); // not perfect
         grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
-        assert!(!grid.is_perfect_maze());
+        assert!(!grid.is_perfect_maze()); // not perfect
         grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
-        assert!(!grid.is_perfect_maze());
+        assert!(!grid.is_perfect_maze()); // not perfect
         grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(3, 1).coords, grid.get(3, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(3,2).coords, grid.get(2, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(2,2).coords, grid.get(1, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(1,2).coords, grid.get(0, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0,2).coords, grid.get(0, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0,3).coords, grid.get(1, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(1,3).coords, grid.get(2, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(2,3).coords, grid.get(3, 3).coords);
-        // now it's a perfect maze, only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(3, 1).coords, grid.get(2, 1).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(2,1).coords, grid.get(1, 1).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(1,1).coords, grid.get(0, 1).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(0,1).coords, grid.get(0, 2).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(0,2).coords, grid.get(1, 2).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(1,2).coords, grid.get(2, 2).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(2,2).coords, grid.get(3, 2).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(3,2).coords, grid.get(3, 3).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(3,3).coords, grid.get(2, 3).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(2,3).coords, grid.get(1, 3).coords);
+        assert!(!grid.is_perfect_maze()); // not perfect
+        grid.link(grid.get(1,3).coords, grid.get(0, 3).coords);
+        // now it's a perfect maze: only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
         assert!(grid.is_perfect_maze());
-        grid.link(grid.get(3,3).coords, grid.get(3, 2).coords);
+        grid.link(grid.get(0,3).coords, grid.get(0, 2).coords);
         // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
         assert!(!grid.is_perfect_maze());
     }
