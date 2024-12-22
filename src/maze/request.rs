@@ -15,12 +15,12 @@ use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MazeRequest {
-    maze_type: MazeType,
-    width: u32,
-    height: u32,
-    algorithm: MazeAlgorithm,
-    start: Coordinates,
-    goal: Coordinates,
+    pub maze_type: MazeType,
+    pub width: usize,
+    pub height: usize,
+    pub algorithm: MazeAlgorithm,
+    pub start: Coordinates,
+    pub goal: Coordinates,
 }
 
 #[cfg(test)]
