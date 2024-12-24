@@ -3,6 +3,7 @@ use crate::grid::Grid;
 use crate::algorithms::binary_tree::BinaryTree;
 use crate::algorithms::sidewinder::Sidewinder;
 use crate::algorithms::aldous_broder::AldousBroder;
+use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
 use serde::{ Serialize, Deserialize };
@@ -10,6 +11,7 @@ use serde::{ Serialize, Deserialize };
 pub mod binary_tree;
 pub mod sidewinder;
 pub mod aldous_broder;
+pub mod wilsons;
 pub mod hunt_and_kill;
 pub mod recursive_backtracker;
 
@@ -30,6 +32,7 @@ impl MazeAlgorithm {
             MazeAlgorithm::BinaryTree => BinaryTree::generate(grid),
             MazeAlgorithm::Sidewinder => Sidewinder::generate(grid),
             MazeAlgorithm::AldousBroder => AldousBroder::generate(grid),
+            MazeAlgorithm::Wilsons => Wilsons::generate(grid),
             MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid),
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid),
             _ => unimplemented!()
