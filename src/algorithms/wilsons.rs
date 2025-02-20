@@ -8,7 +8,6 @@ pub struct Wilsons;
 impl Wilsons {
     pub fn generate(grid: &mut Grid) {
         let mut visited: HashSet<Coordinates> = HashSet::new();
-        let mut rng = rand::thread_rng();
 
         // Mark the start cell as visited
         visited.insert(grid.start_coords);
@@ -17,7 +16,7 @@ impl Wilsons {
 
         while visited.len() < grid_size {
             // Choose a random unvisited cell to start the random walk
-            let mut walk_start = loop {
+            let walk_start = loop {
                 let x = grid.bounded_random_usize(grid.cells[0].len() - 1);
                 let y = grid.bounded_random_usize(grid.cells.len() - 1);
                 let coords = Coordinates { x, y };

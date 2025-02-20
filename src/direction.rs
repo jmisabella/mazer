@@ -1,7 +1,11 @@
 use serde::{ Serialize, Deserialize };
+use std::fmt;
 
-pub trait Direction { 
-    fn to_string(&self) -> String;
+pub trait Direction: Serialize { 
+//    fn to_string(&self) -> String;
+    fn as_str(&self) -> String {
+        serde_json::to_string(&self).unwrap().replace("\"", "")
+    }
 }
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
@@ -13,11 +17,16 @@ pub enum HexDirection {
     South,
     Southeast,
 }
-impl Direction for HexDirection {
-    fn to_string(&self) -> String {
-        return serde_json::to_string(&self).unwrap().replace("\"", "");
+impl Direction for HexDirection {}
+impl fmt::Display for HexDirection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
+//    fn to_string(&self) -> String {
+//        return serde_json::to_string(&self).unwrap().replace("\"", "");
+//    }
+//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PolarDirection {
@@ -26,11 +35,16 @@ pub enum PolarDirection {
     Inward,
     Outward,
 }
-impl Direction for PolarDirection {
-    fn to_string(&self) -> String {
-        return serde_json::to_string(&self).unwrap().replace("\"", "");
+impl Direction for PolarDirection {}
+impl fmt::Display for PolarDirection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
+//    fn to_string(&self) -> String {
+//        return serde_json::to_string(&self).unwrap().replace("\"", "");
+//    }
+//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SquareDirection {
@@ -39,11 +53,16 @@ pub enum SquareDirection {
     South,
     West
 }
-impl Direction for SquareDirection {
-    fn to_string(&self) -> String {
-        return serde_json::to_string(&self).unwrap().replace("\"", "");
+impl Direction for SquareDirection {}
+impl fmt::Display for SquareDirection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
+//    fn to_string(&self) -> String {
+//        return serde_json::to_string(&self).unwrap().replace("\"", "");
+//    }
+//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TriangleDirection {
@@ -54,8 +73,13 @@ pub enum TriangleDirection {
     LowerLeft,
     LowerRight,
 }
-impl Direction for TriangleDirection {
-    fn to_string(&self) -> String {
-        return serde_json::to_string(&self).unwrap().replace("\"", "");
+impl Direction for TriangleDirection {}
+impl fmt::Display for TriangleDirection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
+//    fn to_string(&self) -> String {
+//        return serde_json::to_string(&self).unwrap().replace("\"", "");
+//    }
+//}

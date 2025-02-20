@@ -2,6 +2,7 @@ use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
 use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection };
 use crate::request::MazeRequest;
 
+use std::fmt;
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use rand::{ thread_rng, Rng };
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -24,6 +25,14 @@ impl Serialize for Grid {
         let mut grid_map = serializer.serialize_struct("Grid", 1)?;
         grid_map.serialize_field("rows", &self.cells)?;
         return grid_map.end(); 
+    }
+}
+impl fmt::Display for Grid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
 
@@ -448,11 +457,6 @@ impl Grid {
         // Tree check (no cycles)
         let total_edges = self.count_edges();
         total_edges == total_cells - 1
-    }
-
-    /// JSON representation of maze state
-    pub fn to_string(&self) -> String {
-        return serde_json::to_string(&self).expect("Serialization failed");
     }
 
     /// ASCI display, only applicable to Orthogonal (square cell) mazes

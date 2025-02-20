@@ -1,6 +1,7 @@
 use crate::direction::Direction;
 
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
 
@@ -9,9 +10,12 @@ pub struct Coordinates {
     pub x: usize,
     pub y: usize
 }
-impl Coordinates {
-    pub fn to_string(&self) -> String {
-        return serde_json::to_string(&self).expect("Error serializing Coordinates");
+impl fmt::Display for Coordinates {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
 impl Default for Coordinates {
@@ -30,9 +34,12 @@ pub enum MazeType {
     Delta,
     Polar
 }
-impl MazeType {
-    pub fn to_string(&self) -> String {
-        return serde_json::to_string(&self).expect("Serialization failed").replace("\"", "");
+impl fmt::Display for MazeType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
 
@@ -88,6 +95,15 @@ impl Serialize for Cell {
         state.end()
     }
 }
+impl fmt::Display for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
+    }
+}
+
 impl Cell {
     pub fn x(&self) -> usize {
         return self.coords.x;
@@ -149,13 +165,9 @@ impl Cell {
             .collect()
     }
 
-    pub fn to_string(&self) -> String {
-        return serde_json::to_string(&self).expect("Serialization failed");
-    }
-
     pub fn is_linked_direction<D: Direction>(&self, direction: D) -> bool {
         // Convert direction to a string key
-        let direction_key = direction.to_string().replace("\"", "");
+        let direction_key = direction.as_str().replace("\"", "");
 
         // Find the neighbor for the given direction
         if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
