@@ -1,10 +1,11 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
+use crate::error::Error;
 
 pub struct Sidewinder;
 
 impl Sidewinder {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let rows = grid.cells.len();
         let cols = grid.cells[0].len();
 
@@ -60,8 +61,8 @@ impl Sidewinder {
                 }
             }
         }
+        Ok(())
     }
-
 }
 
 #[cfg(test)]

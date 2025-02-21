@@ -1,11 +1,13 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
+use crate::error::Error;
+
 use std::collections::HashSet;
 
 pub struct RecursiveBacktracker;
 
 impl RecursiveBacktracker {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         // Create a stack to track the current path
         let mut stack: Vec<Coordinates> = Vec::new();
         let mut visited: HashSet<Coordinates> = HashSet::new();
@@ -42,6 +44,7 @@ impl RecursiveBacktracker {
                 stack.push(next_coords);
             }
         }
+        Ok(())
     }
 
 }

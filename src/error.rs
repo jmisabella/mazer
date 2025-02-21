@@ -1,3 +1,4 @@
+use crate::algorithms::MazeAlgorithm;
 use crate::cell::{ Coordinates, MazeType };
 use std::fmt;
 use serde_json;
@@ -10,16 +11,17 @@ pub enum Error {
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
     SerializationError(serde_json::Error),
     EmptyList,
+    UnimplementedAlgorithm { algorithm: MazeAlgorithm },
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::InvalidCellForDeltaMaze { cell_maze_type } => {
-                write!(f"Cannot generate non-triangle cells for Delta maze_type {:?}", cell_maze_type)
+                write!(f, "Cannot generate non-triangle cells for Delta maze_type {:?}", cell_maze_type)
             }
             Error::InvalidCellForNonDeltaMaze { cell_maze_type } => {
-                write!(f"Cannot generate triangle cells for non-Delta maze_type {:?}", cell_maze_type)
+                write!(f, "Cannot generate triangle cells for non-Delta maze_type {:?}", cell_maze_type)
             }
             Error::FlattenedVectorDimensionsMismatch { vector_size, maze_width, maze_height } => {
                 write!(f, "Flattened vector size mismatch: expected size {} ({} x {}), but got {}", maze_width * maze_height, maze_width, maze_height, vector_size)
@@ -33,15 +35,17 @@ impl fmt::Display for Error {
             Error::EmptyList => {
                 write!(f, "Attempted operation on an empty list")
             } 
+            Error::UnimplementedAlgorithm { algorithm } => {
+                write!(f, "Unimplemented maze algorithm: {}", algorithm)
+            } 
         }
     }
 }
 
 impl std::error::Error for Error {
-    fn source(&self) -> Option<&&(dyn std::error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::SerializationError(e) => Some(e),
-            Error::DeserializationError(e) => Some(e),
+            Error::SerializationError(e) => Some(e), // Return a reference to the error
             _ => None,
         }
     }

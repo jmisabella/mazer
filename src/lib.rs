@@ -6,6 +6,7 @@ pub mod direction;
 pub mod request;
 pub mod generators;
 pub mod algorithms;
+pub mod error;
 
 // algorithms: BinaryTree, Sidewinder, AldousBroder, HuntAndKill, RecursiveBacktracker
 // maze_types: Orthogonal, Delta, Hex, Polar

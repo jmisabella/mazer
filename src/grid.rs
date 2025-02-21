@@ -1,5 +1,6 @@
 use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
 use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection };
+use crate::error::Error;
 use crate::request::MazeRequest;
 
 use std::fmt;
@@ -44,6 +45,7 @@ impl Grid {
     }
     
     // retrieve a cell as an option by its coordinates
+    // pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
     pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
         self.cells
             .get(coords.y as usize)
@@ -103,13 +105,13 @@ impl Grid {
         self.cells.iter().flat_map(|row| row.clone()).collect()
     }
 
-    pub fn unflatten(&mut self, flattened: Vec<Cell>) {
+    pub fn unflatten(&mut self, flattened: Vec<Cell>) -> Result<(), Error> {
         if flattened.len() != (self.width * self.height) {
-            panic!(
-                "Flattened vector size does not match grid dimensions: expected {}, got {}",
-                self.width * self.height,
-                flattened.len()
-            );
+            return Err(Error::FlattenedVectorDimensionsMismatch {
+                vector_size: flattened.len(),
+                maze_width: self.width,
+                maze_height: self.height,
+            });
         }
 
         // Use `chunks` to divide the flattened vector into rows
@@ -117,8 +119,9 @@ impl Grid {
             .chunks(self.width)
             .map(|chunk| chunk.to_vec())
             .collect();
+    
+        Ok(())
     }
-
 
     pub fn generate_triangle_cells(&mut self) {
         if self.maze_type != MazeType::Delta {
@@ -303,7 +306,8 @@ impl Grid {
 
     pub fn from_request(request: MazeRequest) -> Grid {
         let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal);
-        return request.algorithm.generate(&mut grid);
+        request.algorithm.generate(&mut grid);
+        return grid;
     }
 
     // TODO:test

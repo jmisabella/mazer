@@ -1,4 +1,5 @@
 
+use crate::error::Error;
 use crate::grid::Grid;
 use crate::algorithms::binary_tree::BinaryTree;
 use crate::algorithms::sidewinder::Sidewinder;
@@ -6,7 +7,9 @@ use crate::algorithms::aldous_broder::AldousBroder;
 use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
+
 use serde::{ Serialize, Deserialize };
+use std::fmt;
 
 pub mod binary_tree;
 pub mod sidewinder;
@@ -15,8 +18,7 @@ pub mod wilsons;
 pub mod hunt_and_kill;
 pub mod recursive_backtracker;
 
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MazeAlgorithm {
     BinaryTree,
     Sidewinder,
@@ -27,7 +29,7 @@ pub enum MazeAlgorithm {
 }
 
 impl MazeAlgorithm {
-    pub fn generate(&self, grid: &mut Grid) -> Grid {
+    pub fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match self {
             MazeAlgorithm::BinaryTree => BinaryTree::generate(grid),
             MazeAlgorithm::Sidewinder => Sidewinder::generate(grid),
@@ -35,9 +37,17 @@ impl MazeAlgorithm {
             MazeAlgorithm::Wilsons => Wilsons::generate(grid),
             MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid),
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid),
-            _ => unimplemented!()
+            algorithm => Err(Error::UnimplementedAlgorithm { algorithm: *algorithm }),
         }
-        return grid.clone();
+    }
+}
+
+impl fmt::Display for MazeAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
 

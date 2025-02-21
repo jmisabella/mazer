@@ -1,12 +1,13 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
+use crate::error::Error;
 
 use std::collections::HashSet;
 
 pub struct Wilsons;
 
 impl Wilsons {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let mut visited: HashSet<Coordinates> = HashSet::new();
 
         // Mark the start cell as visited
@@ -30,24 +31,56 @@ impl Wilsons {
             let mut walk_set: HashSet<Coordinates> = HashSet::new();
             walk_set.insert(walk_start);
 
-            while !visited.contains(walk.last().unwrap()) {
-                let current = *walk.last().unwrap();
-                let cell = grid.get(current.x, current.y); // Store the result of grid.get in a variable
+            // while !visited.contains(walk.last().unwrap()) {
+            //     let current = *walk.last().unwrap();
+            //     let cell = grid.get(current.x, current.y); // Store the result of grid.get in a variable
+            //     let neighbors_list: HashSet<Coordinates> = cell.neighbors();
+            //     let neighbors: Vec<&Coordinates> = neighbors_list.iter().collect();
+            //     let index = grid.bounded_random_usize(neighbors.len() - 1); 
+            //     // Choose a random neighbor
+            //     if let next = neighbors[index] {
+            //         if let Some(pos) = walk.iter().position(|&c| c == *next) {
+            //             // Loop detected: truncate the path
+            //             walk.truncate(pos + 1);
+            //         } else {
+            //             walk.push(*next);
+            //             walk_set.insert(*next);
+            //         }
+            //     }
+            // }
+
+            while let Some(last) = walk.last() {
+                if visited.contains(last) {
+                    break;
+                }
+                let current = *last;
+                let cell = match grid.get_cell(Coordinates { x: current.x, y: current.y }) {
+                    Some(c) => c,
+                    None => return Err(Error::OutOfBoundsCoordinates {
+                        coordinates: current,
+                        maze_width: grid.width,
+                        maze_height: grid.height,
+                    }),
+                };
                 let neighbors_list: HashSet<Coordinates> = cell.neighbors();
                 let neighbors: Vec<&Coordinates> = neighbors_list.iter().collect();
-                let index = grid.bounded_random_usize(neighbors.len() - 1); 
+            
+                if neighbors.is_empty() {
+                    return Err(Error::EmptyList); // Handle case where there are no neighbors
+                }
+                let index = grid.bounded_random_usize(neighbors.len() - 1);
+            
                 // Choose a random neighbor
-                if let next = neighbors[index] {
-                    if let Some(pos) = walk.iter().position(|&c| c == *next) {
-                        // Loop detected: truncate the path
-                        walk.truncate(pos + 1);
-                    } else {
-                        walk.push(*next);
-                        walk_set.insert(*next);
-                    }
+                let next = neighbors[index];
+                if let Some(pos) = walk.iter().position(|&c| c == *next) {
+                    // Loop detected: truncate the path
+                    walk.truncate(pos + 1);
+                } else {
+                    walk.push(*next);
+                    walk_set.insert(*next);
                 }
             }
-
+            
             // Carve the path into the maze
             for pair in walk.windows(2) {
                 if let [current, next] = pair {
@@ -58,6 +91,7 @@ impl Wilsons {
             }
         }
 
+        Ok(())
     }
 }
 

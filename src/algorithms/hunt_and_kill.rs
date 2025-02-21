@@ -1,10 +1,11 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
+use crate::error::Error;
 
 pub struct HuntAndKill;
 
 impl HuntAndKill {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let mut visited = std::collections::HashSet::new();
         let mut current_coords = Coordinates {
             x: grid.bounded_random_usize(grid.width - 1),
@@ -29,9 +30,11 @@ impl HuntAndKill {
                 current_coords = new_coords;
             } else {
                 // No more unvisited cells, maze generation complete
+                // break Ok(());
                 break;
             }
         }
+        Ok(())
     }
 
     /// Finds a random unvisited neighbor of the current cell.

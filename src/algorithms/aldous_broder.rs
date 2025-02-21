@@ -1,10 +1,11 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
+use crate::error::Error;
 
 pub struct AldousBroder;
 
 impl AldousBroder {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         // Step 1: Initialize visited tracking using Vec<Vec<bool>>
         let rows = grid.cells.len();
         let cols = grid.cells[0].len();
@@ -52,7 +53,7 @@ impl AldousBroder {
                 break;
             }
         }
-
+        Ok(())
     }
 }
 

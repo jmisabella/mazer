@@ -1,11 +1,11 @@
 use crate::grid::Grid;
 use crate::cell::Coordinates;
-
+use crate::error::Error;
 
 pub struct BinaryTree;
 
 impl BinaryTree {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let rows = grid.cells.len(); // Precompute rows count
 
         for row in 0..rows {
@@ -45,6 +45,7 @@ impl BinaryTree {
                 }
             }
         }
+        Ok(())
     }
 }
 
