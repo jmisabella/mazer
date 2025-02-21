@@ -1,3 +1,5 @@
+
+use crate::error::Error;
 use crate::grid::Grid;
 
 pub mod cell;
@@ -19,7 +21,9 @@ pub mod error;
 //     "start": { "x": 0, "y": 0 },
 //     "goal": { "x": 11, "y": 11 }
 // }
+
 pub fn generate(json: &str) -> Grid {
+// pub fn generate(json: &str) -> Result<Grid, Error> {
     return Grid::from_json(json);
 }
 
