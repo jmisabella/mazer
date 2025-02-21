@@ -9,7 +9,6 @@ pub enum Error {
     FlattenedVectorDimensionsMismatch { vector_size: usize, maze_width: usize, maze_height: usize },
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
     SerializationError(serde_json::Error),
-    DeserializationError(serde_json::Error),
     EmptyList,
 }
 
@@ -31,12 +30,25 @@ impl fmt::Display for Error {
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)
             }
-            Error::DeserializationError(e) => {
-                write!(f, "Deserialization error: {}", e)
-            }
             Error::EmptyList => {
                 write!(f, "Attempted operation on an empty list")
             } 
         }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::SerializationError(e) => Some(e),
+            Error::DeserializationError(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Self {
+        Error::SerializationError(e)
     }
 }
