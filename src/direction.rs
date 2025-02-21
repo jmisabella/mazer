@@ -23,10 +23,6 @@ impl fmt::Display for HexDirection {
         write!(f, "{}", self.as_str())
     }
 }
-//    fn to_string(&self) -> String {
-//        return serde_json::to_string(&self).unwrap().replace("\"", "");
-//    }
-//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PolarDirection {
@@ -41,10 +37,6 @@ impl fmt::Display for PolarDirection {
         write!(f, "{}", self.as_str())
     }
 }
-//    fn to_string(&self) -> String {
-//        return serde_json::to_string(&self).unwrap().replace("\"", "");
-//    }
-//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SquareDirection {
@@ -59,10 +51,6 @@ impl fmt::Display for SquareDirection {
         write!(f, "{}", self.as_str())
     }
 }
-//    fn to_string(&self) -> String {
-//        return serde_json::to_string(&self).unwrap().replace("\"", "");
-//    }
-//}
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TriangleDirection {
@@ -79,7 +67,3 @@ impl fmt::Display for TriangleDirection {
         write!(f, "{}", self.as_str())
     }
 }
-//    fn to_string(&self) -> String {
-//        return serde_json::to_string(&self).unwrap().replace("\"", "");
-//    }
-//}

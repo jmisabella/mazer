@@ -31,24 +31,6 @@ impl Wilsons {
             let mut walk_set: HashSet<Coordinates> = HashSet::new();
             walk_set.insert(walk_start);
 
-            // while !visited.contains(walk.last().unwrap()) {
-            //     let current = *walk.last().unwrap();
-            //     let cell = grid.get(current.x, current.y); // Store the result of grid.get in a variable
-            //     let neighbors_list: HashSet<Coordinates> = cell.neighbors();
-            //     let neighbors: Vec<&Coordinates> = neighbors_list.iter().collect();
-            //     let index = grid.bounded_random_usize(neighbors.len() - 1); 
-            //     // Choose a random neighbor
-            //     if let next = neighbors[index] {
-            //         if let Some(pos) = walk.iter().position(|&c| c == *next) {
-            //             // Loop detected: truncate the path
-            //             walk.truncate(pos + 1);
-            //         } else {
-            //             walk.push(*next);
-            //             walk_set.insert(*next);
-            //         }
-            //     }
-            // }
-
             while let Some(last) = walk.last() {
                 if visited.contains(last) {
                     break;

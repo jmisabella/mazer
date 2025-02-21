@@ -45,18 +45,18 @@ impl Grid {
     }
     
     // retrieve a cell as an option by its coordinates
-    // pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
     pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
         self.cells
             .get(coords.y as usize)
             .and_then(|row| row.get(coords.x as usize))
     }
 
-    pub fn set(&mut self, cell: Cell) {
+    pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
         if cell.x() >= self.width || cell.y() >= self.height {
-            panic!("Cell's coordinates {:?} exceed grid dimensions {:?} by {:?}", cell.coords.to_string(), self.width, self.height);
+            return Err(Error::OutOfBoundsCoordinates { coordinates: cell.coords, maze_width: self.width, maze_height: self.height } );
         }
         self.cells[cell.y()][cell.x()] = cell.clone();
+        Ok(())
     }
 
     pub fn set_cells(&mut self, cells: Vec<Vec<Cell>>) {
@@ -123,9 +123,9 @@ impl Grid {
         Ok(())
     }
 
-    pub fn generate_triangle_cells(&mut self) {
+    pub fn generate_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type != MazeType::Delta {
-            panic!("Cannot generate triangle cells for non-Delta maze_type {:?}", self.maze_type);
+            return Err(Error::InvalidCellForNonDeltaMaze { cell_maze_type: self.maze_type } );
         }
         let mut row_starts_with_upright = true;
 
@@ -151,11 +151,12 @@ impl Grid {
                 self.cells[row][col] = cell;
             }
         }
+        Ok(())
     }
     
-    pub fn generate_non_triangle_cells(&mut self) {
+    pub fn generate_non_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type == MazeType::Delta {
-            panic!("Cannot generate non-triangle cells for maze_type {:?}", self.maze_type);
+            return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type } );
         }
         for row in 0..self.height {
             for col in 0..self.width {
@@ -166,6 +167,7 @@ impl Grid {
                 self.cells[row][col] = cell;
             }
         }
+        Ok(())
     }
 
     pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
