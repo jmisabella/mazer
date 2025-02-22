@@ -1,5 +1,5 @@
 use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection };
+use crate::direction::{ SquareDirection, TriangleDirection, HexDirection };
 use crate::error::Error;
 use crate::request::MazeRequest;
 
@@ -170,7 +170,7 @@ impl Grid {
         Ok(())
     }
 
-    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
+    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Result<Self, Error> {
         let mut init_rng = thread_rng();
         let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
 
@@ -188,11 +188,11 @@ impl Grid {
 
         let mut grid: Grid = match maze_type {
             MazeType::Delta => {
-                empty.generate_triangle_cells();
+                empty.generate_triangle_cells()?;
                 empty.clone()
             }
             _ => {
-                empty.generate_non_triangle_cells();
+                empty.generate_non_triangle_cells()?;
                 empty.clone()
             }
         };
@@ -303,21 +303,19 @@ impl Grid {
                 }
             }
         }
-        return grid;
+        Ok(grid)
     }
 
-    pub fn from_request(request: MazeRequest) -> Grid {
-        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal);
-        request.algorithm.generate(&mut grid);
-        return grid;
+    // pub fn from_request(request: MazeRequest) -> Grid {
+    pub fn from_request(request: MazeRequest) -> Result<Grid, Error> {
+        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal)?;
+        request.algorithm.generate(&mut grid)?;
+        Ok(grid)
     }
 
-    // TODO:test
-    // pub fn from_json(json: &str) -> Grid {
     pub fn from_json(json: &str) -> Result<Grid, Error> {
-        // return Grid::from_request(serde_json::from_str(json).expect(&format!("Failed to deserialize MazeRequest from json {}", json)));
         let deserialized: MazeRequest = serde_json::from_str(json)?;
-        Ok(Grid::from_request(deserialized)) 
+        Grid::from_request(deserialized)
     }
 
     pub fn row(&self, y: usize) -> Vec<Cell> {
@@ -598,7 +596,7 @@ mod tests {
         let flattened = grid.flatten();
 
         // Unflatten the grid
-        grid.unflatten(flattened);
+        grid.unflatten(flattened).expect("Error occurred calling unflatten method");
 
         // Check that the cells after unflattening match the original
         assert_eq!(grid.cells, initial_cells);

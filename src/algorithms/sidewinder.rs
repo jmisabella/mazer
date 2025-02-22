@@ -74,7 +74,7 @@ mod tests {
     fn print_5_x_5_maze() {
         let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
         assert!(!grid.is_perfect_maze());
-        Sidewinder::generate(&mut grid);
+        Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
         println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
         assert!(grid.is_perfect_maze());
     }
@@ -83,7 +83,7 @@ mod tests {
     fn print_12_x_6_maze() {
         let mut grid = Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 });
         assert!(!grid.is_perfect_maze());
-        Sidewinder::generate(&mut grid);
+        Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
         println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
         assert!(grid.is_perfect_maze());
     }
