@@ -12,8 +12,11 @@ fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {
         "goal": { "x": 11, "y": 11 }
     }
     "#;
-    let maze = generate(json);
-    assert!(maze.is_perfect_maze());
-    println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+    if let Ok(maze) = generate(json) {
+        assert!(maze.is_perfect_maze());
+        println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+    } else {
+        panic!("Maze generation failed unexpectedly during the integration test");
+    };
 
 }

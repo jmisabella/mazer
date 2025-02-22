@@ -29,16 +29,17 @@ pub enum MazeAlgorithm {
 }
 
 impl MazeAlgorithm {
-    pub fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+    pub fn generate<'a>(&self, grid: &'a mut Grid) -> Result<&'a Grid, Error> {
         match self {
-            MazeAlgorithm::BinaryTree => BinaryTree::generate(grid),
-            MazeAlgorithm::Sidewinder => Sidewinder::generate(grid),
-            MazeAlgorithm::AldousBroder => AldousBroder::generate(grid),
-            MazeAlgorithm::Wilsons => Wilsons::generate(grid),
-            MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid),
-            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid),
-            algorithm => Err(Error::UnimplementedAlgorithm { algorithm: *algorithm }),
+            MazeAlgorithm::BinaryTree => BinaryTree::generate(grid)?,
+            MazeAlgorithm::Sidewinder => Sidewinder::generate(grid)?,
+            MazeAlgorithm::AldousBroder => AldousBroder::generate(grid)?,
+            MazeAlgorithm::Wilsons => Wilsons::generate(grid)?,
+            MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid)?,
+            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid)?,
+            algorithm => return Err(Error::UnimplementedAlgorithm { algorithm: *algorithm }),
         }
+        Ok(grid)
     }
 }
 
@@ -67,9 +68,12 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        let maze = generate(json);
-        assert!(maze.is_perfect_maze());
-        println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+        if let Ok(maze) = generate(json) {
+            assert!(maze.is_perfect_maze());
+            println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+        } else {
+            panic!("Recursive backtracker orthogonal 12x12 maxe generation failed unexpectedly during the integration test");
+        }
 
     }
 }

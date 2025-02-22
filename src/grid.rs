@@ -313,11 +313,11 @@ impl Grid {
     }
 
     // TODO:test
-    pub fn from_json(json: &str) -> Grid {
-    // pub fn from_json(json: &str) -> Result<Grid, Error> {
-        return Grid::from_request(serde_json::from_str(json).expect(&format!("Failed to deserialize MazeRequest from json {}", json)));
-        // let deserialized: MazeRequest = serde_json::from_str(json)?;
-        // Ok(Grid::from_request(deserialized)) 
+    // pub fn from_json(json: &str) -> Grid {
+    pub fn from_json(json: &str) -> Result<Grid, Error> {
+        // return Grid::from_request(serde_json::from_str(json).expect(&format!("Failed to deserialize MazeRequest from json {}", json)));
+        let deserialized: MazeRequest = serde_json::from_str(json)?;
+        Ok(Grid::from_request(deserialized)) 
     }
 
     pub fn row(&self, y: usize) -> Vec<Cell> {
@@ -672,9 +672,12 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        let maze = Grid::from_json(json);
-        assert!(maze.is_perfect_maze());
-        println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+        if let Ok(maze) = Grid::from_json(json) {
+            assert!(maze.is_perfect_maze());
+            println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+        } else {
+            panic!("Recursive backtracker orthogonal 12x12 maxe generation failed unexpectedly during the integration test");
+        }
 
     }
 
