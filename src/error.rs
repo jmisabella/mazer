@@ -11,7 +11,6 @@ pub enum Error {
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
     SerializationError(serde_json::Error),
     EmptyList,
-    UnimplementedAlgorithm { algorithm: MazeAlgorithm },
 }
 
 impl fmt::Display for Error {
@@ -34,9 +33,6 @@ impl fmt::Display for Error {
             }
             Error::EmptyList => {
                 write!(f, "Attempted operation on an empty list")
-            } 
-            Error::UnimplementedAlgorithm { algorithm } => {
-                write!(f, "Unimplemented maze algorithm: {}", algorithm)
             } 
         }
     }

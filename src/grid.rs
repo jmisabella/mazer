@@ -219,7 +219,7 @@ impl Grid {
                             neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y()][cell.x() - 1].coords);
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?; 
                     }
                 }
             }
@@ -263,7 +263,7 @@ impl Grid {
                             neighbors.insert(TriangleDirection::Down.to_string(), down.get_or_insert(Coordinates{x: 0, y: 0}).clone());
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?;
                     }
                 }
             }
@@ -298,7 +298,7 @@ impl Grid {
                             neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[col+1][south_diagonal].coords);
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?;
                     }
                 }
             }

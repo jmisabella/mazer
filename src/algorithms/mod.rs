@@ -37,7 +37,6 @@ impl MazeAlgorithm {
             MazeAlgorithm::Wilsons => Wilsons::generate(grid)?,
             MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid)?,
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid)?,
-            algorithm => return Err(Error::UnimplementedAlgorithm { algorithm: *algorithm }),
         }
         Ok(grid)
     }
