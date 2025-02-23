@@ -2,9 +2,8 @@ use serde::{ Serialize, Deserialize };
 use std::fmt;
 
 pub trait Direction: Serialize { 
-//    fn to_string(&self) -> String;
-    fn as_str(&self) -> String {
-        serde_json::to_string(&self).unwrap().replace("\"", "")
+    fn as_str(&self) -> Option<String> {
+        serde_json::to_string(&self).ok().map(|s| s.replace("\"", ""))
     }
 }
 
@@ -20,7 +19,7 @@ pub enum HexDirection {
 impl Direction for HexDirection {}
 impl fmt::Display for HexDirection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.as_str().unwrap_or_default())
     }
 }
 
@@ -34,7 +33,7 @@ pub enum PolarDirection {
 impl Direction for PolarDirection {}
 impl fmt::Display for PolarDirection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.as_str().unwrap_or_default())
     }
 }
 
@@ -48,7 +47,7 @@ pub enum SquareDirection {
 impl Direction for SquareDirection {}
 impl fmt::Display for SquareDirection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.as_str().unwrap_or_default())
     }
 }
 
@@ -64,6 +63,6 @@ pub enum TriangleDirection {
 impl Direction for TriangleDirection {}
 impl fmt::Display for TriangleDirection {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.as_str().unwrap_or_default())
     }
 }

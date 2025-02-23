@@ -1,4 +1,3 @@
-use crate::algorithms::MazeAlgorithm;
 use crate::cell::{ Coordinates, MazeType };
 use std::fmt;
 use serde_json;

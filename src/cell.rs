@@ -167,7 +167,7 @@ impl Cell {
 
     pub fn is_linked_direction<D: Direction>(&self, direction: D) -> bool {
         // Convert direction to a string key
-        let direction_key = direction.as_str().replace("\"", "");
+        let direction_key = direction.as_str().unwrap_or_default().replace("\"", "");
 
         // Find the neighbor for the given direction
         if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
