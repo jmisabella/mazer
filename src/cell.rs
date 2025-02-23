@@ -53,13 +53,13 @@ pub enum CellOrientation {
 pub struct Cell {
     pub coords: Coordinates,
     pub maze_type: MazeType,
-    pub neighbors_by_direction: HashMap<String, Coordinates>, // Map[String, Coordinates]
-    pub linked: HashSet<Coordinates>,                        // Set[Coordinates]
-    pub distance: i32,                                       // Int
-    pub is_start: bool,                                      // Boolean
-    pub is_goal: bool,                                       // Boolean
-    pub on_solution_path: bool,                              // Boolean
-    pub orientation: CellOrientation,                        // CellOrientation (enum)
+    pub neighbors_by_direction: HashMap<String, Coordinates>,
+    pub linked: HashSet<Coordinates>,
+    pub distance: i32,
+    pub is_start: bool,
+    pub is_goal: bool,
+    pub on_solution_path: bool,
+    pub orientation: CellOrientation,
 }
 
 impl Default for Cell {

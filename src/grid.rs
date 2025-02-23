@@ -306,7 +306,6 @@ impl Grid {
         Ok(grid)
     }
 
-    // pub fn from_request(request: MazeRequest) -> Grid {
     pub fn from_request(request: MazeRequest) -> Result<Grid, Error> {
         let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal)?;
         request.algorithm.generate(&mut grid)?;
@@ -505,7 +504,6 @@ impl Grid {
         }
         return output;
     }
-
 
 }
 
