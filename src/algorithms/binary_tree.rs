@@ -1,11 +1,11 @@
-use crate::maze::grid::Grid;
-use crate::maze::cell::{ MazeType, Cell, Coordinates };
-
+use crate::grid::Grid;
+use crate::cell::Coordinates;
+use crate::error::Error;
 
 pub struct BinaryTree;
 
 impl BinaryTree {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let rows = grid.cells.len(); // Precompute rows count
 
         for row in 0..rows {
@@ -45,19 +45,25 @@ impl BinaryTree {
                 }
             }
         }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        assert!(!grid.is_perfect_maze());
-        BinaryTree::generate(&mut grid);
-        println!("\n\nBinary Tree\n\n{}\n\n", grid.to_asci());
-        assert!(grid.is_perfect_maze());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                BinaryTree::generate(&mut grid).expect("BinaryTree maze generation failed");
+                println!("\n\nBinary Tree\n\n{}\n\n", grid.to_asci());
+                assert!(grid.is_perfect_maze());
+            }    
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 }

@@ -1,6 +1,6 @@
-use crate::maze::cell::Coordinates;
-use crate::maze::cell::MazeType;
-use crate::maze::algorithms::MazeAlgorithm;
+use crate::cell::Coordinates;
+use crate::cell::MazeType;
+use crate::algorithms::MazeAlgorithm;
 use serde::{ Serialize, Deserialize };
 
 // #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,9 +1,10 @@
-use crate::maze::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::maze::direction::{ Direction, SquareDirection, TriangleDirection, HexDirection, PolarDirection };
-use crate::maze::request::MazeRequest;
+use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
+use crate::direction::{ SquareDirection, TriangleDirection, HexDirection };
+use crate::error::Error;
+use crate::request::MazeRequest;
 
+use std::fmt;
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
-use serde_json::json;
 use rand::{ thread_rng, Rng };
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -27,6 +28,14 @@ impl Serialize for Grid {
         return grid_map.end(); 
     }
 }
+impl fmt::Display for Grid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(json) => write!(f, "{}", json),
+            Err(_) => Err(fmt::Error),
+        }
+    }
+}
 
 impl Grid {
 
@@ -42,11 +51,12 @@ impl Grid {
             .and_then(|row| row.get(coords.x as usize))
     }
 
-    pub fn set(&mut self, cell: Cell) {
+    pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
         if cell.x() >= self.width || cell.y() >= self.height {
-            panic!("Cell's coordinates {:?} exceed grid dimensions {:?} by {:?}", cell.coords.to_string(), self.width, self.height);
+            return Err(Error::OutOfBoundsCoordinates { coordinates: cell.coords, maze_width: self.width, maze_height: self.height } );
         }
         self.cells[cell.y()][cell.x()] = cell.clone();
+        Ok(())
     }
 
     pub fn set_cells(&mut self, cells: Vec<Vec<Cell>>) {
@@ -95,13 +105,13 @@ impl Grid {
         self.cells.iter().flat_map(|row| row.clone()).collect()
     }
 
-    pub fn unflatten(&mut self, flattened: Vec<Cell>) {
+    pub fn unflatten(&mut self, flattened: Vec<Cell>) -> Result<(), Error> {
         if flattened.len() != (self.width * self.height) {
-            panic!(
-                "Flattened vector size does not match grid dimensions: expected {}, got {}",
-                self.width * self.height,
-                flattened.len()
-            );
+            return Err(Error::FlattenedVectorDimensionsMismatch {
+                vector_size: flattened.len(),
+                maze_width: self.width,
+                maze_height: self.height,
+            });
         }
 
         // Use `chunks` to divide the flattened vector into rows
@@ -109,12 +119,13 @@ impl Grid {
             .chunks(self.width)
             .map(|chunk| chunk.to_vec())
             .collect();
+    
+        Ok(())
     }
 
-
-    pub fn generate_triangle_cells(&mut self) {
+    pub fn generate_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type != MazeType::Delta {
-            panic!("Cannot generate triangle cells for non-Delta maze_type {:?}", self.maze_type);
+            return Err(Error::InvalidCellForNonDeltaMaze { cell_maze_type: self.maze_type } );
         }
         let mut row_starts_with_upright = true;
 
@@ -140,11 +151,12 @@ impl Grid {
                 self.cells[row][col] = cell;
             }
         }
+        Ok(())
     }
     
-    pub fn generate_non_triangle_cells(&mut self) {
+    pub fn generate_non_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type == MazeType::Delta {
-            panic!("Cannot generate non-triangle cells for maze_type {:?}", self.maze_type);
+            return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type } );
         }
         for row in 0..self.height {
             for col in 0..self.width {
@@ -155,9 +167,10 @@ impl Grid {
                 self.cells[row][col] = cell;
             }
         }
+        Ok(())
     }
 
-    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
+    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Result<Self, Error> {
         let mut init_rng = thread_rng();
         let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
 
@@ -175,11 +188,11 @@ impl Grid {
 
         let mut grid: Grid = match maze_type {
             MazeType::Delta => {
-                empty.generate_triangle_cells();
+                empty.generate_triangle_cells()?;
                 empty.clone()
             }
             _ => {
-                empty.generate_non_triangle_cells();
+                empty.generate_non_triangle_cells()?;
                 empty.clone()
             }
         };
@@ -206,7 +219,7 @@ impl Grid {
                             neighbors.insert(SquareDirection::West.to_string(), grid.cells[cell.y()][cell.x() - 1].coords);
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?; 
                     }
                 }
             }
@@ -250,7 +263,7 @@ impl Grid {
                             neighbors.insert(TriangleDirection::Down.to_string(), down.get_or_insert(Coordinates{x: 0, y: 0}).clone());
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?;
                     }
                 }
             }
@@ -285,22 +298,24 @@ impl Grid {
                             neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[col+1][south_diagonal].coords);
                         }
                         cell.set_neighbors(neighbors);
-                        grid.set(cell); 
+                        grid.set(cell)?;
                     }
                 }
             }
         }
-        return grid;
+        Ok(grid)
     }
 
-    pub fn from_request(request: MazeRequest) -> Grid {
-        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal);
-        return request.algorithm.generate(&mut grid);
+    // pub fn from_request(request: MazeRequest) -> Grid {
+    pub fn from_request(request: MazeRequest) -> Result<Grid, Error> {
+        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal)?;
+        request.algorithm.generate(&mut grid)?;
+        Ok(grid)
     }
 
-    // TODO:test
-    pub fn from_json(json: &str) -> Grid {
-        return Grid::from_request(serde_json::from_str(json).expect(&format!("Failed to deserialize MazeRequest from json {}", json)));
+    pub fn from_json(json: &str) -> Result<Grid, Error> {
+        let deserialized: MazeRequest = serde_json::from_str(json)?;
+        Grid::from_request(deserialized)
     }
 
     pub fn row(&self, y: usize) -> Vec<Cell> {
@@ -363,7 +378,7 @@ impl Grid {
                 }
             }
         }
-
+        
         distances
     }
 
@@ -373,7 +388,7 @@ impl Grid {
         start_y: usize,
         goal_x: usize,
         goal_y: usize,
-    ) -> HashMap<Coordinates, u32> {
+    ) -> Result<HashMap<Coordinates, u32>, Error> {
         // Calculate distances from the start
         let dist = self.distances(Coordinates { x: start_x, y: start_y });
 
@@ -386,23 +401,32 @@ impl Grid {
             breadcrumbs.insert(current, distance);
         } else {
             // Return empty if the goal is unreachable
-            return breadcrumbs;
+            return Ok(breadcrumbs);
         }
 
         // Trace the path back to the start
         while current != (Coordinates { x: start_x, y: start_y }) {
-            if let Some(cell) = self.get_cell(current) {
-                for &neighbor in &cell.linked {
-                    if dist.get(&neighbor).unwrap_or(&u32::MAX) < dist.get(&current).unwrap_or(&u32::MAX) {
-                        breadcrumbs.insert(neighbor, dist[&neighbor]);
-                        current = neighbor;
-                        break;
-                    }
+            let cell = self
+                .get_cell(current)
+                .ok_or(Error::MissingCoordinates { coordinates: current })?;
+            
+            for &neighbor in &cell.linked {
+                let neighbor_dist = dist
+                    .get(&neighbor)
+                    .ok_or(Error::MissingCoordinates { coordinates: neighbor })?;
+
+                let current_dist = dist
+                    .get(&current)
+                    .ok_or(Error::MissingCoordinates { coordinates: current })?;
+            
+                if neighbor_dist < current_dist {
+                    breadcrumbs.insert(neighbor, *neighbor_dist);
+                    current = neighbor;
+                    break;
                 }
             }
         }
-
-        breadcrumbs
+        Ok(breadcrumbs)
     }
 
     /// Returns all cells reachable from the given start coordinates
@@ -451,11 +475,6 @@ impl Grid {
         total_edges == total_cells - 1
     }
 
-    /// JSON representation of maze state
-    pub fn to_string(&self) -> String {
-        return serde_json::to_string(&self).expect("Serialization failed");
-    }
-
     /// ASCI display, only applicable to Orthogonal (square cell) mazes
     pub fn to_asci(&self) -> String {
         assert!(self.maze_type == MazeType::Orthogonal, "Rejecting displaying ASCI for MazeType {}! ASCI display behavior is only applicable to the Orthogonal MazeType", self.maze_type.to_string());
@@ -493,153 +512,177 @@ impl Grid {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn init_orthogonal_grid() {
-        let grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3});
-        assert!(grid.cells.len() != 0);
-        assert!(grid.cells.len() == 4);
-        assert!(grid.cells[0].len() == 4);
-        println!("\n\n{}", grid.to_string());
-        println!("\n\n{}\n\n", grid.to_asci());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}) {
+            Ok(grid) => {
+                assert!(grid.cells.len() != 0);
+                assert!(grid.cells.len() == 4);
+                assert!(grid.cells[0].len() == 4);
+                println!("\n\n{}", grid.to_string());
+                println!("\n\n{}\n\n", grid.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
     #[test]
     fn link_cells_in_orthogonal_grid() {
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
-        let cell1 = grid.get(0, 0).coords;
-        let cell2 = grid.get(0, 1).coords;
-        let cell3 = grid.get(1, 1).coords;
-        let cell4 = grid.get(1, 2).coords;
-        let cell5 = grid.get(2, 2).coords;
-        let cell6 = grid.get(2, 3).coords;
-        let cell7 = grid.get(3, 3).coords;
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get(0, 0).coords;
+                let cell2 = grid.get(0, 1).coords;
+                let cell3 = grid.get(1, 1).coords;
+                let cell4 = grid.get(1, 2).coords;
+                let cell5 = grid.get(2, 2).coords;
+                let cell6 = grid.get(2, 3).coords;
+                let cell7 = grid.get(3, 3).coords;
 
-
-        grid.link(cell1, cell2);
-        grid.link(cell2, cell3);
-        grid.link(cell3, cell4);
-        grid.link(cell4, cell5);
-        grid.link(cell5, cell6);
-        grid.link(cell6, cell7);
-        // many cells are walled-off and unreachable, not a perfect maze 
-        assert!(!grid.is_perfect_maze());
-
-        println!("\n\n{}\n\n", grid.to_asci());
-
+                grid.link(cell1, cell2);
+                grid.link(cell2, cell3);
+                grid.link(cell3, cell4);
+                grid.link(cell4, cell5);
+                grid.link(cell5, cell6);
+                grid.link(cell6, cell7);
+                // many cells are walled-off and unreachable, not a perfect maze 
+                assert!(!grid.is_perfect_maze());
+                println!("\n\n{}\n\n", grid.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
     #[test]
     fn determine_distances_to_goal() {
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
-        let cell1 = grid.get(0, 0).coords;
-        let cell2 = grid.get(0, 1).coords;
-        let cell3 = grid.get(1, 1).coords;
-        let cell4 = grid.get(1, 2).coords;
-        let cell5 = grid.get(2, 2).coords;
-        let cell6 = grid.get(2, 3).coords;
-        let cell7 = grid.get(3, 3).coords;
-        
-        grid.link(cell1, cell2);
-        grid.link(cell2, cell3);
-        grid.link(cell3, cell4);
-        grid.link(cell4, cell5);
-        grid.link(cell5, cell6);
-        grid.link(cell6, cell7);
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get(0, 0).coords;
+                let cell2 = grid.get(0, 1).coords;
+                let cell3 = grid.get(1, 1).coords;
+                let cell4 = grid.get(1, 2).coords;
+                let cell5 = grid.get(2, 2).coords;
+                let cell6 = grid.get(2, 3).coords;
+                let cell7 = grid.get(3, 3).coords;
+                
+                grid.link(cell1, cell2);
+                grid.link(cell2, cell3);
+                grid.link(cell3, cell4);
+                grid.link(cell4, cell5);
+                grid.link(cell5, cell6);
+                grid.link(cell6, cell7);
 
-        let distances = grid.distances(Coordinates{ x: 0, y: 0} );
+                let distances = grid.distances(Coordinates{ x: 0, y: 0} );
 
-        for (coords, distance) in &distances {
-            println!("Distance to {:?}: {}", coords, distance);
+                for (coords, distance) in &distances {
+                    println!("Distance to {:?}: {}", coords, distance);
+                }
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
-
-
     }
 
     #[test]
     fn test_flatten_and_unflatten() {
-        // pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
-        
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
+        ) {
+            Ok(mut grid) => {
+                let initial_cells = grid.cells.clone();
 
-        let initial_cells = grid.cells.clone();
+                // Flatten the grid
+                let flattened = grid.flatten();
 
-        // Flatten the grid
-        let flattened = grid.flatten();
+                // Unflatten the grid
+                grid.unflatten(flattened).expect("Error occurred calling unflatten method");
 
-        // Unflatten the grid
-        grid.unflatten(flattened);
-
-        // Check that the cells after unflattening match the original
-        assert_eq!(grid.cells, initial_cells);
+                // Check that the cells after unflattening match the original
+                assert_eq!(grid.cells, initial_cells);
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
+    #[test]
     fn test_perfect_maze_detection() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(3, 1).coords, grid.get(3, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(3,2).coords, grid.get(2, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(2,2).coords, grid.get(1, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(1,2).coords, grid.get(0, 2).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0,2).coords, grid.get(0, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0,3).coords, grid.get(1, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(1,3).coords, grid.get(2, 3).coords);
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(2,3).coords, grid.get(3, 3).coords);
-        // now it's a perfect maze, only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
-        assert!(grid.is_perfect_maze());
-        grid.link(grid.get(3,3).coords, grid.get(3, 2).coords);
-        // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
-        assert!(!grid.is_perfect_maze());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3, 1).coords, grid.get(2, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,1).coords, grid.get(1, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,1).coords, grid.get(0, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(0,1).coords, grid.get(0, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(0,2).coords, grid.get(1, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,2).coords, grid.get(2, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,2).coords, grid.get(3, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3,2).coords, grid.get(3, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3,3).coords, grid.get(2, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,3).coords, grid.get(1, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,3).coords, grid.get(0, 3).coords);
+                // now it's a perfect maze: only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
+                assert!(grid.is_perfect_maze());
+                grid.link(grid.get(0,3).coords, grid.get(0, 2).coords);
+                // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
+                assert!(!grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error occurred running Grid test test_perfect_maze_detection: {:?}", e),
+        }
     }
 
     #[test]
     fn test_get_path_to() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
-        grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
-        grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
-        grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
-
-        let path = grid.get_path_to(0, 0, 2, 2);
-
-        assert_eq!(path.len(), 5);
-        assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
-        assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
-        assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
+                grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
+                grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
+                grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
+                match grid.get_path_to(0, 0, 2, 2) {
+                    Ok(path) => {
+                        assert_eq!(path.len(), 5);
+                        assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
+                        assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
+                        assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+                    }
+                    Err(e) => panic!("Unexpected error occurred running Grid test test_get_path_to: {:?}", e),
+                }  
+            }
+            Err(e) => panic!("Unexpected error occurred running Grid test test_get_path_to: {:?}", e),
+        }
     }
 
     #[test]
@@ -654,10 +697,13 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        let maze = Grid::from_json(json);
-        assert!(maze.is_perfect_maze());
-        println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
-
+        match Grid::from_json(json) {
+            Ok(maze) => {
+                assert!(maze.is_perfect_maze());
+                println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
 }

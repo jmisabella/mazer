@@ -1,10 +1,11 @@
-use crate::maze::grid::Grid;
-use crate::maze::cell::{ MazeType, Coordinates };
+use crate::grid::Grid;
+use crate::cell::Coordinates;
+use crate::error::Error;
 
 pub struct HuntAndKill;
 
 impl HuntAndKill {
-    pub fn generate(grid: &mut Grid) {
+    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         let mut visited = std::collections::HashSet::new();
         let mut current_coords = Coordinates {
             x: grid.bounded_random_usize(grid.width - 1),
@@ -29,9 +30,11 @@ impl HuntAndKill {
                 current_coords = new_coords;
             } else {
                 // No more unvisited cells, maze generation complete
+                // break Ok(());
                 break;
             }
         }
+        Ok(())
     }
 
     /// Finds a random unvisited neighbor of the current cell.
@@ -90,23 +93,32 @@ impl HuntAndKill {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::{ MazeType, Coordinates };
     
     #[test]
     fn print_5_x_5_maze() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        assert!(!grid.is_perfect_maze());
-        HuntAndKill::generate(&mut grid);
-        println!("\n\nHunt-and-Kill\n\n{}\n\n", grid.to_asci());
-        assert!(grid.is_perfect_maze());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                HuntAndKill::generate(&mut grid).expect("HuntAndKill maze generation failed");
+                println!("\n\nHunt-and-Kill\n\n{}\n\n", grid.to_asci());
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
     
     #[test]
     fn print_12_x_6_maze() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 });
-        assert!(!grid.is_perfect_maze());
-        HuntAndKill::generate(&mut grid);
-        println!("\n\nHunt-and-Kill\n\n{}\n\n", grid.to_asci());
-        assert!(grid.is_perfect_maze());
+        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                HuntAndKill::generate(&mut grid).expect("HuntAndKill maze generation failed");
+                println!("\n\nHunt-and-Kill\n\n{}\n\n", grid.to_asci());
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 }
 
