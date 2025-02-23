@@ -68,12 +68,12 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        if let Ok(maze) = generate(json) {
-            assert!(maze.is_perfect_maze());
-            println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
-        } else {
-            panic!("Recursive backtracker orthogonal 12x12 maxe generation failed unexpectedly during the integration test");
+        match generate(json) {
+            Ok(maze) => {
+                assert!(maze.is_perfect_maze());
+                println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
-
     }
 }

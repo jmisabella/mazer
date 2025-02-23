@@ -506,156 +506,172 @@ mod tests {
 
     #[test]
     fn init_orthogonal_grid() {
-        let grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3});
-        assert!(grid.cells.len() != 0);
-        assert!(grid.cells.len() == 4);
-        assert!(grid.cells[0].len() == 4);
-        println!("\n\n{}", grid.to_string());
-        println!("\n\n{}\n\n", grid.to_asci());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}) {
+            Ok(grid) => {
+                assert!(grid.cells.len() != 0);
+                assert!(grid.cells.len() == 4);
+                assert!(grid.cells[0].len() == 4);
+                println!("\n\n{}", grid.to_string());
+                println!("\n\n{}\n\n", grid.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
     #[test]
     fn link_cells_in_orthogonal_grid() {
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
-        let cell1 = grid.get(0, 0).coords;
-        let cell2 = grid.get(0, 1).coords;
-        let cell3 = grid.get(1, 1).coords;
-        let cell4 = grid.get(1, 2).coords;
-        let cell5 = grid.get(2, 2).coords;
-        let cell6 = grid.get(2, 3).coords;
-        let cell7 = grid.get(3, 3).coords;
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get(0, 0).coords;
+                let cell2 = grid.get(0, 1).coords;
+                let cell3 = grid.get(1, 1).coords;
+                let cell4 = grid.get(1, 2).coords;
+                let cell5 = grid.get(2, 2).coords;
+                let cell6 = grid.get(2, 3).coords;
+                let cell7 = grid.get(3, 3).coords;
 
-
-        grid.link(cell1, cell2);
-        grid.link(cell2, cell3);
-        grid.link(cell3, cell4);
-        grid.link(cell4, cell5);
-        grid.link(cell5, cell6);
-        grid.link(cell6, cell7);
-        // many cells are walled-off and unreachable, not a perfect maze 
-        assert!(!grid.is_perfect_maze());
-
-        println!("\n\n{}\n\n", grid.to_asci());
-
+                grid.link(cell1, cell2);
+                grid.link(cell2, cell3);
+                grid.link(cell3, cell4);
+                grid.link(cell4, cell5);
+                grid.link(cell5, cell6);
+                grid.link(cell6, cell7);
+                // many cells are walled-off and unreachable, not a perfect maze 
+                assert!(!grid.is_perfect_maze());
+                println!("\n\n{}\n\n", grid.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
     #[test]
     fn determine_distances_to_goal() {
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
-        let cell1 = grid.get(0, 0).coords;
-        let cell2 = grid.get(0, 1).coords;
-        let cell3 = grid.get(1, 1).coords;
-        let cell4 = grid.get(1, 2).coords;
-        let cell5 = grid.get(2, 2).coords;
-        let cell6 = grid.get(2, 3).coords;
-        let cell7 = grid.get(3, 3).coords;
-        
-        grid.link(cell1, cell2);
-        grid.link(cell2, cell3);
-        grid.link(cell3, cell4);
-        grid.link(cell4, cell5);
-        grid.link(cell5, cell6);
-        grid.link(cell6, cell7);
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get(0, 0).coords;
+                let cell2 = grid.get(0, 1).coords;
+                let cell3 = grid.get(1, 1).coords;
+                let cell4 = grid.get(1, 2).coords;
+                let cell5 = grid.get(2, 2).coords;
+                let cell6 = grid.get(2, 3).coords;
+                let cell7 = grid.get(3, 3).coords;
+                
+                grid.link(cell1, cell2);
+                grid.link(cell2, cell3);
+                grid.link(cell3, cell4);
+                grid.link(cell4, cell5);
+                grid.link(cell5, cell6);
+                grid.link(cell6, cell7);
 
-        let distances = grid.distances(Coordinates{ x: 0, y: 0} );
+                let distances = grid.distances(Coordinates{ x: 0, y: 0} );
 
-        for (coords, distance) in &distances {
-            println!("Distance to {:?}: {}", coords, distance);
+                for (coords, distance) in &distances {
+                    println!("Distance to {:?}: {}", coords, distance);
+                }
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
-
-
     }
 
     #[test]
     fn test_flatten_and_unflatten() {
-        // pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Self {
-        
-        let mut grid = Grid::new(
+        match Grid::new(
             MazeType::Orthogonal,
             4,
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
-        );
+        ) {
+            Ok(mut grid) => {
+                let initial_cells = grid.cells.clone();
 
-        let initial_cells = grid.cells.clone();
+                // Flatten the grid
+                let flattened = grid.flatten();
 
-        // Flatten the grid
-        let flattened = grid.flatten();
+                // Unflatten the grid
+                grid.unflatten(flattened).expect("Error occurred calling unflatten method");
 
-        // Unflatten the grid
-        grid.unflatten(flattened).expect("Error occurred calling unflatten method");
-
-        // Check that the cells after unflattening match the original
-        assert_eq!(grid.cells, initial_cells);
+                // Check that the cells after unflattening match the original
+                assert_eq!(grid.cells, initial_cells);
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
     }
 
     #[test]
     fn test_perfect_maze_detection() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        assert!(!grid.is_perfect_maze());
-        grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(3, 1).coords, grid.get(2, 1).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(2,1).coords, grid.get(1, 1).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(1,1).coords, grid.get(0, 1).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(0,1).coords, grid.get(0, 2).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(0,2).coords, grid.get(1, 2).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(1,2).coords, grid.get(2, 2).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(2,2).coords, grid.get(3, 2).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(3,2).coords, grid.get(3, 3).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(3,3).coords, grid.get(2, 3).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(2,3).coords, grid.get(1, 3).coords);
-        assert!(!grid.is_perfect_maze()); // not perfect
-        grid.link(grid.get(1,3).coords, grid.get(0, 3).coords);
-        // now it's a perfect maze: only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
-        assert!(grid.is_perfect_maze());
-        grid.link(grid.get(0,3).coords, grid.get(0, 2).coords);
-        // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
-        assert!(!grid.is_perfect_maze());
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3, 1).coords, grid.get(2, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,1).coords, grid.get(1, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,1).coords, grid.get(0, 1).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(0,1).coords, grid.get(0, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(0,2).coords, grid.get(1, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,2).coords, grid.get(2, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,2).coords, grid.get(3, 2).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3,2).coords, grid.get(3, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(3,3).coords, grid.get(2, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(2,3).coords, grid.get(1, 3).coords);
+                assert!(!grid.is_perfect_maze()); // not perfect
+                grid.link(grid.get(1,3).coords, grid.get(0, 3).coords);
+                // now it's a perfect maze: only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
+                assert!(grid.is_perfect_maze());
+                grid.link(grid.get(0,3).coords, grid.get(0, 2).coords);
+                // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
+                assert!(!grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error occurred running Grid test test_perfect_maze_detection: {:?}", e),
+        }
     }
 
     #[test]
     fn test_get_path_to() {
-        let mut grid = Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 });
-        grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
-        grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
-        grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
-        grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
+                grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
+                grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
+                grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
 
-        let path = grid.get_path_to(0, 0, 2, 2);
+                let path = grid.get_path_to(0, 0, 2, 2);
 
-        assert_eq!(path.len(), 5);
-        assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
-        assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
-        assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+                assert_eq!(path.len(), 5);
+                assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
+                assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
+                assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+            }
+            Err(e) => panic!("Unexpected error occurred running Grid test test_get_path_to: {:?}", e),
+        }
     }
 
     #[test]
@@ -670,13 +686,13 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        if let Ok(maze) = Grid::from_json(json) {
-            assert!(maze.is_perfect_maze());
-            println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
-        } else {
-            panic!("Recursive backtracker orthogonal 12x12 maxe generation failed unexpectedly during the integration test");
+        match Grid::from_json(json) {
+            Ok(maze) => {
+                assert!(maze.is_perfect_maze());
+                println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
-
     }
 
 }
