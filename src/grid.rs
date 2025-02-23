@@ -378,7 +378,7 @@ impl Grid {
                 }
             }
         }
-
+        
         distances
     }
 
@@ -388,7 +388,7 @@ impl Grid {
         start_y: usize,
         goal_x: usize,
         goal_y: usize,
-    ) -> HashMap<Coordinates, u32> {
+    ) -> Result<HashMap<Coordinates, u32>, Error> {
         // Calculate distances from the start
         let dist = self.distances(Coordinates { x: start_x, y: start_y });
 
@@ -401,23 +401,32 @@ impl Grid {
             breadcrumbs.insert(current, distance);
         } else {
             // Return empty if the goal is unreachable
-            return breadcrumbs;
+            return Ok(breadcrumbs);
         }
 
         // Trace the path back to the start
         while current != (Coordinates { x: start_x, y: start_y }) {
-            if let Some(cell) = self.get_cell(current) {
-                for &neighbor in &cell.linked {
-                    if dist.get(&neighbor).unwrap_or(&u32::MAX) < dist.get(&current).unwrap_or(&u32::MAX) {
-                        breadcrumbs.insert(neighbor, dist[&neighbor]);
-                        current = neighbor;
-                        break;
-                    }
+            let cell = self
+                .get_cell(current)
+                .ok_or(Error::MissingCoordinates { coordinates: current })?;
+            
+            for &neighbor in &cell.linked {
+                let neighbor_dist = dist
+                    .get(&neighbor)
+                    .ok_or(Error::MissingCoordinates { coordinates: neighbor })?;
+
+                let current_dist = dist
+                    .get(&current)
+                    .ok_or(Error::MissingCoordinates { coordinates: current })?;
+            
+                if neighbor_dist < current_dist {
+                    breadcrumbs.insert(neighbor, *neighbor_dist);
+                    current = neighbor;
+                    break;
                 }
             }
         }
-
-        breadcrumbs
+        Ok(breadcrumbs)
     }
 
     /// Returns all cells reachable from the given start coordinates
@@ -662,13 +671,15 @@ mod tests {
                 grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });
                 grid.link(Coordinates { x: 1, y: 1 }, Coordinates { x: 1, y: 2 });
                 grid.link(Coordinates { x: 1, y: 2 }, Coordinates { x: 2, y: 2 });
-
-                let path = grid.get_path_to(0, 0, 2, 2);
-
-                assert_eq!(path.len(), 5);
-                assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
-                assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
-                assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+                match grid.get_path_to(0, 0, 2, 2) {
+                    Ok(path) => {
+                        assert_eq!(path.len(), 5);
+                        assert!(path.contains_key(&Coordinates { x: 0, y: 0 }));
+                        assert!(path.contains_key(&Coordinates { x: 2, y: 2 }));
+                        assert_eq!(path[&Coordinates { x: 0, y: 0 }], 0);
+                    }
+                    Err(e) => panic!("Unexpected error occurred running Grid test test_get_path_to: {:?}", e),
+                }  
             }
             Err(e) => panic!("Unexpected error occurred running Grid test test_get_path_to: {:?}", e),
         }

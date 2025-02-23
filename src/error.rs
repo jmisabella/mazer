@@ -9,6 +9,7 @@ pub enum Error {
     InvalidCellForNonDeltaMaze { cell_maze_type: MazeType }, 
     FlattenedVectorDimensionsMismatch { vector_size: usize, maze_width: usize, maze_height: usize },
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
+    MissingCoordinates { coordinates: Coordinates }, 
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -27,6 +28,9 @@ impl fmt::Display for Error {
             }
             Error::OutOfBoundsCoordinates { coordinates, maze_width, maze_height } => {
                 write!(f, "Out of bounds coordinates: coordinates {:?} exceed maze dimensions {} x {}", coordinates, maze_width, maze_height)
+            }
+            Error::MissingCoordinates { coordinates } => {
+                write!(f, "Missing coordinates: {:?}", coordinates )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)
