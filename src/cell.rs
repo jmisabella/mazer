@@ -165,12 +165,9 @@ impl Cell {
             .collect()
     }
 
-    pub fn is_linked_direction<D: Direction>(&self, direction: D) -> bool {
-        // Convert direction to a string key
-        let direction_key = direction.as_str().unwrap_or_default().replace("\"", "");
-
+    pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {
         // Find the neighbor for the given direction
-        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
+        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction.as_str()) {
             self.linked.contains(neighbor_coords)
         } else {
             false
