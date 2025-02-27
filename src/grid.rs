@@ -1,5 +1,5 @@
-use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::direction::{ SquareDirection, TriangleDirection, HexDirection };
+use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
+use crate::direction::{SquareDirection, TriangleDirection, HexDirection};
 use crate::error::Error;
 use crate::request::MazeRequest;
 
@@ -146,8 +146,16 @@ impl Grid {
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
-                let mut cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
-                cell.set_orientation(triangle_orientation(upright));
+                let cell: Cell = CellBuilder::new(
+                    col, 
+                    row, 
+                    self.maze_type
+                )
+                .is_start(is_start)
+                .is_goal(is_goal)
+                .orientation(triangle_orientation(upright))
+                .build();
+
                 self.cells[row][col] = cell;
             }
         }
@@ -163,7 +171,15 @@ impl Grid {
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
-                let cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
+                let cell: Cell = CellBuilder::new(
+                    col, 
+                    row, 
+                    self.maze_type
+                )
+                .is_start(is_start)
+                .is_goal(is_goal)
+                .build();
+
                 self.cells[row][col] = cell;
             }
         }
@@ -178,7 +194,7 @@ impl Grid {
             width, 
             height, 
             maze_type, 
-            cells: vec![vec![Cell::new(0,0,maze_type); width]; height], 
+            cells: vec![vec![CellBuilder::new(0,0,maze_type).build(); width]; height], 
             seed, 
             start_coords: 
             start, 
