@@ -37,6 +37,32 @@ impl fmt::Display for Grid {
     }
 }
 
+impl TryFrom<MazeRequest> for Grid {
+    type Error = crate::Error; // explicitly reference our custom Error type
+
+    fn try_from(request: MazeRequest) -> Result<Self, Self::Error> {
+        let mut grid = Grid::new(
+            request.maze_type,
+            request.width,
+            request.height,
+            request.start,
+            request.goal,
+        )?;
+        request.algorithm.generate(&mut grid)?;
+        Ok(grid)
+    }
+}
+
+impl TryFrom<&str> for Grid {
+    type Error = crate::Error; // explicitly reference our custom Error type
+
+    fn try_from(json: &str) -> Result<Self, Self::Error> {
+        let deserialized: MazeRequest = serde_json::from_str(json)?;
+        Grid::try_from(deserialized)
+    }
+}
+
+
 impl Grid {
 
     // retrieve a cell by its coordinates
@@ -321,18 +347,7 @@ impl Grid {
         }
         Ok(grid)
     }
-
-    pub fn from_request(request: MazeRequest) -> Result<Grid, Error> {
-        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal)?;
-        request.algorithm.generate(&mut grid)?;
-        Ok(grid)
-    }
-
-    pub fn from_json(json: &str) -> Result<Grid, Error> {
-        let deserialized: MazeRequest = serde_json::from_str(json)?;
-        Grid::from_request(deserialized)
-    }
-
+    
     pub fn row(&self, y: usize) -> Vec<Cell> {
         // Ensure the index is within bounds
         if let Some(row) = self.cells.get(y) {
@@ -711,7 +726,7 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        match Grid::from_json(json) {
+        match Grid::try_from(json) {
             Ok(maze) => {
                 assert!(maze.is_perfect_maze());
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());

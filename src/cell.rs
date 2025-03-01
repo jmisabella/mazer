@@ -104,7 +104,6 @@ impl fmt::Display for Cell {
     }
 }
 
-// TODO: implement the builder pattern (item #7 from Effective Rust) for Cell !!!
 impl Cell {
     pub fn x(&self) -> usize {
         return self.coords.x;

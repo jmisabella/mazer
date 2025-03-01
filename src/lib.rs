@@ -24,7 +24,7 @@ pub mod error;
 
 // pub fn generate(json: &str) -> Grid {
 pub fn generate(json: &str) -> Result<Grid, Error> {
-    return Grid::from_json(json);
+    return Grid::try_from(json);
 }
 
 
