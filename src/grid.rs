@@ -420,22 +420,21 @@ impl Grid {
             let cell = self
                 .get_cell(current)
                 .ok_or(Error::MissingCoordinates { coordinates: current })?;
-            
-            for &neighbor in &cell.linked {
-                let neighbor_dist = dist
-                    .get(&neighbor)
-                    .ok_or(Error::MissingCoordinates { coordinates: neighbor })?;
+           
+            current = cell.linked.iter()
+                .filter_map(|&neighbor| {
+                    let neighbor_dist = dist.get(&neighbor)?;
+                    let current_dist = dist.get(&current)?;
+                    if neighbor_dist < current_dist {
+                        breadcrumbs.insert(neighbor, *neighbor_dist);
+                        Some(neighbor)
+                    } else {
+                        None // skip this neighbor because distance to it exceeds distance to current
+                    }
+                })
+                .next()
+                .ok_or(Error::NoValidNeighbor { coordinates: cell.coords })?;
 
-                let current_dist = dist
-                    .get(&current)
-                    .ok_or(Error::MissingCoordinates { coordinates: current })?;
-            
-                if neighbor_dist < current_dist {
-                    breadcrumbs.insert(neighbor, *neighbor_dist);
-                    current = neighbor;
-                    break;
-                }
-            }
         }
         Ok(breadcrumbs)
     }

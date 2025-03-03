@@ -64,15 +64,21 @@ impl Wilsons {
             }
             
             // Carve the path into the maze
-            for pair in walk.windows(2) {
-                if let [current, next] = pair {
+            walk.windows(2) // iterator producing all windows of size 2
+                .filter_map(|pair| { 
+                    if let [current, next] = pair {
+                        Some((current, next))
+                    } else {
+                        None
+                    }
+                })
+                .for_each(|(current, next)| {
                     grid.link(*current, *next);
                     visited.insert(*current);
                     visited.insert(*next);
-                }
-            }
+                });
         }
-
+        
         Ok(())
     }
 }

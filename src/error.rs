@@ -9,6 +9,7 @@ pub enum Error {
     FlattenedVectorDimensionsMismatch { vector_size: usize, maze_width: usize, maze_height: usize },
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
     MissingCoordinates { coordinates: Coordinates }, 
+    NoValidNeighbor { coordinates: Coordinates }, 
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -30,6 +31,9 @@ impl fmt::Display for Error {
             }
             Error::MissingCoordinates { coordinates } => {
                 write!(f, "Missing coordinates: {:?}", coordinates )
+            }
+            Error::NoValidNeighbor { coordinates } => {
+                write!(f, "No valid neighbors: {:?}", coordinates )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)
