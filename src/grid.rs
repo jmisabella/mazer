@@ -93,25 +93,6 @@ impl Grid {
         self.seed = seed;
     }
 
-    // pub fn width(&self) -> usize {
-    //     return self.width;
-    // }
-    // pub fn height(&self) -> usize {
-    //     return self.height;
-    // }
-    // pub fn maze_type(&self) -> MazeType {
-    //     return self.maze_type;
-    // }
-    // pub fn cells(&self) -> &Vec<Vec<Cell>> {
-    //     return &self.cells;
-    // }
-    // pub fn start_coords(&self) -> Coordinates {
-    //     return self.start_coords;
-    // }
-    // pub fn goal_coords(&self) -> Coordinates {
-    //     return self.goal_coords;
-    // }
-    
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
         let seed= rng.gen_range(0..upper_bound + 1);
@@ -123,7 +104,7 @@ impl Grid {
         let rando: bool = self.bounded_random_usize(1000000) % 2 == 0;
         return rando;
     }
-
+ 
     pub fn flatten(&self) -> Vec<Cell>
     where
         Cell: Clone,
@@ -468,12 +449,20 @@ impl Grid {
 
         while let Some(current) = frontier.pop_front() {
             let cell = &self.cells[current.y][current.x];
-            for neighbor_coords in &cell.linked {
-                if !connected.contains(neighbor_coords) {
-                    connected.insert(*neighbor_coords);
-                    frontier.push_back(*neighbor_coords);
-                }
-            }
+            // collect new coordinates that have not been visited yet
+            let new_linked_coords: Vec<Coordinates> = cell.linked
+                .iter()
+                .filter(|xy| !connected.contains(xy))
+                .copied()
+                .collect();
+
+            new_linked_coords
+                // take ownership because `insert` and `push_back` both require owned values, not references 
+                .into_iter()
+                .for_each(|xy| {
+                    connected.insert(xy);
+                    frontier.push_back(xy);
+                });
         }
         connected
     }
