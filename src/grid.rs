@@ -173,8 +173,9 @@ impl Grid {
         if self.maze_type == MazeType::Delta {
             return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type } );
         }
-        for row in 0..self.height {
-            for col in 0..self.width {
+        (0..self.height)
+            .flat_map(|row| (0..self.width).map(move |col| (row, col))) // Combine row and column
+            .for_each(|(row, col)| { 
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
@@ -188,8 +189,7 @@ impl Grid {
                 .build();
 
                 self.cells[row][col] = cell;
-            }
-        }
+            });
         Ok(())
     }
 
@@ -380,16 +380,18 @@ impl Grid {
             // Get the cell at the current coordinate
             if let Some(cell) = self.get_cell(current) {
                 // Iterate over all linked neighbors
-                for neighbor in &cell.linked {
-                    if !distances.contains_key(neighbor) {
-                        // Update distance and enqueue the neighbor
-                        distances.insert(*neighbor, current_distance + 1);
-                        queue.push_back(*neighbor);
-                    }
-                }
+                // Collect neighbors first to avoid borrowing conflicts with `distances`
+                cell.linked.iter()
+                    .filter(|&&neighbor| !distances.contains_key(&neighbor))
+                    .copied() // Convert &&Coordinates to Coordinates
+                    .collect::<Vec<_>>() // Collect to break borrowing dependency
+                    .into_iter() // Iterate over the owned values
+                    .for_each(|neighbor| {
+                        distances.insert(neighbor, current_distance + 1);
+                        queue.push_back(neighbor);
+                    });
             }
         }
-        
         distances
     }
 
