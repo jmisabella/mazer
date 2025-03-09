@@ -298,27 +298,33 @@ impl Grid {
                         fn is_even(value: usize) -> bool {
                             return value % 2 == 0; 
                         }
+                        //let (north_diagonal, south_diagonal) = match is_even(col) {
+                        //    true => (row - 1, row),
+                        //    false => (row, row + 1)
+                        //};
                         let (north_diagonal, south_diagonal) = match is_even(col) {
-                            true => (row - 1, row),
-                            false => (row, row + 1)
+                            true if row > 0 => (row - 1, row),
+                            true => (0, row), // Prevent underflow by clamping to 0
+                            false if row < height - 1 => (row, row + 1),
+                            false => (row, height - 1), // Prevent out-of-bounds
                         };
                         if col > 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[col-1][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[north_diagonal][col-1].coords);
                         }
                         if col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col][row-1].coords);
+                            neighbors.insert(HexDirection::North.to_string(), grid.cells[row-1][col].coords);
                         }
                         if col < width - 1 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[col+1][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[north_diagonal][col+1].coords);
                         }
                         if col > 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[col-1][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[south_diagonal][col-1].coords);
                         }
                         if row < height - 1 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col][row+1].coords);
+                            neighbors.insert(HexDirection::South.to_string(), grid.cells[row+1][col].coords);
                         }
                         if col < width - 1 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[col+1][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[south_diagonal][col+1].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell)?;

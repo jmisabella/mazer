@@ -1,4 +1,5 @@
 use crate::cell::{ Coordinates, MazeType };
+use crate::algorithms::MazeAlgorithm;
 use std::fmt;
 use serde_json;
 
@@ -6,6 +7,7 @@ use serde_json;
 pub enum Error {
     InvalidCellForDeltaMaze { cell_maze_type: MazeType },
     InvalidCellForNonDeltaMaze { cell_maze_type: MazeType }, 
+    AlgorithmUnavailableForMazeType { algorithm: MazeAlgorithm, maze_type: MazeType },
     FlattenedVectorDimensionsMismatch { vector_size: usize, maze_width: usize, maze_height: usize },
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
     MissingCoordinates { coordinates: Coordinates }, 
@@ -22,6 +24,9 @@ impl fmt::Display for Error {
             }
             Error::InvalidCellForNonDeltaMaze { cell_maze_type } => {
                 write!(f, "Cannot generate triangle cells for non-Delta maze_type {:?}", cell_maze_type)
+            }
+            Error::AlgorithmUnavailableForMazeType{ algorithm, maze_type } => {
+                write!(f, "MazeAlgorithm {:?} is unavailable for MazeType {:?}", algorithm, maze_type)
             }
             Error::FlattenedVectorDimensionsMismatch { vector_size, maze_width, maze_height } => {
                 write!(f, "Flattened vector size mismatch: expected size {} ({} x {}), but got {}", maze_width * maze_height, maze_width, maze_height, vector_size)

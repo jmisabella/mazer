@@ -1,14 +1,20 @@
+use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
-use crate::cell::Coordinates;
+use crate::cell::{Coordinates, MazeType};
 use crate::error::Error;
 
 pub struct Sidewinder;
 
 impl Sidewinder {
     pub fn generate(grid: &mut Grid) -> Result<(), Error> {
+        match grid.maze_type {
+            MazeType::Orthogonal => {} // proceed with maze generation for allowed Orthogonal (square) grid type
+            maze_type => {
+                return Err(Error::AlgorithmUnavailableForMazeType{algorithm:MazeAlgorithm::Sidewinder, maze_type:maze_type});
+            }
+        }
         let rows = grid.cells.len();
         let cols = grid.cells[0].len();
-
         for row in 0..rows {
             let mut run: Vec<Coordinates> = Vec::new(); // Start a new run
 
@@ -93,6 +99,42 @@ mod tests {
                 assert!(grid.is_perfect_maze());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn reject_5_x_5_delta_binary_tree_maze() {
+        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                match Sidewinder::generate(&mut grid) {
+                    Ok(()) => {
+                        panic!("Successfully generated a Sidewinder maze for a Delta grid, which is should have been rejected!");
+                    }
+                    Err(e) => {
+                        println!("As expected, Delta grid is rejected for Sidewinder maze generation: {:?}", e);
+                    }
+                }
+            }    
+            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn reject_5_x_5_sigma_binary_tree_maze() {
+        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                match Sidewinder::generate(&mut grid) {
+                    Ok(()) => {
+                        panic!("Successfully generated a Sidewinder maze for a Sigma grid, which is should have been rejected!");
+                    }
+                    Err(e) => {
+                        println!("As expected, Sigma grid is rejected for Sidewinder maze generation: {:?}", e);
+                    }
+                }
+            }    
+            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
 
