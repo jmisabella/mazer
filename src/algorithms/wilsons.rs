@@ -90,7 +90,7 @@ mod tests {
     use crate::cell::{ MazeType, Coordinates };
     
     #[test]
-    fn print_5_x_5_maze() {
+    fn generate_and_print_5_x_5_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze());
@@ -103,12 +103,60 @@ mod tests {
     }
 
     #[test]
-    fn print_12_x_6_maze() {
+    fn generate_and_print_12_x_6_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze());
                 Wilsons::generate(&mut grid).expect("Wilson's maze generation failed");
                 println!("\n\nWilson's\n\n{}\n\n", grid.to_asci());
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn generate_5_x_5_delta_maze() {
+        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                Wilsons::generate(&mut grid).expect("Wilson's maze generation failed");
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn generate_12_x_6_delta_maze() {
+        match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                Wilsons::generate(&mut grid).expect("Wilson's maze generation failed");
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn generate_5_x_5_sigma_maze() {
+        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                Wilsons::generate(&mut grid).expect("Wilson's maze generation failed");
+                assert!(grid.is_perfect_maze());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn generate_12_x_6_sigma_maze() {
+        match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                Wilsons::generate(&mut grid).expect("Wilson's maze generation failed");
                 assert!(grid.is_perfect_maze());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),

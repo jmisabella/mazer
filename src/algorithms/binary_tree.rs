@@ -73,6 +73,20 @@ mod tests {
     }
 
     #[test]
+    fn print_12_x_24_orthogonal_maze() {
+        match Grid::new(MazeType::Orthogonal, 12, 24, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 23 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze());
+                BinaryTree::generate(&mut grid).expect("BinaryTree maze generation failed");
+                println!("\n\nBinary Tree\n\n{}\n\n", grid.to_asci());
+                assert!(grid.is_perfect_maze());
+            }    
+            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+
+
+    #[test]
     fn reject_5_x_5_delta_binary_tree_maze() {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
