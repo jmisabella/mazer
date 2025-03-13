@@ -19,8 +19,7 @@ impl RecursiveBacktracker {
         while let Some(current_coords) = stack.last().cloned() {
             // Get all unvisited neighbors
             let neighbors: Vec<Coordinates> = grid
-                .get(current_coords)
-                .ok_or_else(|| Error::MissingCoordinates { coordinates: current_coords })?
+                .get(current_coords)?
                 .neighbors()
                 .into_iter()
                 .filter(|neighbor| !visited.contains(neighbor))

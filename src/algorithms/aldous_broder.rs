@@ -24,7 +24,7 @@ impl AldousBroder {
 
         // Step 3: Loop until all cells are visited
         while visited_count < total_cells {
-            if let Some(current_cell) = grid.get(current_coords) {
+            if let Ok(current_cell) = grid.get(current_coords) {
                 // Get neighbors of the current cell
                 let neighbors: Vec<Coordinates> = current_cell
                     .neighbors()

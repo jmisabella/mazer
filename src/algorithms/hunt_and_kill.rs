@@ -44,7 +44,7 @@ impl HuntAndKill {
         visited: &std::collections::HashSet<Coordinates>,
     ) -> Option<Coordinates> {
 
-        if let Some(current_cell) = grid.get(*coords) {
+        if let Ok(current_cell) = grid.get(*coords) {
             let neighbors: Vec<_> = current_cell 
                 .neighbors()
                 .into_iter()
@@ -76,13 +76,14 @@ impl HuntAndKill {
                 if visited.contains(&coords) {
                     None
                 } else {
-                    grid.get(coords).and_then(|current_cell| {
-                        current_cell
+                    match grid.get(coords) {
+                        Ok(current_cell) => current_cell
                             .neighbors()
                             .into_iter()
                             .find(|neighbor| visited.contains(neighbor))
-                            .map(|neighbor| (coords, neighbor))
-                    })
+                            .map(|neighbor| (coords, neighbor)),
+                        Err(_) => None
+                    }
                 }
             })
     }

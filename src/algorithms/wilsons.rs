@@ -36,14 +36,15 @@ impl Wilsons {
                     break;
                 }
                 let current = *last;
-                let cell = match grid.get(Coordinates { x: current.x, y: current.y }) {
-                    Some(c) => c,
-                    None => return Err(Error::OutOfBoundsCoordinates {
-                        coordinates: current,
-                        maze_width: grid.width,
-                        maze_height: grid.height,
-                    }),
-                };
+                let cell = grid.get(Coordinates { x: current.x, y: current.y })?;
+                //let cell = match grid.get(Coordinates { x: current.x, y: current.y }) {
+                //    Some(c) => c,
+                //    None => return Err(Error::OutOfBoundsCoordinates {
+                //        coordinates: current,
+                //        maze_width: grid.width,
+                //        maze_height: grid.height,
+                //    }),
+                //};
                 let neighbors_list: HashSet<Coordinates> = cell.neighbors();
                 let neighbors: Vec<&Coordinates> = neighbors_list.iter().collect();
             

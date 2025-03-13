@@ -67,14 +67,19 @@ impl TryFrom<&str> for Grid {
 impl Grid {
 
     // retrieve a cell by its coordinates
-    pub fn get(&self, coords: Coordinates) -> Option<&Cell> {
+    pub fn get(&self, coords: Coordinates) -> Result<&Cell, Error> {
         self.cells
             .get(coords.y as usize)
             .and_then(|row| row.get(coords.x as usize))
+            .ok_or_else(|| Error::OutOfBoundsCoordinates {
+                coordinates: coords,
+                maze_width: self.width,
+                maze_height: self.height
+            })
     }
 
     // retrieve a cell by its coordinates
-    pub fn get_by_coords(&self, x: usize, y: usize) -> Option<&Cell> {
+    pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
         self.get(Coordinates { x: x, y: y })
     }
 
@@ -377,7 +382,7 @@ impl Grid {
             let current_distance = distances[&current];
 
             // Get the cell at the current coordinate
-            if let Some(cell) = self.get(current) {
+            if let Ok(cell) = self.get(current) {
                 // Iterate over all linked neighbors
                 // Collect neighbors first to avoid borrowing conflicts with `distances`
                 cell.linked.iter()
@@ -419,8 +424,7 @@ impl Grid {
         // Trace the path back to the start
         while current != (Coordinates { x: start_x, y: start_y }) {
             let cell = self
-                .get(current)
-                .ok_or(Error::MissingCoordinates { coordinates: current })?;
+                .get(current)?;
            
             current = cell.linked.iter()
                 .filter_map(|&neighbor| {
