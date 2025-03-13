@@ -44,7 +44,7 @@ impl HuntAndKill {
         visited: &std::collections::HashSet<Coordinates>,
     ) -> Option<Coordinates> {
 
-        if let Some(current_cell) = grid.get_cell(*coords) {
+        if let Some(current_cell) = grid.get(*coords) {
             let neighbors: Vec<_> = current_cell 
                 .neighbors()
                 .into_iter()
@@ -76,7 +76,7 @@ impl HuntAndKill {
                 if visited.contains(&coords) {
                     None
                 } else {
-                    grid.get_cell(coords).and_then(|current_cell| {
+                    grid.get(coords).and_then(|current_cell| {
                         current_cell
                             .neighbors()
                             .into_iter()
@@ -94,7 +94,7 @@ mod tests {
     use crate::cell::{ MazeType, Coordinates };
     
     #[test]
-    fn print_5_x_5_orthogonal_maze() {
+    fn generate_and_print_5_x_5_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze());
@@ -107,7 +107,7 @@ mod tests {
     }
     
     #[test]
-    fn print_12_x_6_orthogonal_maze() {
+    fn generate_and_print_12_x_6_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze());

@@ -13,6 +13,7 @@ pub struct Grid {
     pub width: usize,
     pub height: usize,
     pub maze_type: MazeType,
+    // TODO: define as a flattened Vec, only during maze generation is it temporarily unflattened to traverse rows/columns
     pub cells: Vec<Vec<Cell>>,
     pub seed: u64,
     pub start_coords: Coordinates,
@@ -66,15 +67,15 @@ impl TryFrom<&str> for Grid {
 impl Grid {
 
     // retrieve a cell by its coordinates
-    pub fn get(&self, x: usize, y: usize) -> &Cell {
-        return &self.cells[y][x];
-    }
-    
-    // retrieve a cell as an option by its coordinates
-    pub fn get_cell(&self, coords: Coordinates) -> Option<&Cell> {
+    pub fn get(&self, coords: Coordinates) -> Option<&Cell> {
         self.cells
             .get(coords.y as usize)
             .and_then(|row| row.get(coords.x as usize))
+    }
+
+    // retrieve a cell by its coordinates
+    pub fn get_by_coords(&self, x: usize, y: usize) -> Option<&Cell> {
+        self.get(Coordinates { x: x, y: y })
     }
 
     pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
@@ -83,14 +84,6 @@ impl Grid {
         }
         self.cells[cell.y()][cell.x()] = cell.clone();
         Ok(())
-    }
-
-    pub fn set_cells(&mut self, cells: Vec<Vec<Cell>>) {
-        self.cells = cells;
-    }
-
-    pub fn set_seed(&mut self, seed: u64) {
-        self.seed = seed;
     }
 
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
@@ -384,7 +377,7 @@ impl Grid {
             let current_distance = distances[&current];
 
             // Get the cell at the current coordinate
-            if let Some(cell) = self.get_cell(current) {
+            if let Some(cell) = self.get(current) {
                 // Iterate over all linked neighbors
                 // Collect neighbors first to avoid borrowing conflicts with `distances`
                 cell.linked.iter()
@@ -426,7 +419,7 @@ impl Grid {
         // Trace the path back to the start
         while current != (Coordinates { x: start_x, y: start_y }) {
             let cell = self
-                .get_cell(current)
+                .get(current)
                 .ok_or(Error::MissingCoordinates { coordinates: current })?;
            
             current = cell.linked.iter()
@@ -562,13 +555,13 @@ mod tests {
             Coordinates { x: 3, y: 3 },
         ) {
             Ok(mut grid) => {
-                let cell1 = grid.get(0, 0).coords;
-                let cell2 = grid.get(0, 1).coords;
-                let cell3 = grid.get(1, 1).coords;
-                let cell4 = grid.get(1, 2).coords;
-                let cell5 = grid.get(2, 2).coords;
-                let cell6 = grid.get(2, 3).coords;
-                let cell7 = grid.get(3, 3).coords;
+                let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
+                let cell2 = grid.get_by_coords(0, 1).unwrap().coords;
+                let cell3 = grid.get_by_coords(1, 1).unwrap().coords;
+                let cell4 = grid.get_by_coords(1, 2).unwrap().coords;
+                let cell5 = grid.get_by_coords(2, 2).unwrap().coords;
+                let cell6 = grid.get_by_coords(2, 3).unwrap().coords;
+                let cell7 = grid.get_by_coords(3, 3).unwrap().coords;
 
                 grid.link(cell1, cell2);
                 grid.link(cell2, cell3);
@@ -594,13 +587,13 @@ mod tests {
             Coordinates { x: 3, y: 3 },
         ) {
             Ok(mut grid) => {
-                let cell1 = grid.get(0, 0).coords;
-                let cell2 = grid.get(0, 1).coords;
-                let cell3 = grid.get(1, 1).coords;
-                let cell4 = grid.get(1, 2).coords;
-                let cell5 = grid.get(2, 2).coords;
-                let cell6 = grid.get(2, 3).coords;
-                let cell7 = grid.get(3, 3).coords;
+                let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
+                let cell2 = grid.get_by_coords(0, 1).unwrap().coords;
+                let cell3 = grid.get_by_coords(1, 1).unwrap().coords;
+                let cell4 = grid.get_by_coords(1, 2).unwrap().coords;
+                let cell5 = grid.get_by_coords(2, 2).unwrap().coords;
+                let cell6 = grid.get_by_coords(2, 3).unwrap().coords;
+                let cell7 = grid.get_by_coords(3, 3).unwrap().coords;
                 
                 grid.link(cell1, cell2);
                 grid.link(cell2, cell3);
@@ -649,38 +642,38 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze());
-                grid.link(grid.get(0, 0).coords, grid.get(1, 0).coords);
+                grid.link(grid.get_by_coords(0, 0).unwrap().coords, grid.get_by_coords(1, 0).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(1, 0).coords, grid.get(2, 0).coords);
+                grid.link(grid.get_by_coords(1, 0).unwrap().coords, grid.get_by_coords(2, 0).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(2, 0).coords, grid.get(3, 0).coords);
+                grid.link(grid.get_by_coords(2, 0).unwrap().coords, grid.get_by_coords(3, 0).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(3, 0).coords, grid.get(3, 1).coords);
+                grid.link(grid.get_by_coords(3, 0).unwrap().coords, grid.get_by_coords(3, 1).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(3, 1).coords, grid.get(2, 1).coords);
+                grid.link(grid.get_by_coords(3, 1).unwrap().coords, grid.get_by_coords(2, 1).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(2,1).coords, grid.get(1, 1).coords);
+                grid.link(grid.get_by_coords(2,1).unwrap().coords, grid.get_by_coords(1, 1).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(1,1).coords, grid.get(0, 1).coords);
+                grid.link(grid.get_by_coords(1,1).unwrap().coords, grid.get_by_coords(0, 1).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(0,1).coords, grid.get(0, 2).coords);
+                grid.link(grid.get_by_coords(0,1).unwrap().coords, grid.get_by_coords(0, 2).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(0,2).coords, grid.get(1, 2).coords);
+                grid.link(grid.get_by_coords(0,2).unwrap().coords, grid.get_by_coords(1, 2).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(1,2).coords, grid.get(2, 2).coords);
+                grid.link(grid.get_by_coords(1,2).unwrap().coords, grid.get_by_coords(2, 2).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(2,2).coords, grid.get(3, 2).coords);
+                grid.link(grid.get_by_coords(2,2).unwrap().coords, grid.get_by_coords(3, 2).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(3,2).coords, grid.get(3, 3).coords);
+                grid.link(grid.get_by_coords(3,2).unwrap().coords, grid.get_by_coords(3, 3).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(3,3).coords, grid.get(2, 3).coords);
+                grid.link(grid.get_by_coords(3,3).unwrap().coords, grid.get_by_coords(2, 3).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(2,3).coords, grid.get(1, 3).coords);
+                grid.link(grid.get_by_coords(2,3).unwrap().coords, grid.get_by_coords(1, 3).unwrap().coords);
                 assert!(!grid.is_perfect_maze()); // not perfect
-                grid.link(grid.get(1,3).coords, grid.get(0, 3).coords);
+                grid.link(grid.get_by_coords(1,3).unwrap().coords, grid.get_by_coords(0, 3).unwrap().coords);
                 // now it's a perfect maze: only a single path exists for any 2 cells in the maze and there are no unreachable groups of cells
                 assert!(grid.is_perfect_maze());
-                grid.link(grid.get(0,3).coords, grid.get(0, 2).coords);
+                grid.link(grid.get_by_coords(0,3).unwrap().coords, grid.get_by_coords(0, 2).unwrap().coords);
                 // now it's no longer a perfect maze because some cells can reach each other on multiple paths 
                 assert!(!grid.is_perfect_maze());
             }

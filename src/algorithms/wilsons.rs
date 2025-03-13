@@ -36,7 +36,7 @@ impl Wilsons {
                     break;
                 }
                 let current = *last;
-                let cell = match grid.get_cell(Coordinates { x: current.x, y: current.y }) {
+                let cell = match grid.get(Coordinates { x: current.x, y: current.y }) {
                     Some(c) => c,
                     None => return Err(Error::OutOfBoundsCoordinates {
                         coordinates: current,
