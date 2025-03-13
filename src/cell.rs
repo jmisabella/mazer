@@ -53,13 +53,13 @@ pub enum CellOrientation {
 pub struct Cell {
     pub coords: Coordinates,
     pub maze_type: MazeType,
-    pub neighbors_by_direction: HashMap<String, Coordinates>, // Map[String, Coordinates]
-    pub linked: HashSet<Coordinates>,                        // Set[Coordinates]
-    pub distance: i32,                                       // Int
-    pub is_start: bool,                                      // Boolean
-    pub is_goal: bool,                                       // Boolean
-    pub on_solution_path: bool,                              // Boolean
-    pub orientation: CellOrientation,                        // CellOrientation (enum)
+    pub neighbors_by_direction: HashMap<String, Coordinates>,
+    pub linked: HashSet<Coordinates>,
+    pub distance: i32,
+    pub is_start: bool,
+    pub is_goal: bool,
+    pub on_solution_path: bool,
+    pub orientation: CellOrientation,
 }
 
 impl Default for Cell {
@@ -85,7 +85,7 @@ impl Serialize for Cell {
     {
         let mut state = serializer.serialize_struct("Cell", 7)?;
         state.serialize_field("coords", &self.coords)?;
-        // Transform `linked` from coordinates to directions
+        
         let linked_dirs: HashSet<String> = self.linked_directions();
         state.serialize_field("linked", &linked_dirs)?;
         state.serialize_field("distance", &self.distance)?;
@@ -113,34 +113,6 @@ impl Cell {
         return self.coords.y;
     }
 
-    pub fn new(x: usize, y: usize, maze_type: MazeType) -> Self {
-        Self {
-            coords: Coordinates{x: x, y: y},
-            maze_type,
-            neighbors_by_direction: HashMap::new(),
-            linked: HashSet::new(),
-            distance: 0,
-            is_start: false,
-            is_goal: false,
-            on_solution_path: false,
-            orientation: CellOrientation::Normal,
-        }
-    }
-    
-    pub fn init(x: usize, y: usize, maze_type: MazeType, is_start: bool, is_goal: bool) -> Self {
-        Self {
-            coords: Coordinates{x: x, y: y},
-            maze_type,
-            neighbors_by_direction: HashMap::new(),
-            linked: HashSet::new(),
-            distance: 0,
-            is_start: is_start,
-            is_goal: is_goal,
-            on_solution_path: false,
-            orientation: CellOrientation::Normal,
-        }
-    }
-
     pub fn neighbors(&self) -> HashSet<Coordinates> {
         return self.neighbors_by_direction.values().cloned().collect();        
     }
@@ -165,12 +137,9 @@ impl Cell {
             .collect()
     }
 
-    pub fn is_linked_direction<D: Direction>(&self, direction: D) -> bool {
-        // Convert direction to a string key
-        let direction_key = direction.as_str().unwrap_or_default().replace("\"", "");
-
+    pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {
         // Find the neighbor for the given direction
-        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction_key) {
+        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction.as_str()) {
             self.linked.contains(neighbor_coords)
         } else {
             false
@@ -199,6 +168,54 @@ impl Cell {
     pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
     }
+}
+
+pub struct CellBuilder(Cell);
+
+impl CellBuilder {
+
+    pub fn build(&self) -> Cell {
+        self.0.clone()
+    }
+
+    pub fn new(x: usize, y: usize, maze_type: MazeType) -> Self {
+        Self(Cell {
+            coords: Coordinates{x: x, y: y},
+            maze_type,
+            neighbors_by_direction: HashMap::new(),
+            linked: HashSet::new(),
+            distance: 0,
+            is_start: false,
+            is_goal: false,
+            on_solution_path: false,
+            orientation: CellOrientation::Normal,
+        })
+    }
+
+    pub fn is_start(mut self, is_start: bool) -> Self {
+        self.0.is_start = is_start;
+        self
+    }
+
+    pub fn is_goal(mut self, is_goal: bool) -> Self {
+        self.0.is_goal = is_goal;
+        self
+    }
+
+    pub fn linked(mut self, linked: HashSet<Coordinates>) -> Self {
+        self.0.linked = linked;
+        self
+    }
+
+    pub fn orientation(mut self, orientation: CellOrientation) -> Self {
+        self.0.orientation = orientation;
+        self
+    }
+    
+    pub fn neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) -> &Self {
+        self.0.neighbors_by_direction = neighbors_by_direction;
+        self
+    }
 
 }
 
@@ -209,7 +226,7 @@ mod tests {
 
     #[test]
     fn access_neighbors() {
-        let cell1 = Cell::new(1, 1, MazeType::Orthogonal);
+        let cell1 = CellBuilder::new(1, 1, MazeType::Orthogonal).build();
         let mut neighbors = HashMap::new();
         neighbors.insert("North".to_string(), Coordinates{ x: 1, y: 0});
         neighbors.insert("East".to_string(), Coordinates{ x: 2, y: 1});
@@ -230,7 +247,7 @@ mod tests {
         assert!(*cell2.neighbors_by_direction.get("West").expect("Missing West neighbor") == Coordinates{x: 0, y: 1});
 
         // cell with no neighbors assigned
-        let cell3 = Cell::new(1, 1, MazeType::Orthogonal);
+        let cell3 = CellBuilder::new(1, 1, MazeType::Orthogonal).build();
         assert!(cell3.neighbors().is_empty());
         assert!(cell3.neighbors_by_direction.get("North").is_none());
         
@@ -238,7 +255,7 @@ mod tests {
 
     #[test]
     fn access_linked_neighbors() {
-        let cell1 = Cell::new(1, 1, MazeType::Orthogonal);
+        let cell1 = CellBuilder::new(1, 1, MazeType::Orthogonal).build();
         let mut neighbors = HashMap::new();
         let north = Coordinates{ x: 1, y: 0 };
         let east = Coordinates{ x: 2, y: 1 };

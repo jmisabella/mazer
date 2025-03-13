@@ -1,5 +1,5 @@
-use crate::cell::{ CellOrientation, MazeType, Cell, Coordinates };
-use crate::direction::{ SquareDirection, TriangleDirection, HexDirection };
+use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
+use crate::direction::{SquareDirection, TriangleDirection, HexDirection};
 use crate::error::Error;
 use crate::request::MazeRequest;
 
@@ -37,6 +37,32 @@ impl fmt::Display for Grid {
     }
 }
 
+impl TryFrom<MazeRequest> for Grid {
+    type Error = crate::Error; // explicitly reference our custom Error type
+
+    fn try_from(request: MazeRequest) -> Result<Self, Self::Error> {
+        let mut grid = Grid::new(
+            request.maze_type,
+            request.width,
+            request.height,
+            request.start,
+            request.goal,
+        )?;
+        request.algorithm.generate(&mut grid)?;
+        Ok(grid)
+    }
+}
+
+impl TryFrom<&str> for Grid {
+    type Error = crate::Error; // explicitly reference our custom Error type
+
+    fn try_from(json: &str) -> Result<Self, Self::Error> {
+        let deserialized: MazeRequest = serde_json::from_str(json)?;
+        Grid::try_from(deserialized)
+    }
+}
+
+
 impl Grid {
 
     // retrieve a cell by its coordinates
@@ -67,25 +93,6 @@ impl Grid {
         self.seed = seed;
     }
 
-    // pub fn width(&self) -> usize {
-    //     return self.width;
-    // }
-    // pub fn height(&self) -> usize {
-    //     return self.height;
-    // }
-    // pub fn maze_type(&self) -> MazeType {
-    //     return self.maze_type;
-    // }
-    // pub fn cells(&self) -> &Vec<Vec<Cell>> {
-    //     return &self.cells;
-    // }
-    // pub fn start_coords(&self) -> Coordinates {
-    //     return self.start_coords;
-    // }
-    // pub fn goal_coords(&self) -> Coordinates {
-    //     return self.goal_coords;
-    // }
-    
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
         let seed= rng.gen_range(0..upper_bound + 1);
@@ -97,7 +104,7 @@ impl Grid {
         let rando: bool = self.bounded_random_usize(1000000) % 2 == 0;
         return rando;
     }
-
+ 
     pub fn flatten(&self) -> Vec<Cell>
     where
         Cell: Clone,
@@ -146,8 +153,16 @@ impl Grid {
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
-                let mut cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
-                cell.set_orientation(triangle_orientation(upright));
+                let cell: Cell = CellBuilder::new(
+                    col, 
+                    row, 
+                    self.maze_type
+                )
+                .is_start(is_start)
+                .is_goal(is_goal)
+                .orientation(triangle_orientation(upright))
+                .build();
+
                 self.cells[row][col] = cell;
             }
         }
@@ -158,15 +173,23 @@ impl Grid {
         if self.maze_type == MazeType::Delta {
             return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type } );
         }
-        for row in 0..self.height {
-            for col in 0..self.width {
+        (0..self.height)
+            .flat_map(|row| (0..self.width).map(move |col| (row, col))) // Combine row and column
+            .for_each(|(row, col)| { 
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
-                let cell: Cell = Cell::init(col, row, self.maze_type, is_start, is_goal);
+                let cell: Cell = CellBuilder::new(
+                    col, 
+                    row, 
+                    self.maze_type
+                )
+                .is_start(is_start)
+                .is_goal(is_goal)
+                .build();
+
                 self.cells[row][col] = cell;
-            }
-        }
+            });
         Ok(())
     }
 
@@ -178,7 +201,7 @@ impl Grid {
             width, 
             height, 
             maze_type, 
-            cells: vec![vec![Cell::new(0,0,maze_type); width]; height], 
+            cells: vec![vec![CellBuilder::new(0,0,maze_type).build(); width]; height], 
             seed, 
             start_coords: 
             start, 
@@ -275,27 +298,33 @@ impl Grid {
                         fn is_even(value: usize) -> bool {
                             return value % 2 == 0; 
                         }
+                        //let (north_diagonal, south_diagonal) = match is_even(col) {
+                        //    true => (row - 1, row),
+                        //    false => (row, row + 1)
+                        //};
                         let (north_diagonal, south_diagonal) = match is_even(col) {
-                            true => (row - 1, row),
-                            false => (row, row + 1)
+                            true if row > 0 => (row - 1, row),
+                            true => (0, row), // Prevent underflow by clamping to 0
+                            false if row < height - 1 => (row, row + 1),
+                            false => (row, height - 1), // Prevent out-of-bounds
                         };
                         if col > 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[col-1][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northwest.to_string(), grid.cells[north_diagonal][col-1].coords);
                         }
                         if col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.cells[col][row-1].coords);
+                            neighbors.insert(HexDirection::North.to_string(), grid.cells[row-1][col].coords);
                         }
                         if col < width - 1 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[col+1][north_diagonal].coords);
+                            neighbors.insert(HexDirection::Northeast.to_string(), grid.cells[north_diagonal][col+1].coords);
                         }
                         if col > 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[col-1][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southwest.to_string(), grid.cells[south_diagonal][col-1].coords);
                         }
                         if row < height - 1 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.cells[col][row+1].coords);
+                            neighbors.insert(HexDirection::South.to_string(), grid.cells[row+1][col].coords);
                         }
                         if col < width - 1 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[col+1][south_diagonal].coords);
+                            neighbors.insert(HexDirection::Southeast.to_string(), grid.cells[south_diagonal][col+1].coords);
                         }
                         cell.set_neighbors(neighbors);
                         grid.set(cell)?;
@@ -305,19 +334,7 @@ impl Grid {
         }
         Ok(grid)
     }
-
-    // pub fn from_request(request: MazeRequest) -> Grid {
-    pub fn from_request(request: MazeRequest) -> Result<Grid, Error> {
-        let mut grid = Grid::new(request.maze_type, request.width, request.height,request.start, request.goal)?;
-        request.algorithm.generate(&mut grid)?;
-        Ok(grid)
-    }
-
-    pub fn from_json(json: &str) -> Result<Grid, Error> {
-        let deserialized: MazeRequest = serde_json::from_str(json)?;
-        Grid::from_request(deserialized)
-    }
-
+    
     pub fn row(&self, y: usize) -> Vec<Cell> {
         // Ensure the index is within bounds
         if let Some(row) = self.cells.get(y) {
@@ -369,16 +386,18 @@ impl Grid {
             // Get the cell at the current coordinate
             if let Some(cell) = self.get_cell(current) {
                 // Iterate over all linked neighbors
-                for neighbor in &cell.linked {
-                    if !distances.contains_key(neighbor) {
-                        // Update distance and enqueue the neighbor
-                        distances.insert(*neighbor, current_distance + 1);
-                        queue.push_back(*neighbor);
-                    }
-                }
+                // Collect neighbors first to avoid borrowing conflicts with `distances`
+                cell.linked.iter()
+                    .filter(|&&neighbor| !distances.contains_key(&neighbor))
+                    .copied() // Convert &&Coordinates to Coordinates
+                    .collect::<Vec<_>>() // Collect to break borrowing dependency
+                    .into_iter() // Iterate over the owned values
+                    .for_each(|neighbor| {
+                        distances.insert(neighbor, current_distance + 1);
+                        queue.push_back(neighbor);
+                    });
             }
         }
-        
         distances
     }
 
@@ -409,22 +428,21 @@ impl Grid {
             let cell = self
                 .get_cell(current)
                 .ok_or(Error::MissingCoordinates { coordinates: current })?;
-            
-            for &neighbor in &cell.linked {
-                let neighbor_dist = dist
-                    .get(&neighbor)
-                    .ok_or(Error::MissingCoordinates { coordinates: neighbor })?;
+           
+            current = cell.linked.iter()
+                .filter_map(|&neighbor| {
+                    let neighbor_dist = dist.get(&neighbor)?;
+                    let current_dist = dist.get(&current)?;
+                    if neighbor_dist < current_dist {
+                        breadcrumbs.insert(neighbor, *neighbor_dist);
+                        Some(neighbor)
+                    } else {
+                        None // skip this neighbor because distance to it exceeds distance to current
+                    }
+                })
+                .next()
+                .ok_or(Error::NoValidNeighbor { coordinates: cell.coords })?;
 
-                let current_dist = dist
-                    .get(&current)
-                    .ok_or(Error::MissingCoordinates { coordinates: current })?;
-            
-                if neighbor_dist < current_dist {
-                    breadcrumbs.insert(neighbor, *neighbor_dist);
-                    current = neighbor;
-                    break;
-                }
-            }
         }
         Ok(breadcrumbs)
     }
@@ -438,12 +456,20 @@ impl Grid {
 
         while let Some(current) = frontier.pop_front() {
             let cell = &self.cells[current.y][current.x];
-            for neighbor_coords in &cell.linked {
-                if !connected.contains(neighbor_coords) {
-                    connected.insert(*neighbor_coords);
-                    frontier.push_back(*neighbor_coords);
-                }
-            }
+            // collect new coordinates that have not been visited yet
+            let new_linked_coords: Vec<Coordinates> = cell.linked
+                .iter()
+                .filter(|xy| !connected.contains(xy))
+                .copied()
+                .collect();
+
+            new_linked_coords
+                // take ownership because `insert` and `push_back` both require owned values, not references 
+                .into_iter()
+                .for_each(|xy| {
+                    connected.insert(xy);
+                    frontier.push_back(xy);
+                });
         }
         connected
     }
@@ -505,7 +531,6 @@ impl Grid {
         }
         return output;
     }
-
 
 }
 
@@ -697,7 +722,7 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
-        match Grid::from_json(json) {
+        match Grid::try_from(json) {
             Ok(maze) => {
                 assert!(maze.is_perfect_maze());
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
