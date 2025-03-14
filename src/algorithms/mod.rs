@@ -69,7 +69,7 @@ mod tests {
         "#;
         match generate(json) {
             Ok(maze) => {
-                assert!(maze.is_perfect_maze());
+                assert!(maze.is_perfect_maze().unwrap());
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),

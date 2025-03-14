@@ -7,8 +7,10 @@ pub struct AldousBroder;
 impl AldousBroder {
     pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         // Step 1: Initialize visited tracking using Vec<Vec<bool>>
-        let rows = grid.cells.len();
-        let cols = grid.cells[0].len();
+        //let rows = grid.cells.len();
+        //let cols = grid.cells[0].len();
+        let rows = grid.height;
+        let cols = grid.width;
         let mut visited = vec![vec![false; cols]; rows];
         let total_cells = rows * cols;
 
@@ -40,7 +42,7 @@ impl AldousBroder {
 
                     // If the neighbor hasn't been visited, link it and update visited
                     if !visited[random_neighbor.y][random_neighbor.x] {
-                        grid.link(current_coords, random_neighbor);
+                        grid.link(current_coords, random_neighbor)?;
                         visited[random_neighbor.y][random_neighbor.x] = true;
                         visited_count += 1;
                     }
@@ -66,10 +68,10 @@ mod tests {
     fn generate_and_print_5_x_5_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
                 println!("\n\nAldous Broder\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -79,10 +81,10 @@ mod tests {
     fn generate_and_print_12_x_6_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
                 println!("\n\nAldous Broder\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -92,9 +94,9 @@ mod tests {
     fn generate_5_x_5_delta_maze() {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -104,9 +106,9 @@ mod tests {
     fn generate_12_x_6_delta_maze() {
         match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -116,9 +118,9 @@ mod tests {
     fn generate_5_x_5_sigma_maze() {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -128,9 +130,9 @@ mod tests {
     fn generate_12_x_6_sigma_maze() {
         match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder::generate(&mut grid).expect("AldousBroder maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }

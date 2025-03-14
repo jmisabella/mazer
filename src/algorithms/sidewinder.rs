@@ -13,8 +13,10 @@ impl Sidewinder {
                 return Err(Error::AlgorithmUnavailableForMazeType{algorithm:MazeAlgorithm::Sidewinder, maze_type:maze_type});
             }
         }
-        let rows = grid.cells.len();
-        let cols = grid.cells[0].len();
+        //let rows = grid.cells.len();
+        //let cols = grid.cells[0].len();
+        let rows = grid.height;
+        let cols = grid.width;
         for row in 0..rows {
             let mut run: Vec<Coordinates> = Vec::new(); // Start a new run
 
@@ -41,11 +43,13 @@ impl Sidewinder {
 
                         // Link the selected cell upward
                         {
-                            let current_cell = &mut grid.cells[random_cell.y][random_cell.x];
+                            //let current_cell = &mut grid.cells[random_cell.y][random_cell.x];
+                            let current_cell = grid.get_mut(random_cell)?;
                             current_cell.linked.insert(above_coords);
                         }
 
-                        let above_cell = &mut grid.cells[above_coords.y][above_coords.x];
+                        //let above_cell = &mut grid.cells[above_coords.y][above_coords.x];
+                        let above_cell = grid.get_mut(above_coords)?;
                         above_cell.linked.insert(random_cell);
                     }
 
@@ -58,11 +62,13 @@ impl Sidewinder {
                     };
 
                     {
-                        let current_cell = &mut grid.cells[row][col];
+                        //let current_cell = &mut grid.cells[row][col];
+                        let current_cell = grid.get_mut_by_coords(col, row)?;
                         current_cell.linked.insert(east_coords);
                     }
 
-                    let east_cell = &mut grid.cells[row][col + 1];
+                    //let east_cell = &mut grid.cells[row][col + 1];
+                    let east_cell = grid.get_mut_by_coords(col + 1, row)?;
                     east_cell.linked.insert(current_coords);
                 }
             }
@@ -80,10 +86,10 @@ mod tests {
     fn print_5_x_5_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
                 println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }     
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -93,10 +99,10 @@ mod tests {
     fn print_12_x_6_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
                 println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -106,7 +112,7 @@ mod tests {
     fn reject_5_x_5_delta_binary_tree_maze() {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 match Sidewinder::generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a Sidewinder maze for a Delta grid, which is should have been rejected!");
@@ -124,7 +130,7 @@ mod tests {
     fn reject_5_x_5_sigma_binary_tree_maze() {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 match Sidewinder::generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a Sidewinder maze for a Sigma grid, which is should have been rejected!");
