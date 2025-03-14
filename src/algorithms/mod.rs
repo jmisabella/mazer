@@ -75,4 +75,24 @@ mod tests {
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
+    
+    #[test]
+    fn test_recursive_backtracker_orthogonal_400_x_400_maze_generation_from_json() {
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 400,
+            "height": 400,
+            "algorithm": "RecursiveBacktracker",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 399, "y": 399 }
+        }
+        "#;
+        match generate(json) {
+            Ok(maze) => {
+                assert!(maze.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
 }
