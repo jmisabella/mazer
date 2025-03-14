@@ -19,7 +19,7 @@ impl RecursiveBacktracker {
         while let Some(current_coords) = stack.last().cloned() {
             // Get all unvisited neighbors
             let neighbors: Vec<Coordinates> = grid
-                .get(current_coords.x, current_coords.y)
+                .get(current_coords)?
                 .neighbors()
                 .into_iter()
                 .filter(|neighbor| !visited.contains(neighbor))
@@ -37,7 +37,7 @@ impl RecursiveBacktracker {
                 let next_coords = neighbors[random_index];
 
                 // Link current cell to the chosen neighbor
-                grid.link(current_coords, next_coords);
+                grid.link(current_coords, next_coords)?;
 
                 // Mark the neighbor as visited and push it onto the stack
                 visited.insert(next_coords);
@@ -58,10 +58,10 @@ mod tests {
     fn generate_and_print_5_x_5_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error occurred running test: {:?}", e),
         }
@@ -71,10 +71,10 @@ mod tests {
     fn generate_and_print_12_x_6_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -84,9 +84,9 @@ mod tests {
     fn generate_5_x_5_delta_maze() {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error occurred running test: {:?}", e),
         }
@@ -96,9 +96,9 @@ mod tests {
     fn generate_12_x_6_delta_maze() {
         match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
@@ -108,9 +108,9 @@ mod tests {
     fn generate_5_x_5_sigma_maze() {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error occurred running test: {:?}", e),
         }
@@ -120,9 +120,9 @@ mod tests {
     fn generate_12_x_6_sigma_maze() {
         match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveBacktracker::generate(&mut grid).expect("RecursiveBacktracker maze generation failed");
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }

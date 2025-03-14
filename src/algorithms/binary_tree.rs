@@ -13,9 +13,9 @@ impl BinaryTree {
                 return Err(Error::AlgorithmUnavailableForMazeType{algorithm:MazeAlgorithm::BinaryTree, maze_type:maze_type});
             }
         }
-        let rows = grid.cells.len(); // Precompute rows count
+        let rows = grid.height;
+        let cols = grid.width;
         for row in 0..rows {
-            let cols = grid.cells[row].len(); // Precompute cols count
             for col in 0..cols {
                 // Determine the existence of neighbors
                 let right_exists = col + 1 < cols;
@@ -35,8 +35,10 @@ impl BinaryTree {
                             Coordinates { x: col, y: row },
                             Coordinates { x: col, y: row + 1 },
                         );
-                        grid.cells[row][col].linked.insert(down_coords);
-                        grid.cells[row + 1][col].linked.insert(current_coords);
+                        let index1 = grid.get_flattened_index(col, row);
+                        grid.cells[index1].linked.insert(down_coords);
+                        let index2 = grid.get_flattened_index(col, row + 1);
+                        grid.cells[index2].linked.insert(current_coords);
                     }
                 } else {
                     if right_exists {
@@ -44,8 +46,10 @@ impl BinaryTree {
                             Coordinates { x: col, y: row },
                             Coordinates { x: col + 1, y: row },
                         );
-                        grid.cells[row][col].linked.insert(right_coords);
-                        grid.cells[row][col + 1].linked.insert(current_coords);
+                        let index1 = grid.get_flattened_index(col, row);
+                        grid.cells[index1].linked.insert(right_coords);
+                        let index2 = grid.get_flattened_index(col + 1, row);
+                        grid.cells[index2].linked.insert(current_coords);
                     }
                 }
             }
@@ -63,10 +67,10 @@ mod tests {
     fn print_5_x_5_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 BinaryTree::generate(&mut grid).expect("BinaryTree maze generation failed");
                 println!("\n\nBinary Tree\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }    
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
@@ -76,21 +80,20 @@ mod tests {
     fn print_12_x_24_orthogonal_maze() {
         match Grid::new(MazeType::Orthogonal, 12, 24, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 23 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 BinaryTree::generate(&mut grid).expect("BinaryTree maze generation failed");
                 println!("\n\nBinary Tree\n\n{}\n\n", grid.to_asci());
-                assert!(grid.is_perfect_maze());
+                assert!(grid.is_perfect_maze().unwrap());
             }    
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
 
-
     #[test]
     fn reject_5_x_5_delta_binary_tree_maze() {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 match BinaryTree::generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a BinaryTree maze for a Delta grid, which is should have been rejected!");
@@ -108,7 +111,7 @@ mod tests {
     fn reject_5_x_5_sigma_binary_tree_maze() {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze());
+                assert!(!grid.is_perfect_maze().unwrap());
                 match BinaryTree::generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a BinaryTree maze for a Sigma grid, which is should have been rejected!");

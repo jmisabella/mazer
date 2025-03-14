@@ -1,5 +1,4 @@
 use mazer::{self, generate};
-use std::error::Error;
 
 #[test]
 fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {
@@ -15,7 +14,7 @@ fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
             println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
         }
         Err(e) => {
@@ -39,7 +38,7 @@ fn test_aldous_broder_delta_16_x_16_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
         }
         Err(e) => {
             dbg!(&e);
@@ -62,7 +61,7 @@ fn test_hunt_and_kill_sigma_26_x_26_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
         }
         Err(e) => {
             dbg!(&e);
@@ -85,7 +84,7 @@ fn test_aldous_broder_orthogonal_12_x_24_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
             println!("{}", maze.to_asci());
         }
         Err(e) => {
@@ -109,7 +108,7 @@ fn test_aldous_broder_delta_12_x_24_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
         }
         Err(e) => {
             dbg!(&e);
@@ -132,7 +131,7 @@ fn test_aldous_broder_sigma_12_x_24_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
         }
         Err(e) => {
             dbg!(&e);
@@ -155,7 +154,7 @@ fn test_recursive_backtracker_delta_24_x_12_maze_generation_from_json() {
     "#;
     match generate(json) {
         Ok(maze) => {
-            assert!(maze.is_perfect_maze());
+            assert!(maze.is_perfect_maze().unwrap());
         }
         Err(e) => {
             dbg!(&e);
