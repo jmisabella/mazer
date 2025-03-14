@@ -13,8 +13,6 @@ impl Sidewinder {
                 return Err(Error::AlgorithmUnavailableForMazeType{algorithm:MazeAlgorithm::Sidewinder, maze_type:maze_type});
             }
         }
-        //let rows = grid.cells.len();
-        //let cols = grid.cells[0].len();
         let rows = grid.height;
         let cols = grid.width;
         for row in 0..rows {
@@ -43,12 +41,10 @@ impl Sidewinder {
 
                         // Link the selected cell upward
                         {
-                            //let current_cell = &mut grid.cells[random_cell.y][random_cell.x];
                             let current_cell = grid.get_mut(random_cell)?;
                             current_cell.linked.insert(above_coords);
                         }
 
-                        //let above_cell = &mut grid.cells[above_coords.y][above_coords.x];
                         let above_cell = grid.get_mut(above_coords)?;
                         above_cell.linked.insert(random_cell);
                     }
@@ -62,12 +58,10 @@ impl Sidewinder {
                     };
 
                     {
-                        //let current_cell = &mut grid.cells[row][col];
                         let current_cell = grid.get_mut_by_coords(col, row)?;
                         current_cell.linked.insert(east_coords);
                     }
 
-                    //let east_cell = &mut grid.cells[row][col + 1];
                     let east_cell = grid.get_mut_by_coords(col + 1, row)?;
                     east_cell.linked.insert(current_coords);
                 }

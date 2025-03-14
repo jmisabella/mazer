@@ -1,5 +1,4 @@
 use mazer::{self, generate};
-use std::error::Error;
 
 #[test]
 fn test_recursive_backtracker_orthogonal_12_x_12_maze_generation_from_json() {

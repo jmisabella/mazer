@@ -344,7 +344,7 @@ mod tests {
         assert!(json.contains("\"x\":1"));
         assert!(json.contains("\"y\":1"));
         assert!(json.contains("\"East\""));
-        assert!(json.contains("\"South\"")); //// why does our linked_directions method only have "East" but not "South" ???
+        assert!(json.contains("\"South\""));
         assert!(json.contains("\"on_solution_path\":true"));
     }
 

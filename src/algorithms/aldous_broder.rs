@@ -7,8 +7,6 @@ pub struct AldousBroder;
 impl AldousBroder {
     pub fn generate(grid: &mut Grid) -> Result<(), Error> {
         // Step 1: Initialize visited tracking using Vec<Vec<bool>>
-        //let rows = grid.cells.len();
-        //let cols = grid.cells[0].len();
         let rows = grid.height;
         let cols = grid.width;
         let mut visited = vec![vec![false; cols]; rows];

@@ -3,16 +3,6 @@ use crate::cell::MazeType;
 use crate::algorithms::MazeAlgorithm;
 use serde::{ Serialize, Deserialize };
 
-// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-// pub enum Algorithm {
-//     BinaryTree,
-//     Sidewinder,
-//     AldousBroder,
-//     Wilsons,
-//     HuntAndKill,
-//     RecursiveBacktracker
-// }
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MazeRequest {
     pub maze_type: MazeType,

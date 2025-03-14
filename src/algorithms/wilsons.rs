@@ -13,14 +13,11 @@ impl Wilsons {
         // Mark the start cell as visited
         visited.insert(grid.start_coords);
 
-        //let grid_size = grid.cells.len() * grid.cells[0].len();
         let grid_size = grid.width * grid.height;
 
         while visited.len() < grid_size {
             // Choose a random unvisited cell to start the random walk
             let walk_start = loop {
-                //let x = grid.bounded_random_usize(grid.cells[0].len() - 1);
-                //let y = grid.bounded_random_usize(grid.cells.len() - 1);
                 let x = grid.bounded_random_usize(grid.width - 1);
                 let y = grid.bounded_random_usize(grid.height - 1);
                 let coords = Coordinates { x, y };
@@ -40,14 +37,6 @@ impl Wilsons {
                 }
                 let current = *last;
                 let cell = grid.get(Coordinates { x: current.x, y: current.y })?;
-                //let cell = match grid.get(Coordinates { x: current.x, y: current.y }) {
-                //    Some(c) => c,
-                //    None => return Err(Error::OutOfBoundsCoordinates {
-                //        coordinates: current,
-                //        maze_width: grid.width,
-                //        maze_height: grid.height,
-                //    }),
-                //};
                 let neighbors_list: HashSet<Coordinates> = cell.neighbors();
                 let neighbors: Vec<&Coordinates> = neighbors_list.iter().collect();
             

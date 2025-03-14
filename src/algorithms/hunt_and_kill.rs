@@ -30,7 +30,6 @@ impl HuntAndKill {
                 current_coords = new_coords;
             } else {
                 // No more unvisited cells, maze generation complete
-                // break Ok(());
                 break;
             }
         }

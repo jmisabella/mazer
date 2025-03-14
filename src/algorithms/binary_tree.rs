@@ -15,9 +15,7 @@ impl BinaryTree {
         }
         let rows = grid.height;
         let cols = grid.width;
-        //let rows = grid.cells.len(); // Precompute rows count
         for row in 0..rows {
-            //let cols = grid.cells[row].len(); // Precompute cols count
             for col in 0..cols {
                 // Determine the existence of neighbors
                 let right_exists = col + 1 < cols;
@@ -37,8 +35,6 @@ impl BinaryTree {
                             Coordinates { x: col, y: row },
                             Coordinates { x: col, y: row + 1 },
                         );
-                        //grid.cells[row][col].linked.insert(down_coords);
-                        //grid.cells[row + 1][col].linked.insert(current_coords);
                         let index1 = grid.get_flattened_index(col, row);
                         grid.cells[index1].linked.insert(down_coords);
                         let index2 = grid.get_flattened_index(col, row + 1);
@@ -50,8 +46,6 @@ impl BinaryTree {
                             Coordinates { x: col, y: row },
                             Coordinates { x: col + 1, y: row },
                         );
-                        //grid.cells[row][col].linked.insert(right_coords);
-                        //grid.cells[row][col + 1].linked.insert(current_coords);
                         let index1 = grid.get_flattened_index(col, row);
                         grid.cells[index1].linked.insert(right_coords);
                         let index2 = grid.get_flattened_index(col + 1, row);
