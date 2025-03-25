@@ -1,5 +1,5 @@
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
-use crate::direction::{SquareDirection, TriangleDirection, HexDirection};
+use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
 use crate::error::Error;
 use crate::request::MazeRequest;
 
@@ -233,9 +233,9 @@ impl Grid {
         };
 
         match maze_type {
-            MazeType::Polar => {
-                unimplemented!("MazeType Polar is not yet supported.");
-            }
+            //MazeType::Polar => {
+            //    unimplemented!("MazeType Polar is not yet supported.");
+            //}
             MazeType::Orthogonal => {
                 for row in 0..height as usize {
                     for col in 0..width as usize {
@@ -334,6 +334,38 @@ impl Grid {
                         if col < width - 1 && south_diagonal < height {
                             neighbors.insert(HexDirection::Southeast.to_string(), grid.get_by_coords(col+1, south_diagonal)?.coords);
                         }
+                        cell.set_neighbors(neighbors);
+                        grid.set(cell)?;
+                    }
+                }
+            }
+            MazeType::Polar => {
+                for row in 0..height as usize {
+                    for col in 0..width as usize {
+                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
+                        
+                        // Calculate inward/outward neighbors
+                        if row > 0 { // check inward (previous row)
+                            let inward_neighbor = grid.get_by_coords(col, row - 1)?.coords;
+                            neighbors.insert(PolarDirection::Inward.to_string(), inward_neighbor);
+                        }
+                        if row < height - 1 { // check outward (next row)
+                            let outward_neighbor = grid.get_by_coords(col, row + 1)?.coords;
+                            neighbors.insert(PolarDirection::Outward.to_string(), outward_neighbor);
+                        }
+                        
+                        // Calculate clockwise/counter-clockwise neighbors
+                        if col > 0 { // counter-clockwise (previous column)
+                            let ccw_neighbor = grid.get_by_coords((col - 1) % width, row)?.coords;
+                            neighbors.insert(PolarDirection::CounterClockwise.to_string(), ccw_neighbor);
+                        }
+                        if col < width - 1 { // clockwise (next column)
+                            let cw_neighbor = grid.get_by_coords((col + 1) % width, row)?.coords;
+                            neighbors.insert(PolarDirection::Clockwise.to_string(), cw_neighbor);
+                        }
+                        
+                        // Set the neighbors for the cell
                         cell.set_neighbors(neighbors);
                         grid.set(cell)?;
                     }
