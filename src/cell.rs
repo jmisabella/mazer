@@ -49,6 +49,7 @@ pub enum CellOrientation {
     Inverted
 }
 
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
     pub coords: Coordinates,
@@ -167,6 +168,42 @@ impl Cell {
     
     pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
+    }
+}
+
+#[repr(C)]
+pub struct ExposedCell {
+    pub x: usize,
+    pub y: usize,
+    pub maze_type: String,
+    pub linked: Vec<String>,
+    pub distance: i32,
+    pub is_start: bool,
+    pub is_goal: bool,
+    pub on_solution_path: bool,
+    pub orientation: String,
+}
+
+impl From<&Cell> for ExposedCell {
+    fn from(cell: &Cell) -> Self {
+        ExposedCell {
+            x: cell.coords.x,
+            y: cell.coords.y,
+            maze_type: format!("{:?}", cell.maze_type),
+            linked: cell.linked.iter()
+                .filter_map(|coords| {
+                    // try to find the key in neighbors_by_direction where the value matches the coordinates
+                    cell.neighbors_by_direction.iter()
+                        .find(|(_, &v)| v == *coords) // matching the Coordinates
+                        .map(|(k, _)| k.clone()) // if found, return the key (which is String representation of Direction enum child enum)
+                })
+                .collect(),
+            distance: cell.distance,
+            is_start: cell.is_start,
+            is_goal: cell.is_goal,
+            on_solution_path: cell.on_solution_path,
+            orientation: format!("{:?}", cell.orientation), // Assuming CellOrientation is an enum
+        }
     }
 }
 
@@ -347,6 +384,38 @@ mod tests {
         assert!(json.contains("\"South\""));
         assert!(json.contains("\"on_solution_path\":true"));
     }
+    #[test]
+    fn test_memory_allocation_for_exposed_cell() {
+        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+        neighbors.insert("North".to_string(), Coordinates { x: 1, y: 1 });
+        neighbors.insert("East".to_string(), Coordinates { x: 2, y: 2 });
+        neighbors.insert("South".to_string(), Coordinates { x: 1, y: 3 });
+        neighbors.insert("West".to_string(), Coordinates { x: 0, y: 2 });
 
+        let mut linked: HashSet<Coordinates> = HashSet::new();
+        linked.insert(Coordinates{ x: 2, y: 2 });
+        linked.insert(Coordinates{ x: 1, y: 3 });
+        let cell = Cell {
+            coords: Coordinates { x: 1, y: 2 },
+            maze_type: MazeType::Orthogonal,
+            neighbors_by_direction: neighbors,
+            linked: linked,
+            distance: 10,
+            is_start: true,
+            is_goal: false,
+            on_solution_path: true,
+            orientation: CellOrientation::Normal,
+        };
 
+        let exposed_cell: ExposedCell = (&cell).into();
+
+        // Test the allocation is correct (in this case, just checking fields)
+        assert_eq!(exposed_cell.x, 1);
+        assert_eq!(exposed_cell.y, 2);
+        assert_eq!(exposed_cell.maze_type.as_str(), "Orthogonal");
+        assert_eq!(exposed_cell.orientation.as_str(), "Normal");
+        assert_eq!(exposed_cell.linked.len(), 2);
+        assert!(exposed_cell.linked.contains(&String::from("East")));
+        assert!(exposed_cell.linked.contains(&String::from("South")));
+    }
 }
