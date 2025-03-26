@@ -30,19 +30,40 @@ pub fn generate(request_json: &str) -> Result<Grid, Error> {
 
 #[no_mangle]
 pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut usize) -> *mut ExposedCell {
-    // Deserialize the request JSON (safe since it's small)
-    let request_str = unsafe { CStr::from_ptr(request_json).to_str().unwrap() };
-    
-    // Generate the maze in Rust
-    let maze = generate(request_str).unwrap();
-    
-    // Convert the internal cells into the exposed `ExposedCell` format
-    let exposed_cells: Vec<ExposedCell> = maze.cells.iter().map(|cell| ExposedCell::from(cell)).collect();
-    
-    // Store the length to help Swift know how many cells to read
+    if request_json.is_null() {
+        eprintln!("mazer_generate_maze: request_json is null");
+        return std::ptr::null_mut();
+    }
+
+    // Convert C string to Rust string safely
+    let request_str = match unsafe { CStr::from_ptr(request_json) }.to_str() {
+        Ok(s) => s,
+        Err(err) => {
+            eprintln!("mazer_generate_maze: Failed to convert request JSON to string: {:?}", err);
+            return std::ptr::null_mut();
+        }
+    };
+
+    // Attempt to generate the maze
+    let maze = match generate(request_str) {
+        Ok(m) => m,
+        Err(err) => {
+            eprintln!("mazer_generate_maze: Maze generation failed: {:?}", err);
+            return std::ptr::null_mut();
+        }
+    };
+
+    // Convert cells to the exposed format
+    let exposed_cells: Vec<ExposedCell> = maze.cells.iter().map(ExposedCell::from).collect();
+
+    // Store the length in the provided pointer safely
+    if length.is_null() {
+        eprintln!("mazer_generate_maze: length pointer is null");
+        return std::ptr::null_mut();
+    }
     unsafe { *length = exposed_cells.len(); }
-    
-    // Convert the Vec into a raw pointer to return
+
+    // Convert to a raw pointer
     let boxed_slice = exposed_cells.into_boxed_slice();
     Box::into_raw(boxed_slice) as *mut ExposedCell
 }
@@ -51,9 +72,10 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
 pub extern "C" fn mazer_free_cells(ptr: *mut ExposedCell, length: usize) {
     if ptr.is_null() { return; }
     unsafe {
-        drop(Vec::from_raw_parts(ptr, length, length));
+        drop(Box::from_raw(ptr));  // ✅ Correct: Matches Box::into_raw
     }
 }
+
 
 #[no_mangle]
 pub extern "C" fn mazer_generate_maze_json(request_json: *const c_char) -> *mut c_char {
