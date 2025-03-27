@@ -10,7 +10,6 @@ repository = "https://github.com/jmisabella/mazer"
 [lib]
 name = "mazer"
 path = "src/lib.rs"
-### UNCOMMENT WHEN CLONING FOR iOS DEVELOPMENTl: crate-type = ["staticlib"]
 
 [dependencies]
 rand = "0.8"
