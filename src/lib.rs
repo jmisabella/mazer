@@ -3,7 +3,7 @@ use std::os::raw::c_char;
 use std::ptr;
 use crate::error::Error;
 use crate::grid::Grid;
-use crate::cell::ExposedCell;
+use crate::cell::FFICell;
 
 pub mod cell;
 pub mod grid;
@@ -29,7 +29,7 @@ pub fn generate(request_json: &str) -> Result<Grid, Error> {
 }
 
 #[no_mangle]
-pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut usize) -> *mut ExposedCell {
+pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut usize) -> *mut FFICell {
     if request_json.is_null() {
         eprintln!("mazer_generate_maze: request_json is null");
         return std::ptr::null_mut();
@@ -54,7 +54,7 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
     };
 
     // Convert cells to the exposed format
-    let exposed_cells: Vec<ExposedCell> = maze.cells.iter().map(ExposedCell::from).collect();
+    let exposed_cells: Vec<FFICell> = maze.cells.iter().map(FFICell::from).collect();
 
     // Store the length in the provided pointer safely
     if length.is_null() {
@@ -65,11 +65,11 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
 
     // Convert to a raw pointer
     let boxed_slice = exposed_cells.into_boxed_slice();
-    Box::into_raw(boxed_slice) as *mut ExposedCell
+    Box::into_raw(boxed_slice) as *mut FFICell
 }
 
 #[no_mangle]
-pub extern "C" fn mazer_free_cells(ptr: *mut ExposedCell, _length: usize) {
+pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, _length: usize) {
     if ptr.is_null() { return; }
     unsafe {
         drop(Box::from_raw(ptr));  // ✅ Correct: Matches Box::into_raw
