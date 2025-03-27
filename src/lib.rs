@@ -69,7 +69,7 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
 }
 
 #[no_mangle]
-pub extern "C" fn mazer_free_cells(ptr: *mut ExposedCell, length: usize) {
+pub extern "C" fn mazer_free_cells(ptr: *mut ExposedCell, _length: usize) {
     if ptr.is_null() { return; }
     unsafe {
         drop(Box::from_raw(ptr));  // ✅ Correct: Matches Box::into_raw
