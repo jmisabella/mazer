@@ -172,7 +172,7 @@ impl Cell {
 }
 
 #[repr(C)]
-pub struct ExposedCell {
+pub struct FFICell {
     pub x: usize,
     pub y: usize,
     pub maze_type: String,
@@ -184,9 +184,9 @@ pub struct ExposedCell {
     pub orientation: String,
 }
 
-impl From<&Cell> for ExposedCell {
+impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
-        ExposedCell {
+        FFICell {
             x: cell.coords.x,
             y: cell.coords.y,
             maze_type: format!("{:?}", cell.maze_type),
@@ -385,7 +385,7 @@ mod tests {
         assert!(json.contains("\"on_solution_path\":true"));
     }
     #[test]
-    fn test_memory_allocation_for_exposed_cell() {
+    fn test_memory_allocation_for_ffi_cell() {
         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
         neighbors.insert("North".to_string(), Coordinates { x: 1, y: 1 });
         neighbors.insert("East".to_string(), Coordinates { x: 2, y: 2 });
@@ -407,15 +407,15 @@ mod tests {
             orientation: CellOrientation::Normal,
         };
 
-        let exposed_cell: ExposedCell = (&cell).into();
+        let ffi_cell: FFICell = (&cell).into();
 
         // Test the allocation is correct (in this case, just checking fields)
-        assert_eq!(exposed_cell.x, 1);
-        assert_eq!(exposed_cell.y, 2);
-        assert_eq!(exposed_cell.maze_type.as_str(), "Orthogonal");
-        assert_eq!(exposed_cell.orientation.as_str(), "Normal");
-        assert_eq!(exposed_cell.linked.len(), 2);
-        assert!(exposed_cell.linked.contains(&String::from("East")));
-        assert!(exposed_cell.linked.contains(&String::from("South")));
+        assert_eq!(ffi_cell.x, 1);
+        assert_eq!(ffi_cell.y, 2);
+        assert_eq!(ffi_cell.maze_type.as_str(), "Orthogonal");
+        assert_eq!(ffi_cell.orientation.as_str(), "Normal");
+        assert_eq!(ffi_cell.linked.len(), 2);
+        assert!(ffi_cell.linked.contains(&String::from("East")));
+        assert!(ffi_cell.linked.contains(&String::from("South")));
     }
 }
