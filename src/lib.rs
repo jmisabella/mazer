@@ -110,3 +110,9 @@ pub extern "C" fn mazer_free_string(ptr: *mut c_char) {
         drop(CString::from_raw(ptr)); // reclaim memory
     }
 }
+
+#[no_mangle]
+pub extern "C" fn mazer_ffi_integration_test() -> i32 {
+    42
+}
+
