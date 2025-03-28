@@ -53,6 +53,11 @@ char* mazer_generate_maze_json(const char* request_json);
  */
 void mazer_free_string(char* ptr);
 
+/**
+ * To verify FFI connectivity, call verify this returns 42
+ */
+int mazer_ffi_integration_test();
+
 #ifdef __cplusplus
 }
 #endif
