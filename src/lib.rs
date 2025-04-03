@@ -30,12 +30,17 @@ pub fn generate(request_json: &str) -> Result<Grid, Error> {
 
 #[no_mangle]
 pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut usize) -> *mut FFICell {
+    // Check for null pointers early to avoid unnecessary processing.
     if request_json.is_null() {
         eprintln!("mazer_generate_maze: request_json is null");
         return std::ptr::null_mut();
     }
+    if length.is_null() {
+        eprintln!("mazer_generate_maze: length pointer is null");
+        return std::ptr::null_mut();
+    }
 
-    // Convert C string to Rust string safely
+    // Convert C string to Rust string safely.
     let request_str = match unsafe { CStr::from_ptr(request_json) }.to_str() {
         Ok(s) => s,
         Err(err) => {
@@ -44,7 +49,7 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
         }
     };
 
-    // Attempt to generate the maze
+    // Attempt to generate the maze.
     let maze = match generate(request_str) {
         Ok(m) => m,
         Err(err) => {
@@ -53,52 +58,74 @@ pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut 
         }
     };
 
-    // Convert cells to the exposed format
+    // Convert cells to the exposed FFI format.
     let exposed_cells: Vec<FFICell> = maze.cells.iter().map(FFICell::from).collect();
 
-    // Store the length in the provided pointer safely
-    if length.is_null() {
-        eprintln!("mazer_generate_maze: length pointer is null");
-        return std::ptr::null_mut();
+    // Store the length of the cell array.
+    unsafe {
+        *length = exposed_cells.len();
     }
-    unsafe { *length = exposed_cells.len(); }
 
-    // Convert to a raw pointer
+    // Convert the vector into a boxed slice and leak it to obtain a raw pointer.
+    // Ownership of this memory is transferred to the caller.
     let boxed_slice = exposed_cells.into_boxed_slice();
     Box::into_raw(boxed_slice) as *mut FFICell
 }
 
+
 #[no_mangle]
-pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, _length: usize) {
-    if ptr.is_null() { return; }
+pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
+    if ptr.is_null() {
+        return;
+    }
     unsafe {
-        drop(Box::from_raw(ptr));  // ✅ Correct: Matches Box::into_raw
+        // Reconstruct a boxed slice from the raw pointer.
+        let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
+        // Dropping the Box will call Drop for every FFICell in the slice.
     }
 }
 
-
 #[no_mangle]
 pub extern "C" fn mazer_generate_maze_json(request_json: *const c_char) -> *mut c_char {
+    // Check for null input pointer.
     if request_json.is_null() {
-        // null input, return mutable null pointer (*mut c_char)
         return ptr::null_mut();
     }
 
+    // Safely convert the input C string to a Rust &str.
     let c_str = unsafe { CStr::from_ptr(request_json) };
     let input_json = match c_str.to_str() {
         Ok(s) => s,
-        Err(_) => return ptr::null_mut(),
+        Err(err) => {
+            eprintln!("mazer_generate_maze_json: Invalid UTF-8 sequence: {:?}", err);
+            return ptr::null_mut();
+        }
     };
 
+    // Generate the maze and convert the result to a JSON string.
+    // On error, an empty JSON string is returned.
     let result = match generate(input_json) {
-        Ok(grid) => serde_json::to_string(&grid).unwrap_or_else(|_| String::new()),
-        Err(_) => String::new(), // empty JSON string on error
+        Ok(grid) => match serde_json::to_string(&grid) {
+            Ok(json) => json,
+            Err(err) => {
+                eprintln!("mazer_generate_maze_json: Serialization error: {:?}", err);
+                String::new()
+            }
+        },
+        Err(err) => {
+            eprintln!("mazer_generate_maze_json: Maze generation failed: {:?}", err);
+            String::new()
+        }
     };
 
-    // convert Rust string to C string and return a pointer
+    // Convert the Rust String to a C string, transferring ownership.
+    // If the conversion fails (e.g., if the string contains a null byte), return null.
     CString::new(result)
         .map(|c_string| c_string.into_raw())
-        .unwrap_or(ptr::null_mut())
+        .unwrap_or_else(|err| {
+            eprintln!("mazer_generate_maze_json: CString conversion error: {:?}", err);
+            ptr::null_mut()
+        })
 }
 
 #[no_mangle]
@@ -107,7 +134,8 @@ pub extern "C" fn mazer_free_string(ptr: *mut c_char) {
         return;
     }
     unsafe {
-        drop(CString::from_raw(ptr)); // reclaim memory
+        // Reclaim the memory allocated for the C string.
+        drop(CString::from_raw(ptr));
     }
 }
 
