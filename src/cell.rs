@@ -1,9 +1,12 @@
-use crate::direction::Direction;
-
+use std::ffi::{CString, CStr};
+use std::os::raw::c_char;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
+
+use crate::direction::Direction;
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct Coordinates {
@@ -175,37 +178,88 @@ impl Cell {
 pub struct FFICell {
     pub x: usize,
     pub y: usize,
-    pub maze_type: String,
-    pub linked: Vec<String>,
+    // must be *const c_char to prevent memory issues at other side (Swift)
+    pub maze_type: *const c_char,  // ✅ Changed from String to *const c_char
+    pub linked: *const *const c_char,  // ✅ Pointer to an array of C strings
+    pub linked_len: usize,  // track length of linked array
     pub distance: i32,
     pub is_start: bool,
     pub is_goal: bool,
     pub on_solution_path: bool,
-    pub orientation: String,
+    // must be *const c_char to prevent memory issues at other side (Swift)
+    pub orientation: *const c_char,
 }
 
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
+        // Convert maze_type and orientation into raw C strings.
+        let maze_type_c = CString::new(format!("{:?}", cell.maze_type))
+            .unwrap()
+            .into_raw();
+        let orientation_c = CString::new(format!("{:?}", cell.orientation))
+            .unwrap()
+            .into_raw();
+
+        // Create a vector of raw pointers for the linked strings.
+        let linked_raw: Vec<*const c_char> = cell.linked.iter()
+            .filter_map(|coords| {
+                cell.neighbors_by_direction.iter()
+                    .find(|(_, &v)| v == *coords)
+                    .map(|(k, _)| {
+                        // Convert each Rust string into a raw C string.
+                        CString::new(k.clone())
+                            .unwrap()
+                            .into_raw() as *const c_char
+                    })
+            })
+            .collect();
+
+        // Leak the vector of pointers by converting it into a boxed slice.
+        let linked_len = linked_raw.len();
+        let linked_ptr = Box::leak(linked_raw.into_boxed_slice()).as_ptr();
+
         FFICell {
             x: cell.coords.x,
             y: cell.coords.y,
-            maze_type: format!("{:?}", cell.maze_type),
-            linked: cell.linked.iter()
-                .filter_map(|coords| {
-                    // try to find the key in neighbors_by_direction where the value matches the coordinates
-                    cell.neighbors_by_direction.iter()
-                        .find(|(_, &v)| v == *coords) // matching the Coordinates
-                        .map(|(k, _)| k.clone()) // if found, return the key (which is String representation of Direction enum child enum)
-                })
-                .collect(),
+            maze_type: maze_type_c,
+            linked: linked_ptr,
+            linked_len,
             distance: cell.distance,
             is_start: cell.is_start,
             is_goal: cell.is_goal,
             on_solution_path: cell.on_solution_path,
-            orientation: format!("{:?}", cell.orientation), // Assuming CellOrientation is an enum
+            orientation: orientation_c,
         }
     }
 }
+
+impl Drop for FFICell {
+    fn drop(&mut self) {
+        unsafe {
+            // Reclaim the maze_type C string.
+            if !self.maze_type.is_null() {
+                let _ = CString::from_raw(self.maze_type as *mut c_char);
+            }
+            
+            // Reclaim the orientation C string.
+            if !self.orientation.is_null() {
+                let _ = CString::from_raw(self.orientation as *mut c_char);
+            }
+            
+            // Reclaim each of the linked C strings.
+            let linked_slice = std::slice::from_raw_parts(self.linked, self.linked_len);
+            for &ptr in linked_slice {
+                if !ptr.is_null() {
+                    let _ = CString::from_raw(ptr as *mut c_char);
+                }
+            }
+            
+            // Reclaim and free the leaked pointer array.
+            let _ = Vec::from_raw_parts(self.linked as *mut *const c_char, self.linked_len, self.linked_len);
+        }
+    }
+}
+
 
 pub struct CellBuilder(Cell);
 
@@ -384,6 +438,7 @@ mod tests {
         assert!(json.contains("\"South\""));
         assert!(json.contains("\"on_solution_path\":true"));
     }
+
     #[test]
     fn test_memory_allocation_for_ffi_cell() {
         let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
@@ -393,13 +448,14 @@ mod tests {
         neighbors.insert("West".to_string(), Coordinates { x: 0, y: 2 });
 
         let mut linked: HashSet<Coordinates> = HashSet::new();
-        linked.insert(Coordinates{ x: 2, y: 2 });
-        linked.insert(Coordinates{ x: 1, y: 3 });
+        linked.insert(Coordinates { x: 2, y: 2 });
+        linked.insert(Coordinates { x: 1, y: 3 });
+
         let cell = Cell {
             coords: Coordinates { x: 1, y: 2 },
             maze_type: MazeType::Orthogonal,
             neighbors_by_direction: neighbors,
-            linked: linked,
+            linked,
             distance: 10,
             is_start: true,
             is_goal: false,
@@ -409,13 +465,38 @@ mod tests {
 
         let ffi_cell: FFICell = (&cell).into();
 
-        // Test the allocation is correct (in this case, just checking fields)
-        assert_eq!(ffi_cell.x, 1);
-        assert_eq!(ffi_cell.y, 2);
-        assert_eq!(ffi_cell.maze_type.as_str(), "Orthogonal");
-        assert_eq!(ffi_cell.orientation.as_str(), "Normal");
-        assert_eq!(ffi_cell.linked.len(), 2);
-        assert!(ffi_cell.linked.contains(&String::from("East")));
-        assert!(ffi_cell.linked.contains(&String::from("South")));
+        // Convert C strings back to Rust strings for assertions.
+        let maze_type_str = unsafe { CStr::from_ptr(ffi_cell.maze_type).to_str().unwrap() };
+        let orientation_str = unsafe { CStr::from_ptr(ffi_cell.orientation).to_str().unwrap() };
+
+        // Convert linked pointers back to Rust Strings and collect.
+        let linked_rust: HashSet<String> = unsafe {
+            std::slice::from_raw_parts(ffi_cell.linked, ffi_cell.linked_len)
+                .iter()
+                .map(|&ptr| CStr::from_ptr(ptr).to_string_lossy().into_owned())
+                .collect()
+        };
+
+        // Assert that the strings are as expected.
+        assert_eq!(maze_type_str, format!("{:?}", cell.maze_type));
+        assert_eq!(orientation_str, format!("{:?}", cell.orientation));
+
+        // Create expected linked set from the matching neighbor keys.
+        let expected_linked: HashSet<String> = cell
+            .neighbors_by_direction
+            .iter()
+            .filter_map(|(k, &v)| {
+                if cell.linked.contains(&v) {
+                    Some(k.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(linked_rust, expected_linked);
+
+        // No manual cleanup is necessary.
+        // The Drop implementation for FFICell will automatically free all allocated memory.
     }
+
 }
