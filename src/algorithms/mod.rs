@@ -37,9 +37,31 @@ impl MazeAlgorithm {
             MazeAlgorithm::Wilsons => Wilsons::generate(grid)?,
             MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid)?,
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid)?,
+        };
+    
+        let start = grid.start_coords;
+        let goal = grid.goal_coords;
+    
+        // Set distances on all cells
+        let all_distances = grid.distances(start);
+        for (coords, distance) in all_distances {
+            if let Ok(cell) = grid.get_mut(coords) {
+                cell.distance = distance as i32;
+            }
         }
+    
+        // Mark solution path
+        if let Ok(path) = grid.get_path_to(start.x, start.y, goal.x, goal.y) {
+            for coords in path.keys() {
+                if let Ok(cell) = grid.get_mut(*coords) {
+                    cell.on_solution_path = true;
+                }
+            }
+        }
+    
         Ok(grid)
     }
+
 }
 
 impl fmt::Display for MazeAlgorithm {
