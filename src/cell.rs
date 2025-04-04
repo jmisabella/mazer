@@ -178,17 +178,27 @@ impl Cell {
 pub struct FFICell {
     pub x: usize,
     pub y: usize,
-    // must be *const c_char to prevent memory issues at other side (Swift)
-    pub maze_type: *const c_char,  // ✅ Changed from String to *const c_char
-    pub linked: *const *const c_char,  // ✅ Pointer to an array of C strings
-    pub linked_len: usize,  // track length of linked array
+    // *const c_char is a pointer to a single null-terminated C string
+    // (e.g., "Orthogonal"). Required for FFI compatibility with Swift.
+    pub maze_type: *const c_char,
+
+    // *const *const c_char is a pointer to an array of pointers to
+    // null-terminated C strings (i.e., a list of strings like ["North", "East"]).
+    pub linked: *const *const c_char,
+
+    // Number of items in the `linked` array
+    pub linked_len: usize,
+
     pub distance: i32,
     pub is_start: bool,
     pub is_goal: bool,
     pub on_solution_path: bool,
-    // must be *const c_char to prevent memory issues at other side (Swift)
+
+    // *const c_char is a pointer to a single null-terminated C string
+    // (e.g., "North"). Required for FFI compatibility with Swift.
     pub orientation: *const c_char,
 }
+
 
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {

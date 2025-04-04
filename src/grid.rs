@@ -777,10 +777,35 @@ mod tests {
             "goal": { "x": 11, "y": 11 }
         }
         "#;
+
         match Grid::try_from(json) {
             Ok(maze) => {
                 assert!(maze.is_perfect_maze().unwrap());
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+
+                let nonzero_count = maze
+                    .cells
+                    .iter()
+                    .filter(|cell| cell.distance > 0)
+                    .count();
+                assert!(
+                    nonzero_count > 0,
+                    "Expected some cells to have non-zero distance, but all were 0"
+                );
+
+                let solution_path_count = maze
+                    .cells
+                    .iter()
+                    .filter(|cell| cell.on_solution_path)
+                    .count();
+                assert!(
+                    solution_path_count > 0,
+                    "Expected some cells to be on the solution path, but none were"
+                );
+                assert!(
+                    solution_path_count < maze.cells.len(),
+                    "All cells are marked on the solution path — expected only a subset"
+                );
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }

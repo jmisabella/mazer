@@ -28,6 +28,19 @@ pub fn generate(request_json: &str) -> Result<Grid, Error> {
     return Grid::try_from(request_json);
 }
 
+//// This is from Scala `maze` code, putting here because this shows where it's using distances and pathTo...
+//def generate(request: MazeRequest): Grid = {
+//    distance.pathTo(
+//      distance.distances(
+//        generate(request.mazeType, request.width, request.height, request.start, request.goal)
+//        , request.start.x
+//        , request.start.y)
+//      , request.start.x
+//      , request.start.y 
+//      , request.goal.x
+//      , request.goal.y)
+//  }
+
 #[no_mangle]
 pub extern "C" fn mazer_generate_maze(request_json: *const c_char, length: *mut usize) -> *mut FFICell {
     // Check for null pointers early to avoid unnecessary processing.
