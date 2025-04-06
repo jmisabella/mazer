@@ -164,18 +164,6 @@ pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
     }
 }
 
-//#[no_mangle]
-//pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
-//    if ptr.is_null() {
-//        return;
-//    }
-//    unsafe {
-//        // Reconstruct a boxed slice from the raw pointer.
-//        let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, length));
-//        // Dropping the Box will call Drop for every FFICell in the slice.
-//    }
-//}
-
 #[no_mangle]
 pub extern "C" fn mazer_ffi_integration_test() -> i32 {
     42

@@ -1,4 +1,3 @@
-
 #ifndef MAZER_H
 #define MAZER_H
 
@@ -6,13 +5,28 @@
 extern "C" {
 #endif
 
-#include <stddef.h>  // for size_t
+#include <stddef.h>   // for size_t
+#include <stdint.h>   // for int32_t
+#include <stdbool.h>  // for bool
 
 /* Opaque type declarations.
  * The actual definitions of these types are hidden from the Swift side.
  */
 typedef struct Grid Grid;
-typedef struct FFICell FFICell;
+
+typedef struct FFICell {
+    int32_t x;
+    int32_t y;
+    const char* maze_type;
+    const char** linked;
+    size_t linked_len;
+    int32_t distance;
+    bool is_start;
+    bool is_goal;
+    bool is_visited;
+    bool on_solution_path;
+    const char* orientation;
+} FFICell;
 
 /**
  * Generates a maze from a JSON request.
@@ -62,7 +76,7 @@ FFICell* mazer_get_cells(Grid *maze, size_t *length);
 void mazer_free_cells(FFICell *ptr, size_t length);
 
 /**
- * To verify FFI connectivity, call verify this returns 42
+ * To verify FFI connectivity, call verify this returns 42.
  */
 int mazer_ffi_integration_test();
 
