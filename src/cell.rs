@@ -1,4 +1,4 @@
-use std::ffi::{CString, CStr};
+use std::ffi::CString;
 use std::os::raw::c_char;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -344,6 +344,7 @@ impl CellBuilder {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::CStr;
     use super::*;
     use crate::direction::SquareDirection;
 

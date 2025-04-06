@@ -1,48 +1,65 @@
-#include <stddef.h>
-#include <stdbool.h>
-#include <stdint.h>
 
-#ifndef mazer_bridge_h
-#define mazer_bridge_h
+#ifndef MAZER_H
+#define MAZER_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct {
-    size_t x;
-    size_t y;
-    // const char * (or *const c_char in Rust) is a pointer to a single C string (e.g. null-terminated)
-    const char *maze_type;
-    // const char ** (or *const *const c_char in Rust) is a pointer to an array of pointers to C strings (i.e., a list of strings)
-    const char **linked;
-    size_t linked_len;
-    int32_t distance;
-    bool is_start;
-    bool is_goal;
-    bool is_visited; 
-    bool on_solution_path;
-    // const char * (or *const c_char in Rust) is a pointer to a single C string (e.g. null-terminated)
-    const char *orientation;
-} FFICell;
+#include <stddef.h>  // for size_t
 
+/* Opaque type declarations.
+ * The actual definitions of these types are hidden from the Swift side.
+ */
+typedef struct Grid Grid;
+typedef struct FFICell FFICell;
 
 /**
- * Generates a maze based on the given JSON request string.
+ * Generates a maze from a JSON request.
  *
- * @param request_json A JSON string specifying the maze type, size, algorithm, etc.
- * @param length A pointer to store the number of cells in the generated maze.
- * @return A pointer to an array of `FFICell` structs.
+ * This function takes a null-terminated JSON string representing the maze generation
+ * request and attempts to generate a maze. On success, it returns a pointer to a newly
+ * allocated Grid instance. In case of an error (such as an invalid JSON or a failure in
+ * maze generation), it returns NULL.
+ *
+ * @param request_json A null-terminated C string containing the JSON request.
+ * @return A pointer to the generated Grid if successful, or NULL on failure.
  */
-FFICell* mazer_generate_maze(const char* request_json, size_t* length);
+Grid* mazer_generate_maze(const char *request_json);
 
 /**
- * Frees the allocated memory for the array of `FFICell` structs.
+ * Destroys a maze instance.
  *
- * @param ptr Pointer to the first element of the `FFICell` array.
- * @param length The number of elements in the array.
+ * This function deallocates the memory and any associated resources for the given maze (Grid).
+ * If the provided maze pointer is NULL, the function does nothing.
+ *
+ * @param maze A pointer to the Grid instance to be destroyed.
  */
-void mazer_free_cells(FFICell* ptr, size_t length);
+void mazer_destroy(Grid *maze);
+
+/**
+ * Retrieves the cells of the maze.
+ *
+ * This function returns an array of FFICell structures that represent the individual cells
+ * of the maze. It also writes the number of cells into the provided 'length' pointer.
+ *
+ * @param maze A pointer to the Grid whose cells are to be retrieved.
+ * @param length A pointer to a size_t variable where the function will store the number of cells.
+ * @return A pointer to an array of FFICell structures, or NULL if the input pointers are invalid.
+ */
+FFICell* mazer_get_cells(Grid *maze, size_t *length);
+
+/**
+ * Frees an array of FFICell.
+ *
+ * This function deallocates the memory allocated for an array of FFICell structures that was
+ * previously returned by mazer_get_cells. The 'length' parameter must match the number of
+ * elements in the array.
+ *
+ * @param ptr A pointer to the array of FFICell to be freed.
+ * @param length The number of FFICell elements in the array.
+ */
+void mazer_free_cells(FFICell *ptr, size_t length);
 
 /**
  * To verify FFI connectivity, call verify this returns 42
@@ -53,4 +70,4 @@ int mazer_ffi_integration_test();
 }
 #endif
 
-#endif
+#endif /* MAZER_H */
