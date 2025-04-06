@@ -58,7 +58,11 @@ impl MazeAlgorithm {
                 }
             }
         }
-    
+
+        for cell in grid.cells.iter_mut() {
+            cell.set_open_walls();
+        }
+
         Ok(grid)
     }
 
