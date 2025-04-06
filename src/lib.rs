@@ -99,60 +99,6 @@ pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
 }
 
 #[no_mangle]
-pub extern "C" fn mazer_generate_maze_json(request_json: *const c_char) -> *mut c_char {
-    // Check for null input pointer.
-    if request_json.is_null() {
-        return ptr::null_mut();
-    }
-
-    // Safely convert the input C string to a Rust &str.
-    let c_str = unsafe { CStr::from_ptr(request_json) };
-    let input_json = match c_str.to_str() {
-        Ok(s) => s,
-        Err(err) => {
-            eprintln!("mazer_generate_maze_json: Invalid UTF-8 sequence: {:?}", err);
-            return ptr::null_mut();
-        }
-    };
-
-    // Generate the maze and convert the result to a JSON string.
-    // On error, an empty JSON string is returned.
-    let result = match generate(input_json) {
-        Ok(grid) => match serde_json::to_string(&grid) {
-            Ok(json) => json,
-            Err(err) => {
-                eprintln!("mazer_generate_maze_json: Serialization error: {:?}", err);
-                String::new()
-            }
-        },
-        Err(err) => {
-            eprintln!("mazer_generate_maze_json: Maze generation failed: {:?}", err);
-            String::new()
-        }
-    };
-
-    // Convert the Rust String to a C string, transferring ownership.
-    // If the conversion fails (e.g., if the string contains a null byte), return null.
-    CString::new(result)
-        .map(|c_string| c_string.into_raw())
-        .unwrap_or_else(|err| {
-            eprintln!("mazer_generate_maze_json: CString conversion error: {:?}", err);
-            ptr::null_mut()
-        })
-}
-
-#[no_mangle]
-pub extern "C" fn mazer_free_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        // Reclaim the memory allocated for the C string.
-        drop(CString::from_raw(ptr));
-    }
-}
-
-#[no_mangle]
 pub extern "C" fn mazer_ffi_integration_test() -> i32 {
     42
 }
