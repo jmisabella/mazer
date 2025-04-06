@@ -20,6 +20,7 @@ typedef struct {
     int32_t distance;
     bool is_start;
     bool is_goal;
+    bool is_visited; 
     bool on_solution_path;
     // const char * (or *const c_char in Rust) is a pointer to a single C string (e.g. null-terminated)
     const char *orientation;
