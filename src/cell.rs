@@ -64,6 +64,7 @@ pub struct Cell {
     pub is_goal: bool,
     pub on_solution_path: bool,
     pub orientation: CellOrientation,
+    pub open_walls: Vec<String>,
 }
 
 impl Default for Cell {
@@ -78,6 +79,7 @@ impl Default for Cell {
             is_goal: false,
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
+            open_walls: Vec::new(),
         }
     }
 }
@@ -172,6 +174,18 @@ impl Cell {
     pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
     }
+
+    pub fn set_open_walls(&mut self) {
+        self.open_walls = self.linked.iter()
+            .filter_map(|coords| {
+                self.neighbors_by_direction
+                    .iter()
+                    .find(|(_, &v)| v == *coords)
+                    .map(|(direction, _)| direction.clone())
+            })
+            .collect()
+    }
+
 }
 
 #[repr(C)]
@@ -210,30 +224,26 @@ impl From<&Cell> for FFICell {
             .unwrap()
             .into_raw();
 
-        // Create a vector of raw pointers for the linked strings.
-        let linked_raw: Vec<*const c_char> = cell.linked.iter()
-            .filter_map(|coords| {
-                cell.neighbors_by_direction.iter()
-                    .find(|(_, &v)| v == *coords)
-                    .map(|(k, _)| {
-                        // Convert each Rust string into a raw C string.
-                        CString::new(k.clone())
-                            .unwrap()
-                            .into_raw() as *const c_char
-                    })
+        // Create a vector of raw pointers for the open_walls strings.
+        let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
+            .map(|direction| {
+                // Convert each Rust string into a raw C string.
+                CString::new(direction.clone())
+                    .unwrap()
+                    .into_raw() as *const c_char
             })
             .collect();
 
         // Leak the vector of pointers by converting it into a boxed slice.
-        let linked_len = linked_raw.len();
-        let linked_ptr = Box::leak(linked_raw.into_boxed_slice()).as_ptr();
+        let open_walls_len = open_walls_raw.len();
+        let open_walls_ptr = Box::leak(open_walls_raw.into_boxed_slice()).as_ptr();
 
         FFICell {
             x: cell.coords.x,
             y: cell.coords.y,
             maze_type: maze_type_c,
-            linked: linked_ptr,
-            linked_len,
+            linked: open_walls_ptr, // now holds the open_walls raw pointers
+            linked_len: open_walls_len,
             distance: cell.distance,
             is_start: cell.is_start,
             is_goal: cell.is_goal,
@@ -290,6 +300,7 @@ impl CellBuilder {
             is_goal: false,
             on_solution_path: false,
             orientation: CellOrientation::Normal,
+            open_walls: Vec::new(),
         })
     }
 
@@ -369,10 +380,11 @@ mod tests {
         let mut linked: HashSet<Coordinates> = HashSet::new();
         linked.insert(north.clone());
         linked.insert(south.clone());
+        // Clone cell1 for use in cell2
         let cell2 = Cell {
             neighbors_by_direction: neighbors.clone(),
             linked: linked.clone(),
-            ..cell1
+            ..cell1.clone()  // clone cell1 entirely
         };
         assert!(cell2.linked.contains(&north));
         assert!(cell2.linked.contains(&south));
@@ -393,7 +405,7 @@ mod tests {
         assert!(cell2.linked_directions().len() == 2);
         let mut cell3 = Cell {
             neighbors_by_direction: neighbors,
-            ..cell1
+            ..cell1.clone()
         }; // nothing linked yet
         assert!(cell3.linked.is_empty());
         cell3.set_linked(linked.clone());
@@ -437,6 +449,7 @@ mod tests {
             is_goal: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
+            open_walls: Vec::new(),
         };
 
         let json = cell.to_string();
@@ -461,6 +474,10 @@ mod tests {
         linked.insert(Coordinates { x: 2, y: 2 });
         linked.insert(Coordinates { x: 1, y: 3 });
 
+        let mut open_walls: Vec<String> = Vec::new();
+        open_walls.push(String::from("East"));
+        open_walls.push(String::from("South"));
+
         let cell = Cell {
             coords: Coordinates { x: 1, y: 2 },
             maze_type: MazeType::Orthogonal,
@@ -471,6 +488,7 @@ mod tests {
             is_goal: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
+            open_walls: open_walls,
         };
 
         let ffi_cell: FFICell = (&cell).into();
