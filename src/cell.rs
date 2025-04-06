@@ -62,6 +62,7 @@ pub struct Cell {
     pub distance: i32,
     pub is_start: bool,
     pub is_goal: bool,
+    pub is_visited: bool,
     pub on_solution_path: bool,
     pub orientation: CellOrientation,
     pub open_walls: Vec<String>,
@@ -77,6 +78,7 @@ impl Default for Cell {
             distance: 0,
             is_start: false,
             is_goal: false,
+            is_visited: false,
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
             open_walls: Vec::new(),
@@ -97,6 +99,7 @@ impl Serialize for Cell {
         state.serialize_field("distance", &self.distance)?;
         state.serialize_field("is_start", &self.is_start)?;
         state.serialize_field("is_goal", &self.is_goal)?;
+        state.serialize_field("is_visited", &self.is_visited)?;
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
         state.end()
     }
@@ -206,6 +209,7 @@ pub struct FFICell {
     pub distance: i32,
     pub is_start: bool,
     pub is_goal: bool,
+    pub is_visited: bool,
     pub on_solution_path: bool,
 
     // *const c_char is a pointer to a single null-terminated C string
@@ -247,6 +251,7 @@ impl From<&Cell> for FFICell {
             distance: cell.distance,
             is_start: cell.is_start,
             is_goal: cell.is_goal,
+            is_visited: cell.is_visited,
             on_solution_path: cell.on_solution_path,
             orientation: orientation_c,
         }
@@ -298,6 +303,7 @@ impl CellBuilder {
             distance: 0,
             is_start: false,
             is_goal: false,
+            is_visited: false, 
             on_solution_path: false,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
@@ -311,6 +317,11 @@ impl CellBuilder {
 
     pub fn is_goal(mut self, is_goal: bool) -> Self {
         self.0.is_goal = is_goal;
+        self
+    }
+    
+    pub fn is_visited(mut self, is_visited: bool) -> Self {
+        self.0.is_goal = is_visited;
         self
     }
 
@@ -447,6 +458,7 @@ mod tests {
             distance: 10,
             is_start: true,
             is_goal: false,
+            is_visited: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
@@ -486,6 +498,7 @@ mod tests {
             distance: 10,
             is_start: true,
             is_goal: false,
+            is_visited: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: open_walls,

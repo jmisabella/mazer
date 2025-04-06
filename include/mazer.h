@@ -20,6 +20,7 @@ typedef struct {
     int32_t distance;
     bool is_start;
     bool is_goal;
+    bool is_visited; 
     bool on_solution_path;
     // const char * (or *const c_char in Rust) is a pointer to a single C string (e.g. null-terminated)
     const char *orientation;
@@ -42,21 +43,6 @@ FFICell* mazer_generate_maze(const char* request_json, size_t* length);
  * @param length The number of elements in the array.
  */
 void mazer_free_cells(FFICell* ptr, size_t length);
-
-/**
- * Generates a maze and returns the result as a JSON string.
- *
- * @param request_json A JSON string specifying the maze parameters.
- * @return A dynamically allocated JSON string representing the maze.
- */
-char* mazer_generate_maze_json(const char* request_json);
-
-/**
- * Frees the allocated memory for a JSON string returned by `mazer_generate_maze_json`.
- *
- * @param ptr Pointer to the dynamically allocated JSON string.
- */
-void mazer_free_string(char* ptr);
 
 /**
  * To verify FFI connectivity, call verify this returns 42
