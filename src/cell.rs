@@ -224,14 +224,9 @@ impl From<&Cell> for FFICell {
         let maze_type_c = CString::new(format!("{:?}", cell.maze_type))
             .unwrap()
             .into_raw();
-        //let orientation_c = CString::new(format!("{:?}", cell.orientation))
-        //    .unwrap()
-        //    .into_raw();
-        let orientation_str = match cell.orientation {
-            CellOrientation::Normal => "Normal",
-            CellOrientation::Inverted => "Inverted",
-        };
-        let orientation_c = CString::new(orientation_str).unwrap().into_raw();
+        let orientation_c = CString::new(format!("{:?}", cell.orientation))
+            .unwrap()
+            .into_raw();
         
         // Create a vector of raw pointers for the open_walls strings.
         let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()

@@ -15,8 +15,8 @@ extern "C" {
 typedef struct Grid Grid;
 
 typedef struct FFICell {
-    int32_t x;
-    int32_t y;
+    size_t x;
+    size_t y;
     const char* maze_type;
     const char** linked;
     size_t linked_len;
