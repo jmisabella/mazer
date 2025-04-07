@@ -164,6 +164,8 @@ impl Grid {
                 )
                 .is_start(is_start)
                 .is_goal(is_goal)
+                .is_active(is_start) // start cell is cell user starts on (so, is active)
+                .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .orientation(triangle_orientation(upright))
                 .build();
 
@@ -192,6 +194,8 @@ impl Grid {
                 )
                 .is_start(is_start)
                 .is_goal(is_goal)
+                .is_active(is_start) // start cell is cell user starts on (so, is active)
+                .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .build();
     
                 // Calculate the index in the 1D vector

@@ -10,8 +10,10 @@ pub enum Error {
     AlgorithmUnavailableForMazeType { algorithm: MazeAlgorithm, maze_type: MazeType },
     FlattenedVectorDimensionsMismatch { vector_size: usize, maze_width: usize, maze_height: usize },
     OutOfBoundsCoordinates { coordinates: Coordinates, maze_width: usize, maze_height: usize },
-    MissingCoordinates { coordinates: Coordinates }, 
-    NoValidNeighbor { coordinates: Coordinates }, 
+    MissingCoordinates { coordinates: Coordinates },
+    NoValidNeighbor { coordinates: Coordinates },
+    MultipleActiveCells { count: usize },
+    NoActiveCells,
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -39,6 +41,12 @@ impl fmt::Display for Error {
             }
             Error::NoValidNeighbor { coordinates } => {
                 write!(f, "No valid neighbors: {:?}", coordinates )
+            }
+            Error::MultipleActiveCells { count } => {
+                write!(f, "{:?} active cells, there should only ever be exactly 1 active cell", count )
+            }
+            Error::NoActiveCells => {
+                write!(f, "No active cells, there should always be exactly 1 active cell" )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)

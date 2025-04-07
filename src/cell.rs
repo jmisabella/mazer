@@ -52,20 +52,20 @@ pub enum CellOrientation {
     Inverted
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
-    pub coords: Coordinates,
-    pub maze_type: MazeType,
-    pub neighbors_by_direction: HashMap<String, Coordinates>,
-    pub linked: HashSet<Coordinates>,
-    pub distance: i32,
-    pub is_start: bool,
-    pub is_goal: bool,
-    pub is_visited: bool,
-    pub on_solution_path: bool,
-    pub orientation: CellOrientation,
-    pub open_walls: Vec<String>,
+    pub coords: Coordinates, // x,y coordinates
+    pub maze_type: MazeType, // Orthogonal, Delta, Sigma, Polar 
+    pub neighbors_by_direction: HashMap<String, Coordinates>, // neighbors' coordinates by direction
+    pub linked: HashSet<Coordinates>, // coordinates of neighboring cells linked to current cell (e.g. no walls in between)
+    pub distance: i32, // distance to the goal cellkk
+    pub is_start: bool, // whether it's the starting cell
+    pub is_goal: bool, // whether it's the goal cell
+    pub is_visited: bool, // whether user has crossed (or uncrossed) this cell on current path
+    pub is_active: bool, // whether this is the cell user is currently visiting
+    pub on_solution_path: bool, // whether this cell is on the path from start to goal
+    pub orientation: CellOrientation, // Normal or Inverted, only applicable for delta cells
+    pub open_walls: Vec<String>, // directions in which there are no walls restricting movement
 }
 
 impl Default for Cell {
@@ -79,6 +79,7 @@ impl Default for Cell {
             is_start: false,
             is_goal: false,
             is_visited: false,
+            is_active: false, 
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
             open_walls: Vec::new(),
@@ -100,6 +101,7 @@ impl Serialize for Cell {
         state.serialize_field("is_start", &self.is_start)?;
         state.serialize_field("is_goal", &self.is_goal)?;
         state.serialize_field("is_visited", &self.is_visited)?;
+        state.serialize_field("is_active", &self.is_active)?;
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
         state.end()
     }
@@ -210,6 +212,7 @@ pub struct FFICell {
     pub is_start: bool,
     pub is_goal: bool,
     pub is_visited: bool,
+    pub is_active: bool,
     pub on_solution_path: bool,
 
     // *const c_char is a pointer to a single null-terminated C string
@@ -252,6 +255,7 @@ impl From<&Cell> for FFICell {
             is_start: cell.is_start,
             is_goal: cell.is_goal,
             is_visited: cell.is_visited,
+            is_active: cell.is_active,
             on_solution_path: cell.on_solution_path,
             orientation: orientation_c,
         }
@@ -304,6 +308,7 @@ impl CellBuilder {
             is_start: false,
             is_goal: false,
             is_visited: false, 
+            is_active: false, 
             on_solution_path: false,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
@@ -321,7 +326,12 @@ impl CellBuilder {
     }
     
     pub fn is_visited(mut self, is_visited: bool) -> Self {
-        self.0.is_goal = is_visited;
+        self.0.is_visited = is_visited;
+        self
+    }
+    
+    pub fn is_active(mut self, is_active: bool) -> Self {
+        self.0.is_active= is_active;
         self
     }
 
@@ -460,6 +470,7 @@ mod tests {
             is_start: true,
             is_goal: false,
             is_visited: false,
+            is_active: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
@@ -500,6 +511,7 @@ mod tests {
             is_start: true,
             is_goal: false,
             is_visited: false,
+            is_active: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: open_walls,

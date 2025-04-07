@@ -63,6 +63,13 @@ impl MazeAlgorithm {
             cell.set_open_walls();
         }
 
+        let active_count = grid.cells.iter().filter(|cell| cell.is_visited).count();
+        if active_count > 1 {
+            return Err(Error::MultipleActiveCells { count: active_count });
+        } else if active_count == 0 {
+            return Err(Error::NoActiveCells);
+        }
+
         Ok(grid)
     }
 

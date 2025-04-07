@@ -24,6 +24,7 @@ typedef struct FFICell {
     bool is_start;
     bool is_goal;
     bool is_visited;
+    bool is_active;
     bool on_solution_path;
     const char* orientation;
 } FFICell;
