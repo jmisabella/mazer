@@ -168,6 +168,10 @@ impl Cell {
         }
     }
 
+    pub fn set_active(&mut self, active: bool) {
+        self.is_active = active;
+    }
+    
     pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
         self.linked = linked;
     }
