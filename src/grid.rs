@@ -96,7 +96,7 @@ impl Grid {
     }
 
     pub fn get_active_cell(&mut self) -> Result<&mut Cell, Error> {
-        let active_count = self.cells.iter().filter(|cell| cell.is_visited).count();
+        let active_count = self.cells.iter().filter(|cell| cell.is_active).count();
         if active_count > 1 {
             return Err(Error::MultipleActiveCells { count: active_count });
         }
@@ -132,6 +132,9 @@ impl Grid {
         // mutably borrow the next_cell
         let next_cell = self.get_mut(neighbor_coords)?;
         next_cell.set_active(true);
+        // set to visited (unless it's already been visited on current path and is being de-visited)
+        // TODO: THIS LINE CAUSES RESULT TO NOT HAVE AN ACTIVE CELL 
+        next_cell.set_visited(!next_cell.is_visited); // TODO: test/proofread this!
         let _ = next_cell;
 
         // re-obtain the previous cell now that we're no longer mutably borrowing next_cell 
@@ -213,6 +216,7 @@ impl Grid {
                 .is_goal(is_goal)
                 .is_active(is_start) // start cell is cell user starts on (so, is active)
                 .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
+                .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .orientation(triangle_orientation(upright))
                 .build();
 
@@ -243,6 +247,7 @@ impl Grid {
                 .is_goal(is_goal)
                 .is_active(is_start) // start cell is cell user starts on (so, is active)
                 .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
+                .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .build();
     
                 // Calculate the index in the 1D vector
@@ -875,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn test_traversing_12_x_12_aldous_broder_using_make_move() {
+    fn test_make_move() {
         let json = r#"
         {
             "maze_type": "Orthogonal",
@@ -890,7 +895,19 @@ mod tests {
             Ok(mut maze) => {
                 assert!(maze.is_perfect_maze().unwrap());
                 println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
-
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    1,
+                    "There should be 1 visited cell on dynamic path at the beginning"
+                );
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    1,
+                    "There should be 1 visited cell on permenant path at the beginning"
+                );
+                
                 // Limit the borrow's scope and return only owned data.
                 let (original_coords, available_moves, unavailable_moves) = {
                     if let Ok(active_cell) = maze.get_active_cell() {
@@ -924,7 +941,19 @@ mod tests {
                         .is_err(),
                     "Should not allow an unavailable move"
                 );
-
+                
+                assert_eq!(
+                    copied_maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    1,
+                    "There should be 1 visited cell on dynamic path before a successful move is made"
+                );
+                
+                assert_eq!(
+                    copied_maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    1,
+                    "There should be 1 visited cell on permenant path before a successful move is made"
+                );
+                
                 // Try a valid move on the original maze.
                 assert!(
                     maze
@@ -932,6 +961,7 @@ mod tests {
                         .is_ok(),
                     "Should allow a valid move"
                 );
+                
 
                 // Verify that exactly one cell is active.
                 assert_eq!(
@@ -939,6 +969,19 @@ mod tests {
                     1,
                     "There should be exactly one active cell"
                 );
+
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    2,
+                    "There should be 2 visited cells on dynamic path after first successful move (start cell and current)"
+                );
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    2,
+                    "There should be 2 visited cells on permenant path after first successful move (start cell and current)"
+                );
+
 
                 // Verify that the active cell has changed.
                 let new_active_coords = maze
