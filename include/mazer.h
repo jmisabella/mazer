@@ -23,8 +23,9 @@ typedef struct FFICell {
     int32_t distance;
     bool is_start;
     bool is_goal;
-    bool is_visited;
     bool is_active;
+    bool is_visited;
+    bool has_been_visited;
     bool on_solution_path;
     const char* orientation;
 } FFICell;

@@ -95,6 +95,56 @@ impl Grid {
             })
     }
 
+    pub fn get_active_cell(&mut self) -> Result<&mut Cell, Error> {
+        let active_count = self.cells.iter().filter(|cell| cell.is_active).count();
+        if active_count > 1 {
+            return Err(Error::MultipleActiveCells { count: active_count });
+        }
+        if let Some(active_cell) = self.cells.iter_mut().find(|cell| cell.is_active) {
+            return Ok(active_cell);
+        } else {
+            return Err(Error::NoActiveCells);
+        }
+    }
+
+    pub fn make_move(&mut self, direction: &str) -> Result<(), Error> {
+        // Borrow active_cell mutably.
+        let active_cell = self.get_active_cell()?;
+        let original_coords = active_cell.coords;
+
+        // Extract necessary data from active_cell while it's still borrowed.
+        let open_walls = active_cell.open_walls.clone(); // if cloning is acceptable
+        let attempted_move = direction.to_string();
+        if !open_walls.contains(&attempted_move) {
+            return Err(Error::MoveUnavailable { 
+                attempted_move: attempted_move, 
+                available_moves: open_walls
+            });
+        }
+        
+        // Extract the neighbor coordinate. Note: this borrows active_cell immutably.
+        let neighbor_coords = *active_cell.neighbors_by_direction.get(direction)
+            .ok_or(Error::InvalidDirection { direction: direction.to_string() })?;
+        
+        // drop active_cell explicitly to end its borrow
+        let _ = active_cell;
+        
+        // mutably borrow the next_cell
+        let next_cell = self.get_mut(neighbor_coords)?;
+        next_cell.set_active(true);
+        // set to visited (unless it's already been visited on current path and is being de-visited)
+        // TODO: THIS LINE CAUSES RESULT TO NOT HAVE AN ACTIVE CELL 
+        next_cell.set_visited(!next_cell.is_visited); // TODO: test/proofread this!
+        let _ = next_cell;
+
+        // re-obtain the previous cell now that we're no longer mutably borrowing next_cell 
+        let previous_cell = self.get_mut(original_coords)?;
+        previous_cell.set_active(false);
+        
+        Ok(())
+    }
+        
+
     // retrieve a cell by its coordinates
     pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
         self.get(Coordinates { x: x, y: y })
@@ -166,6 +216,7 @@ impl Grid {
                 .is_goal(is_goal)
                 .is_active(is_start) // start cell is cell user starts on (so, is active)
                 .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
+                .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .orientation(triangle_orientation(upright))
                 .build();
 
@@ -196,6 +247,7 @@ impl Grid {
                 .is_goal(is_goal)
                 .is_active(is_start) // start cell is cell user starts on (so, is active)
                 .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
+                .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .build();
     
                 // Calculate the index in the 1D vector
@@ -565,6 +617,18 @@ impl Grid {
 mod tests {
     use super::*;
 
+    // helper function for finding differences
+    fn diff<T>(v1: &[T], v2: &[T]) -> Vec<T>
+    where
+        T: Eq + std::hash::Hash + Clone,
+    {
+        let set_v2: HashSet<_> = v2.iter().collect();
+        v1.iter()
+        .filter(|item| !set_v2.contains(item))
+        .cloned()
+        .collect()
+    }
+
     #[test]
     fn init_orthogonal_grid() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}) {
@@ -812,6 +876,125 @@ mod tests {
                 );
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn test_make_move() {
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 12,
+            "height": 12,
+            "algorithm": "AldousBroder",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 11, "y": 11 }
+        }
+        "#;
+        match Grid::try_from(json) {
+            Ok(mut maze) => {
+                assert!(maze.is_perfect_maze().unwrap());
+                println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    1,
+                    "There should be 1 visited cell on dynamic path at the beginning"
+                );
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    1,
+                    "There should be 1 visited cell on permenant path at the beginning"
+                );
+                
+                // Limit the borrow's scope and return only owned data.
+                let (original_coords, available_moves, unavailable_moves) = {
+                    if let Ok(active_cell) = maze.get_active_cell() {
+                        // Clone the data so we own it.
+                        let original_coords = active_cell.coords.clone();
+                        // Clone available moves to a Vec<String>.
+                        let available_moves: Vec<String> = active_cell.open_walls.clone();
+                        // Create a vector of &str from the owned Strings,
+                        // which we then use to compute diff.
+                        let available_refs: Vec<&str> = available_moves.iter().map(|s| s.as_str()).collect();
+                        // Use your diff helper to get the unavailable moves.
+                        // Then convert those to owned Strings so that they don't borrow available_moves.
+                        let unavailable_moves: Vec<String> = diff(&["North", "East", "South", "West"], &available_refs)
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect();
+
+                        (original_coords, available_moves, unavailable_moves)
+                    } else {
+                        panic!("Expected an active cell at the start");
+                    }
+                }; // All borrows are dropped here.
+
+                // Now it's safe to perform mutable operations.
+
+                // Try a move that is unavailable using a copied maze.
+                let mut copied_maze = maze.clone();
+                assert!(
+                    copied_maze
+                        .make_move(unavailable_moves.iter().next().unwrap())
+                        .is_err(),
+                    "Should not allow an unavailable move"
+                );
+                
+                assert_eq!(
+                    copied_maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    1,
+                    "There should be 1 visited cell on dynamic path before a successful move is made"
+                );
+                
+                assert_eq!(
+                    copied_maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    1,
+                    "There should be 1 visited cell on permenant path before a successful move is made"
+                );
+                
+                // Try a valid move on the original maze.
+                assert!(
+                    maze
+                        .make_move(available_moves.iter().next().unwrap().as_str())
+                        .is_ok(),
+                    "Should allow a valid move"
+                );
+                
+
+                // Verify that exactly one cell is active.
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.is_active).count(),
+                    1,
+                    "There should be exactly one active cell"
+                );
+
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    2,
+                    "There should be 2 visited cells on dynamic path after first successful move (start cell and current)"
+                );
+                
+                assert_eq!(
+                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    2,
+                    "There should be 2 visited cells on permenant path after first successful move (start cell and current)"
+                );
+
+
+                // Verify that the active cell has changed.
+                let new_active_coords = maze
+                    .get_active_cell()
+                    .expect("Expected an active cell after the move")
+                    .coords
+                    .clone();
+                assert_ne!(
+                    new_active_coords, original_coords,
+                    "The active cell should have moved to a new coordinate"
+                );
+            }
+            Err(e) => panic!("Unexpected error constructing maze: {:?}", e),
         }
     }
 

@@ -56,17 +56,25 @@ pub enum CellOrientation {
 pub struct Cell {
     pub coords: Coordinates, // x,y coordinates
     pub maze_type: MazeType, // Orthogonal, Delta, Sigma, Polar 
-    pub neighbors_by_direction: HashMap<String, Coordinates>, // neighbors' coordinates by direction
-    pub linked: HashSet<Coordinates>, // coordinates of neighboring cells linked to current cell (e.g. no walls in between)
-    pub distance: i32, // distance to the goal cellkk
-    pub is_start: bool, // whether it's the starting cell
-    pub is_goal: bool, // whether it's the goal cell
-    pub is_visited: bool, // whether user has crossed (or uncrossed) this cell on current path
-    pub is_active: bool, // whether this is the cell user is currently visiting
-    pub on_solution_path: bool, // whether this cell is on the path from start to goal
+    pub neighbors_by_direction: HashMap<String, Coordinates>, // Neighbors' coordinates mapped by direction
+    pub linked: HashSet<Coordinates>, // Coordinates of neighboring cells linked to current cell (e.g. no walls in between)
+    pub distance: i32, // Distance to the goal cell
+    pub is_start: bool, // Whether it's the starting cell
+    pub is_goal: bool, // Whether it's the goal cell
+    pub is_active: bool, // Whether this is the cell the user is currently visiting
+    // Whether the user has visited (or unvisited via backtracking) this cell in the current path.
+    // When this flag is modified (set to true for visiting or false for backtracking),
+    // the cell's permanent marker is also set: has_been_visited remains true once it has been touched.
+    pub is_visited: bool, 
+    // Once a cell is ever visited (i.e. when is_visited is set), this flag is permanently set to true.
+    // This flag serves as the permanent trail marker for visual representations,
+    // ensuring that the cell is recognized as visited even if the dynamic trail (is_visited) is later undone.
+    pub has_been_visited: bool, 
+    pub on_solution_path: bool, // Whether this cell is on the path from start to goal
     pub orientation: CellOrientation, // Normal or Inverted, only applicable for delta cells
-    pub open_walls: Vec<String>, // directions in which there are no walls restricting movement
+    pub open_walls: Vec<String>, // Directions in which there are no walls restricting movement
 }
+
 
 impl Default for Cell {
     fn default() -> Self {
@@ -78,8 +86,9 @@ impl Default for Cell {
             distance: 0,
             is_start: false,
             is_goal: false,
-            is_visited: false,
             is_active: false, 
+            is_visited: false,
+            has_been_visited: false,
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
             open_walls: Vec::new(),
@@ -100,8 +109,9 @@ impl Serialize for Cell {
         state.serialize_field("distance", &self.distance)?;
         state.serialize_field("is_start", &self.is_start)?;
         state.serialize_field("is_goal", &self.is_goal)?;
-        state.serialize_field("is_visited", &self.is_visited)?;
         state.serialize_field("is_active", &self.is_active)?;
+        state.serialize_field("is_visited", &self.is_visited)?;
+        state.serialize_field("has_been_visited", &self.has_been_visited)?;
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
         state.end()
     }
@@ -168,6 +178,22 @@ impl Cell {
         }
     }
 
+    pub fn set_active(&mut self, active: bool) {
+        self.is_active = active;
+    }
+
+    pub fn set_visited(&mut self, visited: bool) {
+        if self.is_start {
+            // start cell is always visited and cannot become unvisited 
+            self.is_visited = true;
+        } else {
+            self.is_visited = visited;
+        }
+        // has_been_visited is the permanent path marker
+        self.has_been_visited = true;
+    }
+
+    
     pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
         self.linked = linked;
     }
@@ -211,8 +237,9 @@ pub struct FFICell {
     pub distance: i32,
     pub is_start: bool,
     pub is_goal: bool,
-    pub is_visited: bool,
     pub is_active: bool,
+    pub is_visited: bool,
+    pub has_been_visited: bool,
     pub on_solution_path: bool,
 
     // *const c_char is a pointer to a single null-terminated C string
@@ -254,8 +281,9 @@ impl From<&Cell> for FFICell {
             distance: cell.distance,
             is_start: cell.is_start,
             is_goal: cell.is_goal,
-            is_visited: cell.is_visited,
             is_active: cell.is_active,
+            is_visited: cell.is_visited,
+            has_been_visited: cell.has_been_visited,
             on_solution_path: cell.on_solution_path,
             orientation: orientation_c,
         }
@@ -308,6 +336,7 @@ impl CellBuilder {
             is_start: false,
             is_goal: false,
             is_visited: false, 
+            has_been_visited: false, 
             is_active: false, 
             on_solution_path: false,
             orientation: CellOrientation::Normal,
@@ -327,6 +356,11 @@ impl CellBuilder {
     
     pub fn is_visited(mut self, is_visited: bool) -> Self {
         self.0.is_visited = is_visited;
+        self
+    }
+
+    pub fn has_been_visited(mut self, has_been_visited: bool) -> Self {
+        self.0.has_been_visited = has_been_visited; // permenant path parker
         self
     }
     
@@ -469,8 +503,9 @@ mod tests {
             distance: 10,
             is_start: true,
             is_goal: false,
-            is_visited: false,
             is_active: false,
+            is_visited: false,
+            has_been_visited: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
@@ -510,8 +545,9 @@ mod tests {
             distance: 10,
             is_start: true,
             is_goal: false,
-            is_visited: false,
             is_active: false,
+            is_visited: false,
+            has_been_visited: false,
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: open_walls,

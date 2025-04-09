@@ -1,5 +1,6 @@
 use serde::{ Serialize, Deserialize };
 use std::fmt;
+use crate::Error;
 
 pub trait Direction: Serialize { 
     fn as_str(&self) -> String
@@ -40,6 +41,21 @@ impl From<HexDirection> for String {
     }
 }
 
+impl TryFrom<&str> for HexDirection {
+    type Error = Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "Northwest" => Ok(HexDirection::Northwest),
+            "North" => Ok(HexDirection::North),
+            "Northeast" => Ok(HexDirection::Northeast),
+            "Southwest" => Ok(HexDirection::Southwest),
+            "South" => Ok(HexDirection::South),
+            "Southeast" => Ok(HexDirection::Southeast),
+            d => Err(Error::InvalidDirection { direction: String::from(d) }),
+        }
+    }
+}
+
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PolarDirection {
     Clockwise,
@@ -63,6 +79,19 @@ impl From<PolarDirection> for String {
             PolarDirection::CounterClockwise => "CounterClockwise".to_string(),
             PolarDirection::Inward => "Inward".to_string(),
             PolarDirection::Outward => "Outward".to_string(),
+        }
+    }
+}
+
+impl TryFrom<&str> for PolarDirection {
+    type Error = Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "Clockwise" => Ok(PolarDirection::Clockwise),
+            "CounterClockwise" => Ok(PolarDirection::CounterClockwise),
+            "Inward" => Ok(PolarDirection::Inward),
+            "Outward" => Ok(PolarDirection::Outward),
+            d => Err(Error::InvalidDirection { direction: String::from(d) }),
         }
     }
 }
@@ -94,6 +123,20 @@ impl From<SquareDirection> for String {
     }
 }
 
+impl TryFrom<&str> for SquareDirection {
+    type Error = Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "North" => Ok(SquareDirection::North),
+            "East" => Ok(SquareDirection::East),
+            "South" => Ok(SquareDirection::South),
+            "West" => Ok(SquareDirection::West),
+            d => Err(Error::InvalidDirection { direction: String::from(d) }),
+        }
+    }
+}
+
+
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TriangleDirection {
     UpperLeft,
@@ -121,6 +164,21 @@ impl From<TriangleDirection> for String {
             TriangleDirection::Up => "Up".to_string(),
             TriangleDirection::LowerLeft => "LowerLeft".to_string(),
             TriangleDirection::LowerRight => "LowerRight".to_string(),
+        }
+    }
+}
+
+impl TryFrom<&str> for TriangleDirection {
+    type Error = Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match s {
+            "UpperLeft" => Ok(TriangleDirection::UpperLeft),
+            "UpperRight" => Ok(TriangleDirection::UpperRight),
+            "Down" => Ok(TriangleDirection::Down),
+            "Up" => Ok(TriangleDirection::Up),
+            "LowerLeft" => Ok(TriangleDirection::LowerLeft),
+            "LowerRight" => Ok(TriangleDirection::LowerRight),
+            d => Err(Error::InvalidDirection { direction: String::from(d) }),
         }
     }
 }

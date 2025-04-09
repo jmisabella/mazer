@@ -14,6 +14,8 @@ pub enum Error {
     NoValidNeighbor { coordinates: Coordinates },
     MultipleActiveCells { count: usize },
     NoActiveCells,
+    InvalidDirection { direction: String },
+    MoveUnavailable { attempted_move: String, available_moves: Vec<String>},
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -47,6 +49,12 @@ impl fmt::Display for Error {
             }
             Error::NoActiveCells => {
                 write!(f, "No active cells, there should always be exactly 1 active cell" )
+            }
+            Error::MoveUnavailable { attempted_move, available_moves } => {
+                write!(f, "Cannot make move {:?} because it is unavailable. Available moves are: {:?}", attempted_move, available_moves.join(", ") )
+            }
+            Error::InvalidDirection { direction } => {
+                write!(f, "Invalid Direction: {:?}", direction )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)
