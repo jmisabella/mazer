@@ -12,7 +12,6 @@ pub mod algorithms;
 pub mod error;
 pub mod ffi;
 
-
 // algorithms: BinaryTree, Sidewinder, AldousBroder, HuntAndKill, RecursiveBacktracker
 // maze_types: Orthogonal, Delta, Hex, Polar
 // example json maze request, all fields are required:
