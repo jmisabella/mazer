@@ -1,12 +1,11 @@
+use std::fmt;
+use std::collections::{HashMap, HashSet, VecDeque};
+use rand::{ thread_rng, Rng };
+use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
 use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
 use crate::error::Error;
 use crate::request::MazeRequest;
-
-use std::fmt;
-use serde::ser::{ Serialize, Serializer, SerializeStruct };
-use rand::{ thread_rng, Rng };
-use std::collections::{HashMap, HashSet, VecDeque};
 
 #[derive(Debug, Clone)]
 pub struct Grid {
