@@ -616,17 +616,7 @@ impl Grid {
 mod tests {
     use super::*;
 
-    // helper function for finding differences
-    fn diff<T>(v1: &[T], v2: &[T]) -> Vec<T>
-    where
-        T: Eq + std::hash::Hash + Clone,
-    {
-        let set_v2: HashSet<_> = v2.iter().collect();
-        v1.iter()
-        .filter(|item| !set_v2.contains(item))
-        .cloned()
-        .collect()
-    }
+    use crate::behaviors::collections::SetDifference;
 
     #[test]
     fn init_orthogonal_grid() {
@@ -919,7 +909,8 @@ mod tests {
                         let available_refs: Vec<&str> = available_moves.iter().map(|s| s.as_str()).collect();
                         // Use your diff helper to get the unavailable moves.
                         // Then convert those to owned Strings so that they don't borrow available_moves.
-                        let unavailable_moves: Vec<String> = diff(&["North", "East", "South", "West"], &available_refs)
+                        //let unavailable_moves: Vec<String> = diff(&["North", "East", "South", "West"], &available_refs)
+                        let unavailable_moves: Vec<String> = ["North", "East", "South", "West"].diff(&available_refs)
                             .into_iter()
                             .map(|s| s.to_string())
                             .collect();
