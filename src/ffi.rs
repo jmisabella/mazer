@@ -50,7 +50,6 @@ pub struct FFICell {
     pub orientation: *const c_char,
 }
 
-
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
         // Convert maze_type and orientation into raw C strings.
@@ -385,6 +384,106 @@ mod tests {
         // The Drop implementation for FFICell will automatically free all allocated memory.
     }
 
+    // pub extern "C" fn mazer_generate_maze(request_json: *const c_char) -> *mut Grid {
+    #[test]
+    fn test_mazer_generate_maze() {
+        let json_request = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 22,
+            "height": 22,
+            "algorithm": "Wilsons",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 21, "y": 21 }
+        }
+        "#;
+        let json_req_c_string = CString::new(json_request)
+            .unwrap()
+            .into_raw();
+        
+        //let grid_ptr: *mut Grid = mazer_generate_maze(json_req_c_string);
+        
+        // Call the FFI function within an unsafe block.
+        let grid_ptr = unsafe { mazer_generate_maze(json_req_c_string) };
+
+        // Check that the returned pointer is not null.
+        assert!(!grid_ptr.is_null());
+
+        // convert the pointer back to a Rust mutable reference.
+        let maze: &mut Grid = unsafe { &mut *(grid_ptr as *mut Grid) };
+        
+        assert!(maze.is_perfect_maze().unwrap());
+        println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
+
+        // clean up
+        unsafe {
+            // clean up memory used by maze 
+            mazer_destroy(maze);
+            // reclaim the C string from the raw pointer so Rust would clean it up after it leaves scope
+            let _ = CString::from_raw(json_req_c_string);
+        }
+    }
+
+
+    #[test]
+    fn test_mazer_get_cells_length_argument_with_free() {
+        // Create a JSON definition for a simple maze.
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 50,
+            "height": 60,
+            "algorithm": "HuntAndKill",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 49, "y": 59 }
+        }
+        "#;
+
+        // Create a Grid from the JSON (assuming Grid::try_from exists and works).
+        let grid = Grid::try_from(json).expect("Failed to create Grid from JSON");
+
+        // Box the Grid so it is heap-allocated.
+        let boxed_grid = Box::new(grid);
+
+        // Convert the Box into a raw pointer.
+        // This pointer will be passed to the FFI function.
+        let maze_ptr: *mut Grid = Box::into_raw(boxed_grid);
+
+        // Create a mutable length variable, and get its pointer.
+        let mut length: usize = 0;
+        let length_ptr: *mut usize = &mut length;
+
+        // Call the FFI function. It writes the number of cells to the location pointed by length_ptr.
+        let cells_ptr = unsafe { mazer_get_cells(maze_ptr, length_ptr) };
+
+        // Verify that a non-null pointer is returned.
+        assert!(!cells_ptr.is_null(), "Expected non-null pointer from mazer_get_cells");
+
+        // The length should now equal the number of cells in the original Grid.
+        // Since the grid has been moved to the heap, we recover a reference to it.
+        let grid_ref = unsafe { &*maze_ptr };
+        assert_eq!(
+            grid_ref.cells.len(),
+            length,
+            "Length returned by FFI should equal the number of cells in the grid"
+        );
+
+        // Convert the returned raw pointer into a slice for further examination.
+        let ffi_cells: &[FFICell] = unsafe { std::slice::from_raw_parts(cells_ptr, length) };
+        println!("Number of FFICells: {}", ffi_cells.len());
+
+        // Optionally add more validations about the FFICell content here.
+
+        // *** Memory Cleanup ***
+        // Use the provided mazer_free_cells to free the allocated FFICell array.
+        unsafe {
+            // clean up FFICells 
+            mazer_free_cells(cells_ptr, length);
+            // clean up memory used by maze 
+            mazer_destroy(maze_ptr);
+        }
+    }
+
     #[test]
     fn test_mazer_make_move() {
         let json = r#"
@@ -518,9 +617,21 @@ mod tests {
                     "The active cell should have moved to a new coordinate"
                 );
                 
+                // clean up
+                unsafe {
+                    // clean up memory used by maze 
+                    mazer_destroy(maze);
+                }
       
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }       
+    }
+
+    #[test]
+    fn test_ffi_integration_returns_42() {
+        let result = unsafe { mazer_ffi_integration_test() };
+        // this FFI integration test function simply returns 42, useful to show integration of the .a C library at Swift, etc... environment 
+        assert_eq!(result, 42, "The FFI integration test function should return 42");
     }
 }
