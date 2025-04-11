@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{ thread_rng, Rng };
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use crate::behaviors::display::JsonDisplay;
+use crate::behaviors::graph;
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
 use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
 use crate::error::Error;
@@ -452,35 +453,21 @@ impl Grid {
         Ok(())
     }
 
-
-    pub fn distances(&self, start_coords: Coordinates) -> HashMap<Coordinates, u32> {
-        let mut distances = HashMap::new(); // Map to store distances from `start_coords`
-        let mut queue = VecDeque::new(); // Queue for BFS
-
-        // Initialize the BFS with the starting point
-        distances.insert(start_coords, 0);
-        queue.push_back(start_coords);
-
-        while let Some(current) = queue.pop_front() {
-            let current_distance = distances[&current];
-
-            // Get the cell at the current coordinate
-            if let Ok(cell) = self.get(current) {
-                // Iterate over all linked neighbors
-                // Collect neighbors first to avoid borrowing conflicts with `distances`
-                cell.linked.iter()
-                    .filter(|&&neighbor| !distances.contains_key(&neighbor))
-                    .copied() // Convert &&Coordinates to Coordinates
-                    .collect::<Vec<_>>() // Collect to break borrowing dependency
-                    .into_iter() // Iterate over the owned values
-                    .for_each(|neighbor| {
-                        distances.insert(neighbor, current_distance + 1);
-                        queue.push_back(neighbor);
-                    });
+    /// Get a map of distances from the start coordinate to all other connected coordinates.
+    pub fn distances(&self, start: Coordinates) -> HashMap<Coordinates, u32> {
+        // Define a closure that returns the linked (neighbor) coordinates for a given coordinate.
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            // Retrieve the cell at `coords`
+            if let Ok(cell) = self.get(coords) {
+                // Return its linked neighbors (assuming cell.linked is a HashSet<Coordinates>).
+                cell.linked.iter().copied().collect()
+            } else {
+                Vec::new()
             }
-        }
-        distances
-    }
+        };
+
+        graph::bfs_distances(start, neighbor_fn)
+    }    
 
     pub fn get_path_to(
         &self,
@@ -489,70 +476,49 @@ impl Grid {
         goal_x: usize,
         goal_y: usize,
     ) -> Result<HashMap<Coordinates, u32>, Error> {
-        // Calculate distances from the start
-        let dist = self.distances(Coordinates { x: start_x, y: start_y });
+        let start = Coordinates { x: start_x, y: start_y };
+        let goal = Coordinates { x: goal_x, y: goal_y };
 
-        // Initialize the breadcrumbs map
-        let mut breadcrumbs = HashMap::new();
-        let mut current = Coordinates { x: goal_x, y: goal_y };
+        // Compute distances from start using your existing method.
+        let distances = self.distances(start);
 
-        // Add the goal cell to breadcrumbs
-        if let Some(&distance) = dist.get(&current) {
-            breadcrumbs.insert(current, distance);
+        // Define the neighbor function inline.
+        // Given a coordinate, return its linked neighbors (or an empty vec on error).
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            self.get(coords)
+                .map(|cell| cell.linked.iter().copied().collect())
+                .unwrap_or_else(|_| Vec::new())
+        };
+
+        // Use the generic get_path function to obtain the path from start to goal.
+        if let Some(path) = graph::get_path(start, goal, &distances, neighbor_fn) {
+            // Convert the path (Vec<Coordinates>) into a breadcrumbs map.
+            // Each coordinate is mapped to its distance (as computed in the distances map).
+            let breadcrumbs: HashMap<Coordinates, u32> = path
+                .into_iter()
+                .filter_map(|coord| distances.get(&coord).map(|&d| (coord, d)))
+                .collect();
+            Ok(breadcrumbs)
         } else {
-            // Return empty if the goal is unreachable
-            return Ok(breadcrumbs);
+            // If no path was found, return an empty map.
+            Ok(HashMap::new())
         }
-
-        // Trace the path back to the start
-        while current != (Coordinates { x: start_x, y: start_y }) {
-            let cell = self
-                .get(current)?;
-           
-            current = cell.linked.iter()
-                .filter_map(|&neighbor| {
-                    let neighbor_dist = dist.get(&neighbor)?;
-                    let current_dist = dist.get(&current)?;
-                    if neighbor_dist < current_dist {
-                        breadcrumbs.insert(neighbor, *neighbor_dist);
-                        Some(neighbor)
-                    } else {
-                        None // skip this neighbor because distance to it exceeds distance to current
-                    }
-                })
-                .next()
-                .ok_or(Error::NoValidNeighbor { coordinates: cell.coords })?;
-
-        }
-        Ok(breadcrumbs)
     }
 
     /// Returns all cells reachable from the given start coordinates
-    pub fn all_connected_cells(&self, start: &Coordinates) -> Result<HashSet<Coordinates>, Error> {
-        let mut connected = HashSet::new();
-        let mut frontier = VecDeque::new();
-        frontier.push_back(*start);
-        connected.insert(*start);
+    /// Get all connected cells from a starting coordinate.
+    pub fn all_connected_cells(&self, start: Coordinates) -> HashSet<Coordinates> {
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            if let Ok(cell) = self.get(coords) {
+                cell.linked.iter().copied().collect()
+            } else {
+                Vec::new()
+            }
+        };
 
-        while let Some(current) = frontier.pop_front() {
-            let cell = &self.get_by_coords(current.x, current.y)?;
-            // collect new coordinates that have not been visited yet
-            let new_linked_coords: Vec<Coordinates> = cell.linked
-                .iter()
-                .filter(|xy| !connected.contains(xy))
-                .copied()
-                .collect();
-
-            new_linked_coords
-                // take ownership because `insert` and `push_back` both require owned values, not references 
-                .into_iter()
-                .for_each(|xy| {
-                    connected.insert(xy);
-                    frontier.push_back(xy);
-                });
-        }
-        Ok(connected)
+        graph::all_connected(start, neighbor_fn)
     }
+    
 
     /// Counts the number of edges in the maze
     pub fn count_edges(&self) -> usize {
@@ -570,7 +536,8 @@ impl Grid {
 
         // Fully connected check
         let start_coords = self.start_coords;
-        let connected_cells = self.all_connected_cells(&start_coords)?;
+        //let connected_cells = self.all_connected_cells(&start_coords)?;
+        let connected_cells = self.all_connected_cells(start_coords);
         if connected_cells.len() != total_cells {
             return Ok(false);
         }
