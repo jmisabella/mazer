@@ -2,6 +2,7 @@ use std::fmt;
 use std::collections::{HashMap, HashSet, VecDeque};
 use rand::{ thread_rng, Rng };
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
+use crate::behaviors::display::JsonDisplay;
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
 use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
 use crate::error::Error;
@@ -17,6 +18,7 @@ pub struct Grid {
     pub start_coords: Coordinates,
     pub goal_coords: Coordinates,
 }
+
 impl Serialize for Grid {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -29,7 +31,7 @@ impl Serialize for Grid {
 }
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }

@@ -4,6 +4,8 @@ use std::fmt;
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
 
+use crate::behaviors::collections::FilterKeys;
+use crate::behaviors::display::JsonDisplay;
 use crate::direction::Direction;
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -13,7 +15,7 @@ pub struct Coordinates {
 }
 impl fmt::Display for Coordinates {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -37,7 +39,7 @@ pub enum MazeType {
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -116,7 +118,7 @@ impl Serialize for Cell {
 }
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -144,16 +146,9 @@ impl Cell {
     pub fn linked_directions(&self) -> HashSet<String> {
         // Assuming neighbors_by_direction provides the mapping
         self.neighbors_by_direction
-            .iter()
-            .filter_map(|(direction, coords)| {
-                if self.linked.contains(coords) {
-                    // Return direction if the corresponding cell is linked
-                    Some(direction.clone())
-                } else {
-                    None
-                }
-            })
-            .collect()
+            .filter_keys(|coords| self.linked.contains(coords))
+            .into_iter()
+            .collect() 
     }
 
     pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
 pub trait SetDifference<T>
@@ -20,6 +20,35 @@ where
             .iter()
             .filter(|item| !other_set.contains(item))
             .cloned()
+            .collect()
+    }
+}
+
+pub trait FilterKeys<K, V> {
+    /// Returns a collection (e.g., Vec or HashSet) containing the keys for which the predicate over the value returns true.
+    fn filter_keys<F>(&self, predicate: F) -> Vec<K>
+    where
+        F: Fn(&V) -> bool,
+        K: Clone;
+}
+
+// Implement for HashMap if you wish to return a Vec<K>
+impl<K, V> FilterKeys<K, V> for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash + Clone,
+{
+    fn filter_keys<F>(&self, predicate: F) -> Vec<K>
+    where
+        F: Fn(&V) -> bool,
+    {
+        self.iter()
+            .filter_map(|(key, value)| {
+                if predicate(value) {
+                    Some(key.clone())
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 }
