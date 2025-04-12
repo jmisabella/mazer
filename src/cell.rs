@@ -1,11 +1,11 @@
-use std::ffi::CString;
-use std::os::raw::c_char;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use serde::{ Serialize, Deserialize };
 use serde::ser::{SerializeStruct, Serializer};
 
+use crate::behaviors::collections::FilterKeys;
+use crate::behaviors::display::JsonDisplay;
 use crate::direction::Direction;
 
 #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct Coordinates {
 }
 impl fmt::Display for Coordinates {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -39,7 +39,7 @@ pub enum MazeType {
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -53,28 +53,41 @@ pub enum CellOrientation {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Representation of a single Cell of the maze Grid
 pub struct Cell {
-    pub coords: Coordinates, // x,y coordinates
-    pub maze_type: MazeType, // Orthogonal, Delta, Sigma, Polar 
-    pub neighbors_by_direction: HashMap<String, Coordinates>, // Neighbors' coordinates mapped by direction
-    pub linked: HashSet<Coordinates>, // Coordinates of neighboring cells linked to current cell (e.g. no walls in between)
-    pub distance: i32, // Distance to the goal cell
-    pub is_start: bool, // Whether it's the starting cell
-    pub is_goal: bool, // Whether it's the goal cell
-    pub is_active: bool, // Whether this is the cell the user is currently visiting
-    // Whether the user has visited (or unvisited via backtracking) this cell in the current path.
-    // When this flag is modified (set to true for visiting or false for backtracking),
-    // the cell's permanent marker is also set: has_been_visited remains true once it has been touched.
-    pub is_visited: bool, 
-    // Once a cell is ever visited (i.e. when is_visited is set), this flag is permanently set to true.
-    // This flag serves as the permanent trail marker for visual representations,
-    // ensuring that the cell is recognized as visited even if the dynamic trail (is_visited) is later undone.
-    pub has_been_visited: bool, 
-    pub on_solution_path: bool, // Whether this cell is on the path from start to goal
-    pub orientation: CellOrientation, // Normal or Inverted, only applicable for delta cells
-    pub open_walls: Vec<String>, // Directions in which there are no walls restricting movement
+    /// The x,y coordinates of the cell.
+    pub coords: Coordinates,
+    /// The maze type (e.g., Orthogonal, Delta, Sigma, Polar).
+    pub maze_type: MazeType,
+    /// Maps directions to the coordinates of neighboring cells.
+    pub neighbors_by_direction: HashMap<String, Coordinates>,
+    /// Coordinates of neighboring cells that are linked to this cell (i.e., no walls in between).
+    pub linked: HashSet<Coordinates>,
+    /// Distance to the goal cell.
+    pub distance: i32,
+    /// Whether this cell is the starting cell.
+    pub is_start: bool,
+    /// Whether this cell is the goal cell.
+    pub is_goal: bool,
+    /// Whether this is the cell the user is currently visiting.
+    pub is_active: bool,
+    /// Whether the user has visited (or unvisited via backtracking) this cell in the current path.
+    ///
+    /// When this flag is modified (set to `true` for visiting or `false` for backtracking),
+    /// the cell's permanent marker is also set: `has_been_visited` remains `true` once it has been touched.
+    pub is_visited: bool,
+    /// Once a cell is ever visited (i.e., when `is_visited` is set), this flag is permanently set to `true`.
+    ///
+    /// This flag serves as the permanent trail marker for visual representations,
+    /// ensuring that the cell is recognized as visited even if the dynamic trail (`is_visited`) is later undone.
+    pub has_been_visited: bool,
+    /// Indicates whether this cell is on the solution path from the start to the goal.
+    pub on_solution_path: bool,
+    /// The orientation of the cell (Normal or Inverted); applicable only for delta cells.
+    pub orientation: CellOrientation,
+    /// The directions in which there are no walls restricting movement.
+    pub open_walls: Vec<String>,
 }
-
 
 impl Default for Cell {
     fn default() -> Self {
@@ -118,7 +131,7 @@ impl Serialize for Cell {
 }
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -126,38 +139,37 @@ impl fmt::Display for Cell {
 }
 
 impl Cell {
+    /// X coordinate (on horizontal axis)
     pub fn x(&self) -> usize {
         return self.coords.x;
     }
 
+    /// Y coordinate (on vertical axis)
     pub fn y(&self) -> usize {
         return self.coords.y;
     }
 
+    /// Coordinates of neighboring Cells
     pub fn neighbors(&self) -> HashSet<Coordinates> {
         return self.neighbors_by_direction.values().cloned().collect();        
     }
 
+    /// Coordinates of linked neighboring Cells (linked indicating no walls separating these linked neighbors from this Cell)
     pub fn unlinked_neighbors(&self) -> HashSet<Coordinates> {
         let all_neighbors = self.neighbors();
         return all_neighbors.difference(&self.linked).cloned().collect();
     }
 
+    /// Directions from this Cell to linked neighboring Cells (linked indicating no walls separating these linked neighbors from this Cell)
     pub fn linked_directions(&self) -> HashSet<String> {
         // Assuming neighbors_by_direction provides the mapping
         self.neighbors_by_direction
-            .iter()
-            .filter_map(|(direction, coords)| {
-                if self.linked.contains(coords) {
-                    // Return direction if the corresponding cell is linked
-                    Some(direction.clone())
-                } else {
-                    None
-                }
-            })
-            .collect()
+            .filter_keys(|coords| self.linked.contains(coords))
+            .into_iter()
+            .collect() 
     }
 
+    /// Whether neighbor in specified Direction is linked to this Cell
     pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {
         // Find the neighbor for the given direction
         if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction.as_str()) {
@@ -167,10 +179,12 @@ impl Cell {
         }
     }
 
+    /// Whether specified Coordinates belong to a neighboring Cell which is linked to this Cell (meaning no separating wall)
     pub fn is_linked(&self, coordinates: Coordinates) -> bool {
         return self.linked.contains(&coordinates); 
     }
 
+    /// Whether specified optional Coordinates belong to a neighboring Cell which is linked to this Cell (meaning no separating wall)
     pub fn is_linked_opt(&self, coordinates: Option<Coordinates>) -> bool {
         match coordinates {
             Some(coords) => self.is_linked(coords),
@@ -178,10 +192,12 @@ impl Cell {
         }
     }
 
+    /// Set is_active
     pub fn set_active(&mut self, active: bool) {
         self.is_active = active;
     }
 
+    /// Set is_visited, the dynamic marker, to specified boolean value. This also sets has_been_visited, the permanent marker, to true 
     pub fn set_visited(&mut self, visited: bool) {
         if self.is_start {
             // start cell is always visited and cannot become unvisited 
@@ -193,19 +209,22 @@ impl Cell {
         self.has_been_visited = true;
     }
 
-    
+    /// Set linked to a specified set of Coordinates    
     pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
         self.linked = linked;
     }
 
+    /// Set orientation
     pub fn set_orientation(&mut self, orientation: CellOrientation) {
         self.orientation = orientation;
     }
     
+    /// Set neighbors_by_direction 
     pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
     }
 
+    /// Set open_walls based on neighbors_by_direction to indicate which walls are omitted (e.g. open walls)
     pub fn set_open_walls(&mut self) {
         self.open_walls = self.linked.iter()
             .filter_map(|coords| {
@@ -216,108 +235,14 @@ impl Cell {
             })
             .collect()
     }
-
 }
 
-#[repr(C)]
-pub struct FFICell {
-    pub x: usize,
-    pub y: usize,
-    // *const c_char is a pointer to a single null-terminated C string
-    // (e.g., "Orthogonal"). Required for FFI compatibility with Swift.
-    pub maze_type: *const c_char,
-
-    // *const *const c_char is a pointer to an array of pointers to
-    // null-terminated C strings (i.e., a list of strings like ["North", "East"]).
-    pub linked: *const *const c_char,
-
-    // Number of items in the `linked` array
-    pub linked_len: usize,
-
-    pub distance: i32,
-    pub is_start: bool,
-    pub is_goal: bool,
-    pub is_active: bool,
-    pub is_visited: bool,
-    pub has_been_visited: bool,
-    pub on_solution_path: bool,
-
-    // *const c_char is a pointer to a single null-terminated C string
-    // (e.g., "North"). Required for FFI compatibility with Swift.
-    pub orientation: *const c_char,
-}
-
-
-impl From<&Cell> for FFICell {
-    fn from(cell: &Cell) -> Self {
-        // Convert maze_type and orientation into raw C strings.
-        let maze_type_c = CString::new(format!("{:?}", cell.maze_type))
-            .unwrap()
-            .into_raw();
-        let orientation_c = CString::new(format!("{:?}", cell.orientation))
-            .unwrap()
-            .into_raw();
-        
-        // Create a vector of raw pointers for the open_walls strings.
-        let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
-            .map(|direction| {
-                // Convert each Rust string into a raw C string.
-                CString::new(direction.clone())
-                    .unwrap()
-                    .into_raw() as *const c_char
-            })
-            .collect();
-
-        // Leak the vector of pointers by converting it into a boxed slice.
-        let open_walls_len = open_walls_raw.len();
-        let open_walls_ptr = Box::leak(open_walls_raw.into_boxed_slice()).as_ptr();
-
-        FFICell {
-            x: cell.coords.x,
-            y: cell.coords.y,
-            maze_type: maze_type_c,
-            linked: open_walls_ptr, // now holds the open_walls raw pointers
-            linked_len: open_walls_len,
-            distance: cell.distance,
-            is_start: cell.is_start,
-            is_goal: cell.is_goal,
-            is_active: cell.is_active,
-            is_visited: cell.is_visited,
-            has_been_visited: cell.has_been_visited,
-            on_solution_path: cell.on_solution_path,
-            orientation: orientation_c,
-        }
-    }
-}
-
-impl Drop for FFICell {
-    fn drop(&mut self) {
-        unsafe {
-            // Reclaim the maze_type C string.
-            if !self.maze_type.is_null() {
-                let _ = CString::from_raw(self.maze_type as *mut c_char);
-            }
-            
-            // Reclaim the orientation C string.
-            if !self.orientation.is_null() {
-                let _ = CString::from_raw(self.orientation as *mut c_char);
-            }
-            
-            // Reclaim each of the linked C strings.
-            let linked_slice = std::slice::from_raw_parts(self.linked, self.linked_len);
-            for &ptr in linked_slice {
-                if !ptr.is_null() {
-                    let _ = CString::from_raw(ptr as *mut c_char);
-                }
-            }
-            
-            // Reclaim and free the leaked pointer array.
-            let _ = Vec::from_raw_parts(self.linked as *mut *const c_char, self.linked_len, self.linked_len);
-        }
-    }
-}
-
-
+/// A builder for creating and customizing a `Cell` using the builder pattern.
+///
+/// The `CellBuilder` wraps a `Cell` and provides a fluent API to set properties
+/// such as coordinates, maze type, start/goal status, visit state, linked neighbors,
+/// orientation, and neighbor relationships. Once configured, the final `Cell`
+/// can be obtained via the `build()` method, which returns a cloned instance.
 pub struct CellBuilder(Cell);
 
 impl CellBuilder {
@@ -388,7 +313,6 @@ impl CellBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::CStr;
     use super::*;
     use crate::direction::SquareDirection;
 
@@ -521,72 +445,5 @@ mod tests {
         assert!(json.contains("\"on_solution_path\":true"));
     }
 
-    #[test]
-    fn test_memory_allocation_for_ffi_cell() {
-        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-        neighbors.insert("North".to_string(), Coordinates { x: 1, y: 1 });
-        neighbors.insert("East".to_string(), Coordinates { x: 2, y: 2 });
-        neighbors.insert("South".to_string(), Coordinates { x: 1, y: 3 });
-        neighbors.insert("West".to_string(), Coordinates { x: 0, y: 2 });
-
-        let mut linked: HashSet<Coordinates> = HashSet::new();
-        linked.insert(Coordinates { x: 2, y: 2 });
-        linked.insert(Coordinates { x: 1, y: 3 });
-
-        let mut open_walls: Vec<String> = Vec::new();
-        open_walls.push(String::from("East"));
-        open_walls.push(String::from("South"));
-
-        let cell = Cell {
-            coords: Coordinates { x: 1, y: 2 },
-            maze_type: MazeType::Orthogonal,
-            neighbors_by_direction: neighbors,
-            linked,
-            distance: 10,
-            is_start: true,
-            is_goal: false,
-            is_active: false,
-            is_visited: false,
-            has_been_visited: false,
-            on_solution_path: true,
-            orientation: CellOrientation::Normal,
-            open_walls: open_walls,
-        };
-
-        let ffi_cell: FFICell = (&cell).into();
-
-        // Convert C strings back to Rust strings for assertions.
-        let maze_type_str = unsafe { CStr::from_ptr(ffi_cell.maze_type).to_str().unwrap() };
-        let orientation_str = unsafe { CStr::from_ptr(ffi_cell.orientation).to_str().unwrap() };
-
-        // Convert linked pointers back to Rust Strings and collect.
-        let linked_rust: HashSet<String> = unsafe {
-            std::slice::from_raw_parts(ffi_cell.linked, ffi_cell.linked_len)
-                .iter()
-                .map(|&ptr| CStr::from_ptr(ptr).to_string_lossy().into_owned())
-                .collect()
-        };
-
-        // Assert that the strings are as expected.
-        assert_eq!(maze_type_str, format!("{:?}", cell.maze_type));
-        assert_eq!(orientation_str, format!("{:?}", cell.orientation));
-
-        // Create expected linked set from the matching neighbor keys.
-        let expected_linked: HashSet<String> = cell
-            .neighbors_by_direction
-            .iter()
-            .filter_map(|(k, &v)| {
-                if cell.linked.contains(&v) {
-                    Some(k.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        assert_eq!(linked_rust, expected_linked);
-
-        // No manual cleanup is necessary.
-        // The Drop implementation for FFICell will automatically free all allocated memory.
-    }
 
 }

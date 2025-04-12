@@ -1,3 +1,4 @@
+use crate::behaviors::maze::MazeGeneration;
 use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
 use crate::cell::{Coordinates, MazeType};
@@ -5,8 +6,8 @@ use crate::error::Error;
 
 pub struct Sidewinder;
 
-impl Sidewinder {
-    pub fn generate(grid: &mut Grid) -> Result<(), Error> {
+impl MazeGeneration for Sidewinder {
+    fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
             MazeType::Orthogonal => {} // proceed with maze generation for allowed Orthogonal (square) grid type
             maze_type => {
@@ -81,7 +82,7 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
+                Sidewinder.generate(&mut grid).expect("Sidewinder maze generation failed");
                 println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
                 assert!(grid.is_perfect_maze().unwrap());
             }     
@@ -94,7 +95,7 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                Sidewinder::generate(&mut grid).expect("Sidewinder maze generation failed");
+                Sidewinder.generate(&mut grid).expect("Sidewinder maze generation failed");
                 println!("\n\nSidewinder\n\n{}\n\n", grid.to_asci());
                 assert!(grid.is_perfect_maze().unwrap());
             }
@@ -107,7 +108,7 @@ mod tests {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                match Sidewinder::generate(&mut grid) {
+                match Sidewinder.generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a Sidewinder maze for a Delta grid, which is should have been rejected!");
                     }
@@ -125,7 +126,7 @@ mod tests {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                match Sidewinder::generate(&mut grid) {
+                match Sidewinder.generate(&mut grid) {
                     Ok(()) => {
                         panic!("Successfully generated a Sidewinder maze for a Sigma grid, which is should have been rejected!");
                     }

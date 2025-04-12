@@ -1,23 +1,39 @@
+use std::fmt;
+use std::collections::{HashMap, HashSet};
+use rand::{ thread_rng, Rng };
+use serde::ser::{ Serialize, Serializer, SerializeStruct };
+use crate::behaviors::display::JsonDisplay;
+use crate::behaviors::graph;
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
 use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
 use crate::error::Error;
 use crate::request::MazeRequest;
 
-use std::fmt;
-use serde::ser::{ Serialize, Serializer, SerializeStruct };
-use rand::{ thread_rng, Rng };
-use std::collections::{HashMap, HashSet, VecDeque};
-
 #[derive(Debug, Clone)]
+/// Represents a grid of maze cells, encapsulating both the cells and their spatial relationships.
+///
+/// This grid defines the layout of the maze by positioning each cell relative to its neighbors,
+/// enabling operations like navigation and pathfinding. It is defined by its dimensions, maze type,
+/// and the collection of cells that form the maze. Additionally, the maze generation can be seeded
+/// to ensure reproducibility.
 pub struct Grid {
+    /// The width of the grid.
     pub width: usize,
+    /// The height of the grid.
     pub height: usize,
+    /// The maze type, which determines the style of the maze (e.g., Orthogonal, Delta, Sigma, or Polar).
     pub maze_type: MazeType,
+    /// A flattened array of cells that make up the maze.
     pub cells: Vec<Cell>,
+    /// The random seed used to generate the maze.
     pub seed: u64,
+    /// The coordinates of the start cell within the grid.
     pub start_coords: Coordinates,
+    /// The coordinates of the goal cell within the grid.
     pub goal_coords: Coordinates,
 }
+
+
 impl Serialize for Grid {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -30,7 +46,7 @@ impl Serialize for Grid {
 }
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
@@ -65,13 +81,13 @@ impl TryFrom<&str> for Grid {
 
 impl Grid {
 
-    // get x,y coordinate's index in the flattened 1D vector
+    /// Get x,y coordinate's index in the flattened 1D vector
     pub fn get_flattened_index(&self, x: usize, y: usize) -> usize {
         // when unflattened to become a 2D vector, cells are stored in row-major order 
         y * self.width + x
     }
     
-    // retrieve a cell by its coordinates
+    /// Retrieve a cell by its coordinates
     pub fn get(&self, coords: Coordinates) -> Result<&Cell, Error> {
         let index = self.get_flattened_index(coords.x, coords.y);
         self.cells
@@ -95,6 +111,7 @@ impl Grid {
             })
     }
 
+    /// Get the currently active Cell
     pub fn get_active_cell(&mut self) -> Result<&mut Cell, Error> {
         let active_count = self.cells.iter().filter(|cell| cell.is_active).count();
         if active_count > 1 {
@@ -107,6 +124,7 @@ impl Grid {
         }
     }
 
+    /// Manually make a user move to a specified Direction
     pub fn make_move(&mut self, direction: &str) -> Result<(), Error> {
         // Borrow active_cell mutably.
         let active_cell = self.get_active_cell()?;
@@ -143,18 +161,18 @@ impl Grid {
         
         Ok(())
     }
-        
 
-    // retrieve a cell by its coordinates
+    /// Retrieve a cell by its coordinates
     pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
         self.get(Coordinates { x: x, y: y })
     }
     
-    // retrieve a cell by its coordinates
+    /// Retrieve a mutable cell by its coordinates
     pub fn get_mut_by_coords(&mut self, x: usize, y: usize) -> Result<&mut Cell, Error> {
         self.get_mut(Coordinates { x: x, y: y })
     }
 
+    /// Set a particular cell in the grid
     pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
         if cell.x() >= self.width || cell.y() >= self.height {
             return Err(Error::OutOfBoundsCoordinates { coordinates: cell.coords, maze_width: self.width, maze_height: self.height } );
@@ -164,6 +182,7 @@ impl Grid {
         Ok(())
     }
 
+    /// Random unsigned integer within bounds of an upper boundary
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
         let seed= rng.gen_range(0..upper_bound + 1);
@@ -171,12 +190,13 @@ impl Grid {
         return seed;
     }
 
+    /// Random boolean
     pub fn random_bool(&mut self) -> bool {
         let rando: bool = self.bounded_random_usize(1000000) % 2 == 0;
         return rando;
     }
  
-    // transform 1D (flattened) cells into a unflattened 2D vector
+    /// Transform 1D (flattened) cells into a unflattened 2D vector
     pub fn unflatten(&self) -> Vec<Vec<Cell>> {
         self.cells
             .chunks(self.width) // split into row-sized slices
@@ -184,7 +204,8 @@ impl Grid {
             .collect()
     }
 
-    pub fn generate_triangle_cells(&mut self) -> Result<(), Error> {
+    /// Prepare grid for Delta maze type by initialzing cells as triangular cells (e.g. having some cells as Inverted)
+    pub fn initialize_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type != MazeType::Delta {
             return Err(Error::InvalidCellForNonDeltaMaze { cell_maze_type: self.maze_type } );
         }
@@ -226,7 +247,8 @@ impl Grid {
         Ok(())
     }
     
-    pub fn generate_non_triangle_cells(&mut self) -> Result<(), Error> {
+    /// Prepare grid for non-Delta maze type by initialzing cells as non-triangular (e.g. do not have any Inverted)
+    pub fn initialize_non_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type == MazeType::Delta {
             return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type });
         }
@@ -261,226 +283,287 @@ impl Grid {
     }
     
 
-    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Result<Self, Error> {
-        let mut init_rng = thread_rng();
-        let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
+    /// Create a new grid based on the maze type, dimensions, start, and goal.
+    pub fn new(
+        maze_type: MazeType, 
+        width: usize, 
+        height: usize, 
+        start: Coordinates, 
+        goal: Coordinates
+    ) -> Result<Self, Error> {
+        let seed = Self::generate_seed(width, height);
 
-        let mut empty: Grid = Grid { 
+        // Initialize the grid with a flattened vector of cells using CellBuilder.
+        let mut grid = Grid { 
             width, 
             height, 
-            maze_type, 
+            maze_type,
             cells: vec![CellBuilder::new(0, 0, maze_type).build(); width * height],
             seed, 
-            start_coords: 
-            start, 
-            goal_coords: 
-            goal 
+            start_coords: start, 
+            goal_coords: goal,
         };
 
-        let mut grid: Grid = match maze_type {
-            MazeType::Delta => {
-                empty.generate_triangle_cells()?;
-                empty.clone()
-            }
-            _ => {
-                empty.generate_non_triangle_cells()?;
-                empty.clone()
-            }
-        };
-
+        // Generate different types of cells based on maze_type.
         match maze_type {
-            //MazeType::Polar => {
-            //    unimplemented!("MazeType Polar is not yet supported.");
-            //}
-            MazeType::Orthogonal => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        if cell.y() != 0 {
-                            neighbors.insert(SquareDirection::North.to_string(), grid.get_by_coords(cell.x(), cell.y() - 1)?.coords);
-                        }
-                        if cell.x() < grid.width - 1 {
-                            neighbors.insert(SquareDirection::East.to_string(), grid.get_by_coords(cell.x() + 1, cell.y())?.coords);
-                        }
-                        if cell.y() < grid.height - 1 {
-                            neighbors.insert(SquareDirection::South.to_string(), grid.get_by_coords(cell.x(), cell.y() + 1)?.coords);
-                        }
-                        if cell.x() != 0 {
-                            neighbors.insert(SquareDirection::West.to_string(), grid.get_by_coords(cell.x() - 1, cell.y())?.coords);
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?; 
-                    }
-                }
-            }
-            MazeType::Delta => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        let mut left: Option<Coordinates> = if col > 0 { 
-                            Some(Coordinates{x: col - 1, y: row})
-                        } else { 
-                            None
-                        };
-                        let mut right: Option<Coordinates> = if col < width - 1 { 
-                            Some(Coordinates{x: col+1, y: row})
-                        } else { 
-                            None 
-                        };
-                        if left.is_some() {
-                            let key = if cell.orientation == CellOrientation::Normal { TriangleDirection::UpperLeft.to_string() } else { TriangleDirection::LowerLeft.to_string() };
-                            neighbors.insert(key, left.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        if right.is_some() {
-                            let key = if cell.orientation == CellOrientation::Normal { TriangleDirection::UpperRight.to_string() } else { TriangleDirection::LowerRight.to_string() };
-                            neighbors.insert(key, right.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        let mut up: Option<Coordinates> = if cell.orientation == CellOrientation::Inverted && row > 0 { 
-                            Some(Coordinates{x: col, y: row-1}) 
-                        } else { 
-                            None 
-                        };
-                        let mut down: Option<Coordinates> = if cell.orientation == CellOrientation::Normal && row < height - 1 {
-                            Some(Coordinates{x: col, y: row+1}) 
-                        } else {
-                            None
-                        };
-                        if up.is_some() {
-                            neighbors.insert(TriangleDirection::Up.to_string(), up.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        if down.is_some() {
-                            neighbors.insert(TriangleDirection::Down.to_string(), down.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-            MazeType::Sigma => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        fn is_even(value: usize) -> bool {
-                            return value % 2 == 0; 
-                        }
-                        let (north_diagonal, south_diagonal) = match is_even(col) {
-                            true if row > 0 => (row - 1, row),
-                            true => (0, row), // Prevent underflow by clamping to 0
-                            false if row < height - 1 => (row, row + 1),
-                            false => (row, height - 1), // Prevent out-of-bounds
-                        };
-                        if col > 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.get_by_coords(col-1, north_diagonal)?.coords);
-                        }
-                        if col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.get_by_coords(col, row-1)?.coords);
-                        }
-                        if col < width - 1 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.get_by_coords(col+1, north_diagonal)?.coords);
-                        }
-                        if col > 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.get_by_coords(col-1, south_diagonal)?.coords);
-                        }
-                        if row < height - 1 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.get_by_coords(col, row+1)?.coords);
-                        }
-                        if col < width - 1 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.get_by_coords(col+1, south_diagonal)?.coords);
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-            MazeType::Polar => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        
-                        // Calculate inward/outward neighbors
-                        if row > 0 { // check inward (previous row)
-                            let inward_neighbor = grid.get_by_coords(col, row - 1)?.coords;
-                            neighbors.insert(PolarDirection::Inward.to_string(), inward_neighbor);
-                        }
-                        if row < height - 1 { // check outward (next row)
-                            let outward_neighbor = grid.get_by_coords(col, row + 1)?.coords;
-                            neighbors.insert(PolarDirection::Outward.to_string(), outward_neighbor);
-                        }
-                        
-                        // Calculate clockwise/counter-clockwise neighbors
-                        if col > 0 { // counter-clockwise (previous column)
-                            let ccw_neighbor = grid.get_by_coords((col - 1) % width, row)?.coords;
-                            neighbors.insert(PolarDirection::CounterClockwise.to_string(), ccw_neighbor);
-                        }
-                        if col < width - 1 { // clockwise (next column)
-                            let cw_neighbor = grid.get_by_coords((col + 1) % width, row)?.coords;
-                            neighbors.insert(PolarDirection::Clockwise.to_string(), cw_neighbor);
-                        }
-                        
-                        // Set the neighbors for the cell
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-        }
+            MazeType::Delta => grid.initialize_triangle_cells()?,
+            _             => grid.initialize_non_triangle_cells()?,
+        };
+
+        // Assign neighbor information based on maze type.
+        grid.assign_neighbors()?;
+
         Ok(grid)
     }
-    
+
+    /// Generate a seed based on the grid dimensions.
+    fn generate_seed(width: usize, height: usize) -> u64 {
+        use rand::{thread_rng, Rng};
+        let mut rng = thread_rng();
+        rng.gen_range(0..(width * height + 1)) as u64
+    }
+
+    /// Assign neighbor relationships for each cell based on the maze type.
+    fn assign_neighbors(&mut self) -> Result<(), Error> {
+        match self.maze_type {
+            MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
+            MazeType::Delta      => self.assign_neighbors_delta(),
+            MazeType::Sigma      => self.assign_neighbors_sigma(),
+            MazeType::Polar      => self.assign_neighbors_polar(),
+        }
+    }
+
+    /// Assign neighbors for Orthogonal mazes.
+    fn assign_neighbors_orthogonal(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                if cell.y() != 0 {
+                    neighbors.insert(
+                        SquareDirection::North.to_string(), 
+                        self.get_by_coords(cell.x(), cell.y() - 1)?.coords
+                    );
+                }
+                if cell.x() < self.width - 1 {
+                    neighbors.insert(
+                        SquareDirection::East.to_string(), 
+                        self.get_by_coords(cell.x() + 1, cell.y())?.coords
+                    );
+                }
+                if cell.y() < self.height - 1 {
+                    neighbors.insert(
+                        SquareDirection::South.to_string(), 
+                        self.get_by_coords(cell.x(), cell.y() + 1)?.coords
+                    );
+                }
+                if cell.x() != 0 {
+                    neighbors.insert(
+                        SquareDirection::West.to_string(), 
+                        self.get_by_coords(cell.x() - 1, cell.y())?.coords
+                    );
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assigns neighbors for Delta mazes.
+    fn assign_neighbors_delta(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                
+                // Left and right neighbors
+                let left  = if col > 0 { Some(Coordinates { x: col - 1, y: row }) } else { None };
+                let right = if col < self.width - 1 { Some(Coordinates { x: col + 1, y: row }) } else { None };
+                
+                if let Some(left_coords) = left {
+                    let key = if cell.orientation == CellOrientation::Normal {
+                        TriangleDirection::UpperLeft.to_string()
+                    } else {
+                        TriangleDirection::LowerLeft.to_string()
+                    };
+                    neighbors.insert(key, left_coords);
+                }
+                if let Some(right_coords) = right {
+                    let key = if cell.orientation == CellOrientation::Normal {
+                        TriangleDirection::UpperRight.to_string()
+                    } else {
+                        TriangleDirection::LowerRight.to_string()
+                    };
+                    neighbors.insert(key, right_coords);
+                }
+                
+                // Up and down neighbors based on orientation.
+                let up = if cell.orientation == CellOrientation::Inverted && row > 0 { 
+                    Some(Coordinates { x: col, y: row - 1 })
+                } else { 
+                    None 
+                };
+                let down = if cell.orientation == CellOrientation::Normal && row < self.height - 1 {
+                    Some(Coordinates { x: col, y: row + 1 })
+                } else {
+                    None
+                };
+                if let Some(up_coords) = up {
+                    neighbors.insert(TriangleDirection::Up.to_string(), up_coords);
+                }
+                if let Some(down_coords) = down {
+                    neighbors.insert(TriangleDirection::Down.to_string(), down_coords);
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assign neighbors for Sigma (hexagonal) mazes.
+    fn assign_neighbors_sigma(&mut self) -> Result<(), Error> {
+        // The helper function below determines whether a value is even.
+        fn is_even(value: usize) -> bool { value % 2 == 0 }
+        
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                let (north_diagonal, south_diagonal) = match is_even(col) {
+                    true if row > 0 => (row - 1, row),
+                    true => (0, row), // Clamps to avoid underflow
+                    false if row < self.height - 1 => (row, row + 1),
+                    false => (row, self.height - 1), // Clamps to avoid out-of-bound
+                };
+                if col > 0 && north_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Northwest.to_string(),
+                        self.get_by_coords(col - 1, north_diagonal)?.coords,
+                    );
+                }
+                if col < self.width && row > 0 {
+                    neighbors.insert(
+                        HexDirection::North.to_string(),
+                        self.get_by_coords(col, row - 1)?.coords,
+                    );
+                }
+                if col < self.width - 1 && north_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Northeast.to_string(),
+                        self.get_by_coords(col + 1, north_diagonal)?.coords,
+                    );
+                }
+                if col > 0 && south_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Southwest.to_string(),
+                        self.get_by_coords(col - 1, south_diagonal)?.coords,
+                    );
+                }
+                if row < self.height - 1 && col < self.width {
+                    neighbors.insert(
+                        HexDirection::South.to_string(),
+                        self.get_by_coords(col, row + 1)?.coords,
+                    );
+                }
+                if col < self.width - 1 && south_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Southeast.to_string(),
+                        self.get_by_coords(col + 1, south_diagonal)?.coords,
+                    );
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assign neighbors for Polar mazes.
+    fn assign_neighbors_polar(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                // Inward and outward neighbors.
+                if row > 0 {
+                    neighbors.insert(
+                        PolarDirection::Inward.to_string(), 
+                        self.get_by_coords(col, row - 1)?.coords,
+                    );
+                }
+                if row < self.height - 1 {
+                    neighbors.insert(
+                        PolarDirection::Outward.to_string(), 
+                        self.get_by_coords(col, row + 1)?.coords,
+                    );
+                }
+                
+                // Clockwise and counter-clockwise neighbors.
+                if col > 0 {
+                    neighbors.insert(
+                        PolarDirection::CounterClockwise.to_string(), 
+                        self.get_by_coords((col - 1) % self.width, row)?.coords,
+                    );
+                }
+                if col < self.width - 1 {
+                    neighbors.insert(
+                        PolarDirection::Clockwise.to_string(), 
+                        self.get_by_coords((col + 1) % self.width, row)?.coords,
+                    );
+                }
+                
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Link two cells together by their coordinates.
     pub fn link(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
         let (row1, col1) = (coord1.y, coord1.x);
         let (row2, col2) = (coord2.y, coord2.x);
-    
-        // Collect indices, defer mutable access
-        let idx1 = (row1, col1);
-        let idx2 = (row2, col2);
-    
-        // Sequential mutable access
+
+        // Link cell at coord1 to cell at coord2.
         {
-            let cell1 = self.get_mut_by_coords(idx1.1, idx1.0)?;
+            let cell1 = self.get_mut_by_coords(col1, row1)?;
             cell1.linked.insert(coord2);
         }
+        // Link cell at coord2 to cell at coord1.
         {
-            let cell2 = self.get_mut_by_coords(idx2.1, idx2.0)?;
+            let cell2 = self.get_mut_by_coords(col2, row2)?;
             cell2.linked.insert(coord1);
         }
         Ok(())
     }
 
-
-    pub fn distances(&self, start_coords: Coordinates) -> HashMap<Coordinates, u32> {
-        let mut distances = HashMap::new(); // Map to store distances from `start_coords`
-        let mut queue = VecDeque::new(); // Queue for BFS
-
-        // Initialize the BFS with the starting point
-        distances.insert(start_coords, 0);
-        queue.push_back(start_coords);
-
-        while let Some(current) = queue.pop_front() {
-            let current_distance = distances[&current];
-
-            // Get the cell at the current coordinate
-            if let Ok(cell) = self.get(current) {
-                // Iterate over all linked neighbors
-                // Collect neighbors first to avoid borrowing conflicts with `distances`
-                cell.linked.iter()
-                    .filter(|&&neighbor| !distances.contains_key(&neighbor))
-                    .copied() // Convert &&Coordinates to Coordinates
-                    .collect::<Vec<_>>() // Collect to break borrowing dependency
-                    .into_iter() // Iterate over the owned values
-                    .for_each(|neighbor| {
-                        distances.insert(neighbor, current_distance + 1);
-                        queue.push_back(neighbor);
-                    });
+    /// Get a map of distances from the start coordinate to all other connected coordinates.
+    pub fn distances(&self, start: Coordinates) -> HashMap<Coordinates, u32> {
+        // Define a closure that returns the linked (neighbor) coordinates for a given coordinate.
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            // Retrieve the cell at `coords`
+            if let Ok(cell) = self.get(coords) {
+                // Return its linked neighbors (assuming cell.linked is a HashSet<Coordinates>).
+                cell.linked.iter().copied().collect()
+            } else {
+                Vec::new()
             }
-        }
-        distances
-    }
+        };
 
+        graph::bfs_distances(start, neighbor_fn)
+    }    
+
+    /// Compute a path from the given start coordinates to the goal coordinates within the maze grid.
+    /// 
+    /// The method first calculates the distance from the start cell to all accessible cells, defines
+    /// linked neighbors for each cell, and then uses a generic graph pathfinder to determine a valid path.
+    /// It returns a `HashMap` mapping each coordinate along the found path to its distance from the start.
+    /// If no path exists, an empty map is returned.
     pub fn get_path_to(
         &self,
         start_x: usize,
@@ -488,72 +571,51 @@ impl Grid {
         goal_x: usize,
         goal_y: usize,
     ) -> Result<HashMap<Coordinates, u32>, Error> {
-        // Calculate distances from the start
-        let dist = self.distances(Coordinates { x: start_x, y: start_y });
+        let start = Coordinates { x: start_x, y: start_y };
+        let goal = Coordinates { x: goal_x, y: goal_y };
 
-        // Initialize the breadcrumbs map
-        let mut breadcrumbs = HashMap::new();
-        let mut current = Coordinates { x: goal_x, y: goal_y };
+        // Compute distances from start using your existing method.
+        let distances = self.distances(start);
 
-        // Add the goal cell to breadcrumbs
-        if let Some(&distance) = dist.get(&current) {
-            breadcrumbs.insert(current, distance);
-        } else {
-            // Return empty if the goal is unreachable
-            return Ok(breadcrumbs);
-        }
+        // Define the neighbor function inline.
+        // Given a coordinate, return its linked neighbors (or an empty vec on error).
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            self.get(coords)
+                .map(|cell| cell.linked.iter().copied().collect())
+                .unwrap_or_else(|_| Vec::new())
+        };
 
-        // Trace the path back to the start
-        while current != (Coordinates { x: start_x, y: start_y }) {
-            let cell = self
-                .get(current)?;
-           
-            current = cell.linked.iter()
-                .filter_map(|&neighbor| {
-                    let neighbor_dist = dist.get(&neighbor)?;
-                    let current_dist = dist.get(&current)?;
-                    if neighbor_dist < current_dist {
-                        breadcrumbs.insert(neighbor, *neighbor_dist);
-                        Some(neighbor)
-                    } else {
-                        None // skip this neighbor because distance to it exceeds distance to current
-                    }
-                })
-                .next()
-                .ok_or(Error::NoValidNeighbor { coordinates: cell.coords })?;
-
-        }
-        Ok(breadcrumbs)
-    }
-
-    /// Returns all cells reachable from the given start coordinates
-    pub fn all_connected_cells(&self, start: &Coordinates) -> Result<HashSet<Coordinates>, Error> {
-        let mut connected = HashSet::new();
-        let mut frontier = VecDeque::new();
-        frontier.push_back(*start);
-        connected.insert(*start);
-
-        while let Some(current) = frontier.pop_front() {
-            let cell = &self.get_by_coords(current.x, current.y)?;
-            // collect new coordinates that have not been visited yet
-            let new_linked_coords: Vec<Coordinates> = cell.linked
-                .iter()
-                .filter(|xy| !connected.contains(xy))
-                .copied()
-                .collect();
-
-            new_linked_coords
-                // take ownership because `insert` and `push_back` both require owned values, not references 
+        // Use the generic get_path function to obtain the path from start to goal.
+        if let Some(path) = graph::get_path(start, goal, &distances, neighbor_fn) {
+            // Convert the path (Vec<Coordinates>) into a breadcrumbs map.
+            // Each coordinate is mapped to its distance (as computed in the distances map).
+            let breadcrumbs: HashMap<Coordinates, u32> = path
                 .into_iter()
-                .for_each(|xy| {
-                    connected.insert(xy);
-                    frontier.push_back(xy);
-                });
+                .filter_map(|coord| distances.get(&coord).map(|&d| (coord, d)))
+                .collect();
+            Ok(breadcrumbs)
+        } else {
+            // If no path was found, return an empty map.
+            Ok(HashMap::new())
         }
-        Ok(connected)
     }
 
-    /// Counts the number of edges in the maze
+    /// Return all cells reachable from the given start coordinates
+    /// Get all connected cells from a starting coordinate.
+    pub fn all_connected_cells(&self, start: Coordinates) -> HashSet<Coordinates> {
+        let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
+            if let Ok(cell) = self.get(coords) {
+                cell.linked.iter().copied().collect()
+            } else {
+                Vec::new()
+            }
+        };
+
+        graph::all_connected(start, neighbor_fn)
+    }
+    
+
+    /// Count the number of edges in the maze
     pub fn count_edges(&self) -> usize {
         self.cells
             .iter()
@@ -562,14 +624,15 @@ impl Grid {
         / 2 // Each edge is stored twice (once for each linked cell)
     }
 
-    /// Checks if the maze is perfect
+    /// Whether the maze is perfect
     pub fn is_perfect_maze(&self) -> Result<bool, Error> {
         // Total number of cells
         let total_cells = self.width * self.height;
 
         // Fully connected check
         let start_coords = self.start_coords;
-        let connected_cells = self.all_connected_cells(&start_coords)?;
+        //let connected_cells = self.all_connected_cells(&start_coords)?;
+        let connected_cells = self.all_connected_cells(start_coords);
         if connected_cells.len() != total_cells {
             return Ok(false);
         }
@@ -617,17 +680,7 @@ impl Grid {
 mod tests {
     use super::*;
 
-    // helper function for finding differences
-    fn diff<T>(v1: &[T], v2: &[T]) -> Vec<T>
-    where
-        T: Eq + std::hash::Hash + Clone,
-    {
-        let set_v2: HashSet<_> = v2.iter().collect();
-        v1.iter()
-        .filter(|item| !set_v2.contains(item))
-        .cloned()
-        .collect()
-    }
+    use crate::behaviors::collections::SetDifference;
 
     #[test]
     fn init_orthogonal_grid() {
@@ -920,7 +973,8 @@ mod tests {
                         let available_refs: Vec<&str> = available_moves.iter().map(|s| s.as_str()).collect();
                         // Use your diff helper to get the unavailable moves.
                         // Then convert those to owned Strings so that they don't borrow available_moves.
-                        let unavailable_moves: Vec<String> = diff(&["North", "East", "South", "West"], &available_refs)
+                        //let unavailable_moves: Vec<String> = diff(&["North", "East", "South", "West"], &available_refs)
+                        let unavailable_moves: Vec<String> = ["North", "East", "South", "West"].diff(&available_refs)
                             .into_iter()
                             .map(|s| s.to_string())
                             .collect();

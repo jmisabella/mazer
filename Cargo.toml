@@ -1,6 +1,6 @@
 [package]
 name = "mazer"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["Jeffrey Isabella <jeff.isabella@gmail.com>"]
 edition = "2021"
 license = "Apache-2.0"

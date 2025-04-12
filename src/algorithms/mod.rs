@@ -1,4 +1,7 @@
-
+use std::fmt;
+use serde::{ Serialize, Deserialize };
+use crate::behaviors::display::JsonDisplay;
+use crate::behaviors::maze::MazeGeneration;
 use crate::error::Error;
 use crate::grid::Grid;
 use crate::algorithms::binary_tree::BinaryTree;
@@ -7,9 +10,6 @@ use crate::algorithms::aldous_broder::AldousBroder;
 use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
-
-use serde::{ Serialize, Deserialize };
-use std::fmt;
 
 pub mod binary_tree;
 pub mod sidewinder;
@@ -31,53 +31,19 @@ pub enum MazeAlgorithm {
 impl MazeAlgorithm {
     pub fn generate<'a>(&self, grid: &'a mut Grid) -> Result<&'a Grid, Error> {
         match self {
-            MazeAlgorithm::BinaryTree => BinaryTree::generate(grid)?,
-            MazeAlgorithm::Sidewinder => Sidewinder::generate(grid)?,
-            MazeAlgorithm::AldousBroder => AldousBroder::generate(grid)?,
-            MazeAlgorithm::Wilsons => Wilsons::generate(grid)?,
-            MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid)?,
-            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid)?,
-        };
-    
-        let start = grid.start_coords;
-        let goal = grid.goal_coords;
-    
-        // Set distances on all cells
-        let all_distances = grid.distances(start);
-        for (coords, distance) in all_distances {
-            if let Ok(cell) = grid.get_mut(coords) {
-                cell.distance = distance as i32;
-            }
+            MazeAlgorithm::BinaryTree => BinaryTree.build(grid),
+            MazeAlgorithm::Sidewinder => Sidewinder.build(grid),
+            MazeAlgorithm::AldousBroder => AldousBroder.build(grid),
+            MazeAlgorithm::Wilsons => Wilsons.build(grid),
+            MazeAlgorithm::HuntAndKill => HuntAndKill.build(grid),
+            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.build(grid),
         }
-    
-        // Mark solution path
-        if let Ok(path) = grid.get_path_to(start.x, start.y, goal.x, goal.y) {
-            for coords in path.keys() {
-                if let Ok(cell) = grid.get_mut(*coords) {
-                    cell.on_solution_path = true;
-                }
-            }
-        }
-
-        for cell in grid.cells.iter_mut() {
-            cell.set_open_walls();
-        }
-
-        let active_count = grid.cells.iter().filter(|cell| cell.is_visited).count();
-        if active_count > 1 {
-            return Err(Error::MultipleActiveCells { count: active_count });
-        } else if active_count == 0 {
-            return Err(Error::NoActiveCells);
-        }
-
-        Ok(grid)
     }
-
 }
 
 impl fmt::Display for MazeAlgorithm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
