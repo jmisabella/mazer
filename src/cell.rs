@@ -53,6 +53,7 @@ pub enum CellOrientation {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Representation of a single Cell of the maze Grid
 pub struct Cell {
     /// The x,y coordinates of the cell.
     pub coords: Coordinates,
@@ -138,23 +139,28 @@ impl fmt::Display for Cell {
 }
 
 impl Cell {
+    /// X coordinate (on horizontal axis)
     pub fn x(&self) -> usize {
         return self.coords.x;
     }
 
+    /// Y coordinate (on vertical axis)
     pub fn y(&self) -> usize {
         return self.coords.y;
     }
 
+    /// Coordinates of neighboring Cells
     pub fn neighbors(&self) -> HashSet<Coordinates> {
         return self.neighbors_by_direction.values().cloned().collect();        
     }
 
+    /// Coordinates of linked neighboring Cells (linked indicating no walls separating these linked neighbors from this Cell)
     pub fn unlinked_neighbors(&self) -> HashSet<Coordinates> {
         let all_neighbors = self.neighbors();
         return all_neighbors.difference(&self.linked).cloned().collect();
     }
 
+    /// Directions from this Cell to linked neighboring Cells (linked indicating no walls separating these linked neighbors from this Cell)
     pub fn linked_directions(&self) -> HashSet<String> {
         // Assuming neighbors_by_direction provides the mapping
         self.neighbors_by_direction
@@ -163,6 +169,7 @@ impl Cell {
             .collect() 
     }
 
+    /// Whether neighbor in specified Direction is linked to this Cell
     pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {
         // Find the neighbor for the given direction
         if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction.as_str()) {
@@ -172,10 +179,12 @@ impl Cell {
         }
     }
 
+    /// Whether specified Coordinates belong to a neighboring Cell which is linked to this Cell (meaning no separating wall)
     pub fn is_linked(&self, coordinates: Coordinates) -> bool {
         return self.linked.contains(&coordinates); 
     }
 
+    /// Whether specified optional Coordinates belong to a neighboring Cell which is linked to this Cell (meaning no separating wall)
     pub fn is_linked_opt(&self, coordinates: Option<Coordinates>) -> bool {
         match coordinates {
             Some(coords) => self.is_linked(coords),
@@ -183,10 +192,12 @@ impl Cell {
         }
     }
 
+    /// Set is_active
     pub fn set_active(&mut self, active: bool) {
         self.is_active = active;
     }
 
+    /// Set is_visited, the dynamic marker, to specified boolean value. This also sets has_been_visited, the permanent marker, to true 
     pub fn set_visited(&mut self, visited: bool) {
         if self.is_start {
             // start cell is always visited and cannot become unvisited 
@@ -198,19 +209,22 @@ impl Cell {
         self.has_been_visited = true;
     }
 
-    
+    /// Set linked to a specified set of Coordinates    
     pub fn set_linked(&mut self, linked: HashSet<Coordinates>) {
         self.linked = linked;
     }
 
+    /// Set orientation
     pub fn set_orientation(&mut self, orientation: CellOrientation) {
         self.orientation = orientation;
     }
     
+    /// Set neighbors_by_direction 
     pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
     }
 
+    /// Set open_walls based on neighbors_by_direction to indicate which walls are omitted (e.g. open walls)
     pub fn set_open_walls(&mut self) {
         self.open_walls = self.linked.iter()
             .filter_map(|coords| {
@@ -223,6 +237,12 @@ impl Cell {
     }
 }
 
+/// A builder for creating and customizing a `Cell` using the builder pattern.
+///
+/// The `CellBuilder` wraps a `Cell` and provides a fluent API to set properties
+/// such as coordinates, maze type, start/goal status, visit state, linked neighbors,
+/// orientation, and neighbor relationships. Once configured, the final `Cell`
+/// can be obtained via the `build()` method, which returns a cloned instance.
 pub struct CellBuilder(Cell);
 
 impl CellBuilder {

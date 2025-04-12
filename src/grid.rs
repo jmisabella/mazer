@@ -10,10 +10,12 @@ use crate::error::Error;
 use crate::request::MazeRequest;
 
 #[derive(Debug, Clone)]
-/// Represents a grid that makes up a maze.
+/// Represents a grid of maze cells, encapsulating both the cells and their spatial relationships.
 ///
-/// A `Grid` is defined by its dimensions, maze type, and the collection of cells that form the maze.
-/// The maze can be generated with a specific seed for reproducibility.
+/// This grid defines the layout of the maze by positioning each cell relative to its neighbors,
+/// enabling operations like navigation and pathfinding. It is defined by its dimensions, maze type,
+/// and the collection of cells that form the maze. Additionally, the maze generation can be seeded
+/// to ensure reproducibility.
 pub struct Grid {
     /// The width of the grid.
     pub width: usize,
