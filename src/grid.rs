@@ -10,15 +10,27 @@ use crate::error::Error;
 use crate::request::MazeRequest;
 
 #[derive(Debug, Clone)]
+/// Represents a grid that makes up a maze.
+///
+/// A `Grid` is defined by its dimensions, maze type, and the collection of cells that form the maze.
+/// The maze can be generated with a specific seed for reproducibility.
 pub struct Grid {
+    /// The width of the grid.
     pub width: usize,
+    /// The height of the grid.
     pub height: usize,
+    /// The maze type, which determines the style of the maze (e.g., Orthogonal, Delta, Sigma, or Polar).
     pub maze_type: MazeType,
+    /// A flattened array of cells that make up the maze.
     pub cells: Vec<Cell>,
+    /// The random seed used to generate the maze.
     pub seed: u64,
+    /// The coordinates of the start cell within the grid.
     pub start_coords: Coordinates,
+    /// The coordinates of the goal cell within the grid.
     pub goal_coords: Coordinates,
 }
+
 
 impl Serialize for Grid {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -263,191 +275,260 @@ impl Grid {
     }
     
 
-    pub fn new(maze_type: MazeType, width: usize, height: usize, start: Coordinates, goal: Coordinates) -> Result<Self, Error> {
-        let mut init_rng = thread_rng();
-        let seed: u64 = init_rng.gen_range(0..(width * height + 1)) as u64;
+    /// Creates a new grid based on the maze type, dimensions, start, and goal.
+    pub fn new(
+        maze_type: MazeType, 
+        width: usize, 
+        height: usize, 
+        start: Coordinates, 
+        goal: Coordinates
+    ) -> Result<Self, Error> {
+        let seed = Self::generate_seed(width, height);
 
-        let mut empty: Grid = Grid { 
+        // Initialize the grid with a flattened vector of cells using CellBuilder.
+        let mut grid = Grid { 
             width, 
             height, 
-            maze_type, 
+            maze_type,
             cells: vec![CellBuilder::new(0, 0, maze_type).build(); width * height],
             seed, 
-            start_coords: 
-            start, 
-            goal_coords: 
-            goal 
+            start_coords: start, 
+            goal_coords: goal,
         };
 
-        let mut grid: Grid = match maze_type {
-            MazeType::Delta => {
-                empty.generate_triangle_cells()?;
-                empty.clone()
-            }
-            _ => {
-                empty.generate_non_triangle_cells()?;
-                empty.clone()
-            }
-        };
-
+        // Generate different types of cells based on maze_type.
         match maze_type {
-            //MazeType::Polar => {
-            //    unimplemented!("MazeType Polar is not yet supported.");
-            //}
-            MazeType::Orthogonal => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        if cell.y() != 0 {
-                            neighbors.insert(SquareDirection::North.to_string(), grid.get_by_coords(cell.x(), cell.y() - 1)?.coords);
-                        }
-                        if cell.x() < grid.width - 1 {
-                            neighbors.insert(SquareDirection::East.to_string(), grid.get_by_coords(cell.x() + 1, cell.y())?.coords);
-                        }
-                        if cell.y() < grid.height - 1 {
-                            neighbors.insert(SquareDirection::South.to_string(), grid.get_by_coords(cell.x(), cell.y() + 1)?.coords);
-                        }
-                        if cell.x() != 0 {
-                            neighbors.insert(SquareDirection::West.to_string(), grid.get_by_coords(cell.x() - 1, cell.y())?.coords);
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?; 
-                    }
-                }
-            }
-            MazeType::Delta => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        let mut left: Option<Coordinates> = if col > 0 { 
-                            Some(Coordinates{x: col - 1, y: row})
-                        } else { 
-                            None
-                        };
-                        let mut right: Option<Coordinates> = if col < width - 1 { 
-                            Some(Coordinates{x: col+1, y: row})
-                        } else { 
-                            None 
-                        };
-                        if left.is_some() {
-                            let key = if cell.orientation == CellOrientation::Normal { TriangleDirection::UpperLeft.to_string() } else { TriangleDirection::LowerLeft.to_string() };
-                            neighbors.insert(key, left.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        if right.is_some() {
-                            let key = if cell.orientation == CellOrientation::Normal { TriangleDirection::UpperRight.to_string() } else { TriangleDirection::LowerRight.to_string() };
-                            neighbors.insert(key, right.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        let mut up: Option<Coordinates> = if cell.orientation == CellOrientation::Inverted && row > 0 { 
-                            Some(Coordinates{x: col, y: row-1}) 
-                        } else { 
-                            None 
-                        };
-                        let mut down: Option<Coordinates> = if cell.orientation == CellOrientation::Normal && row < height - 1 {
-                            Some(Coordinates{x: col, y: row+1}) 
-                        } else {
-                            None
-                        };
-                        if up.is_some() {
-                            neighbors.insert(TriangleDirection::Up.to_string(), up.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        if down.is_some() {
-                            neighbors.insert(TriangleDirection::Down.to_string(), down.get_or_insert(Coordinates{x: 0, y: 0}).clone());
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-            MazeType::Sigma => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        fn is_even(value: usize) -> bool {
-                            return value % 2 == 0; 
-                        }
-                        let (north_diagonal, south_diagonal) = match is_even(col) {
-                            true if row > 0 => (row - 1, row),
-                            true => (0, row), // Prevent underflow by clamping to 0
-                            false if row < height - 1 => (row, row + 1),
-                            false => (row, height - 1), // Prevent out-of-bounds
-                        };
-                        if col > 0 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northwest.to_string(), grid.get_by_coords(col-1, north_diagonal)?.coords);
-                        }
-                        if col < width && row > 0 {
-                            neighbors.insert(HexDirection::North.to_string(), grid.get_by_coords(col, row-1)?.coords);
-                        }
-                        if col < width - 1 && north_diagonal < height {
-                            neighbors.insert(HexDirection::Northeast.to_string(), grid.get_by_coords(col+1, north_diagonal)?.coords);
-                        }
-                        if col > 0 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southwest.to_string(), grid.get_by_coords(col-1, south_diagonal)?.coords);
-                        }
-                        if row < height - 1 && col < width {
-                            neighbors.insert(HexDirection::South.to_string(), grid.get_by_coords(col, row+1)?.coords);
-                        }
-                        if col < width - 1 && south_diagonal < height {
-                            neighbors.insert(HexDirection::Southeast.to_string(), grid.get_by_coords(col+1, south_diagonal)?.coords);
-                        }
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-            MazeType::Polar => {
-                for row in 0..height as usize {
-                    for col in 0..width as usize {
-                        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-                        let mut cell = grid.get_mut_by_coords(col, row)?.clone();
-                        
-                        // Calculate inward/outward neighbors
-                        if row > 0 { // check inward (previous row)
-                            let inward_neighbor = grid.get_by_coords(col, row - 1)?.coords;
-                            neighbors.insert(PolarDirection::Inward.to_string(), inward_neighbor);
-                        }
-                        if row < height - 1 { // check outward (next row)
-                            let outward_neighbor = grid.get_by_coords(col, row + 1)?.coords;
-                            neighbors.insert(PolarDirection::Outward.to_string(), outward_neighbor);
-                        }
-                        
-                        // Calculate clockwise/counter-clockwise neighbors
-                        if col > 0 { // counter-clockwise (previous column)
-                            let ccw_neighbor = grid.get_by_coords((col - 1) % width, row)?.coords;
-                            neighbors.insert(PolarDirection::CounterClockwise.to_string(), ccw_neighbor);
-                        }
-                        if col < width - 1 { // clockwise (next column)
-                            let cw_neighbor = grid.get_by_coords((col + 1) % width, row)?.coords;
-                            neighbors.insert(PolarDirection::Clockwise.to_string(), cw_neighbor);
-                        }
-                        
-                        // Set the neighbors for the cell
-                        cell.set_neighbors(neighbors);
-                        grid.set(cell)?;
-                    }
-                }
-            }
-        }
+            MazeType::Delta => grid.generate_triangle_cells()?,
+            _             => grid.generate_non_triangle_cells()?,
+        };
+
+        // Assign neighbor information based on maze type.
+        grid.assign_neighbors()?;
+
         Ok(grid)
     }
-    
+
+    /// Generates a seed based on the grid dimensions.
+    fn generate_seed(width: usize, height: usize) -> u64 {
+        use rand::{thread_rng, Rng};
+        let mut rng = thread_rng();
+        rng.gen_range(0..(width * height + 1)) as u64
+    }
+
+    /// Assigns neighbor relationships for each cell based on the maze type.
+    fn assign_neighbors(&mut self) -> Result<(), Error> {
+        match self.maze_type {
+            MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
+            MazeType::Delta      => self.assign_neighbors_delta(),
+            MazeType::Sigma      => self.assign_neighbors_sigma(),
+            MazeType::Polar      => self.assign_neighbors_polar(),
+        }
+    }
+
+    /// Assigns neighbors for Orthogonal mazes.
+    fn assign_neighbors_orthogonal(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                if cell.y() != 0 {
+                    neighbors.insert(
+                        SquareDirection::North.to_string(), 
+                        self.get_by_coords(cell.x(), cell.y() - 1)?.coords
+                    );
+                }
+                if cell.x() < self.width - 1 {
+                    neighbors.insert(
+                        SquareDirection::East.to_string(), 
+                        self.get_by_coords(cell.x() + 1, cell.y())?.coords
+                    );
+                }
+                if cell.y() < self.height - 1 {
+                    neighbors.insert(
+                        SquareDirection::South.to_string(), 
+                        self.get_by_coords(cell.x(), cell.y() + 1)?.coords
+                    );
+                }
+                if cell.x() != 0 {
+                    neighbors.insert(
+                        SquareDirection::West.to_string(), 
+                        self.get_by_coords(cell.x() - 1, cell.y())?.coords
+                    );
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assigns neighbors for Delta mazes.
+    fn assign_neighbors_delta(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                
+                // Left and right neighbors
+                let left  = if col > 0 { Some(Coordinates { x: col - 1, y: row }) } else { None };
+                let right = if col < self.width - 1 { Some(Coordinates { x: col + 1, y: row }) } else { None };
+                
+                if let Some(left_coords) = left {
+                    let key = if cell.orientation == CellOrientation::Normal {
+                        TriangleDirection::UpperLeft.to_string()
+                    } else {
+                        TriangleDirection::LowerLeft.to_string()
+                    };
+                    neighbors.insert(key, left_coords);
+                }
+                if let Some(right_coords) = right {
+                    let key = if cell.orientation == CellOrientation::Normal {
+                        TriangleDirection::UpperRight.to_string()
+                    } else {
+                        TriangleDirection::LowerRight.to_string()
+                    };
+                    neighbors.insert(key, right_coords);
+                }
+                
+                // Up and down neighbors based on orientation.
+                let up = if cell.orientation == CellOrientation::Inverted && row > 0 { 
+                    Some(Coordinates { x: col, y: row - 1 })
+                } else { 
+                    None 
+                };
+                let down = if cell.orientation == CellOrientation::Normal && row < self.height - 1 {
+                    Some(Coordinates { x: col, y: row + 1 })
+                } else {
+                    None
+                };
+                if let Some(up_coords) = up {
+                    neighbors.insert(TriangleDirection::Up.to_string(), up_coords);
+                }
+                if let Some(down_coords) = down {
+                    neighbors.insert(TriangleDirection::Down.to_string(), down_coords);
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assigns neighbors for Sigma (hexagonal) mazes.
+    fn assign_neighbors_sigma(&mut self) -> Result<(), Error> {
+        // The helper function below determines whether a value is even.
+        fn is_even(value: usize) -> bool { value % 2 == 0 }
+        
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                let (north_diagonal, south_diagonal) = match is_even(col) {
+                    true if row > 0 => (row - 1, row),
+                    true => (0, row), // Clamps to avoid underflow
+                    false if row < self.height - 1 => (row, row + 1),
+                    false => (row, self.height - 1), // Clamps to avoid out-of-bound
+                };
+                if col > 0 && north_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Northwest.to_string(),
+                        self.get_by_coords(col - 1, north_diagonal)?.coords,
+                    );
+                }
+                if col < self.width && row > 0 {
+                    neighbors.insert(
+                        HexDirection::North.to_string(),
+                        self.get_by_coords(col, row - 1)?.coords,
+                    );
+                }
+                if col < self.width - 1 && north_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Northeast.to_string(),
+                        self.get_by_coords(col + 1, north_diagonal)?.coords,
+                    );
+                }
+                if col > 0 && south_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Southwest.to_string(),
+                        self.get_by_coords(col - 1, south_diagonal)?.coords,
+                    );
+                }
+                if row < self.height - 1 && col < self.width {
+                    neighbors.insert(
+                        HexDirection::South.to_string(),
+                        self.get_by_coords(col, row + 1)?.coords,
+                    );
+                }
+                if col < self.width - 1 && south_diagonal < self.height {
+                    neighbors.insert(
+                        HexDirection::Southeast.to_string(),
+                        self.get_by_coords(col + 1, south_diagonal)?.coords,
+                    );
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Assigns neighbors for Polar mazes.
+    fn assign_neighbors_polar(&mut self) -> Result<(), Error> {
+        for row in 0..self.height {
+            for col in 0..self.width {
+                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+
+                // Inward and outward neighbors.
+                if row > 0 {
+                    neighbors.insert(
+                        PolarDirection::Inward.to_string(), 
+                        self.get_by_coords(col, row - 1)?.coords,
+                    );
+                }
+                if row < self.height - 1 {
+                    neighbors.insert(
+                        PolarDirection::Outward.to_string(), 
+                        self.get_by_coords(col, row + 1)?.coords,
+                    );
+                }
+                
+                // Clockwise and counter-clockwise neighbors.
+                if col > 0 {
+                    neighbors.insert(
+                        PolarDirection::CounterClockwise.to_string(), 
+                        self.get_by_coords((col - 1) % self.width, row)?.coords,
+                    );
+                }
+                if col < self.width - 1 {
+                    neighbors.insert(
+                        PolarDirection::Clockwise.to_string(), 
+                        self.get_by_coords((col + 1) % self.width, row)?.coords,
+                    );
+                }
+                
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Links two cells together by their coordinates.
     pub fn link(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
         let (row1, col1) = (coord1.y, coord1.x);
         let (row2, col2) = (coord2.y, coord2.x);
-    
-        // Collect indices, defer mutable access
-        let idx1 = (row1, col1);
-        let idx2 = (row2, col2);
-    
-        // Sequential mutable access
+
+        // Link cell at coord1 to cell at coord2.
         {
-            let cell1 = self.get_mut_by_coords(idx1.1, idx1.0)?;
+            let cell1 = self.get_mut_by_coords(col1, row1)?;
             cell1.linked.insert(coord2);
         }
+        // Link cell at coord2 to cell at coord1.
         {
-            let cell2 = self.get_mut_by_coords(idx2.1, idx2.0)?;
+            let cell2 = self.get_mut_by_coords(col2, row2)?;
             cell2.linked.insert(coord1);
         }
         Ok(())

@@ -1,5 +1,6 @@
 use std::fmt;
 use serde::{ Serialize, Deserialize };
+use crate::behaviors::display::JsonDisplay;
 use crate::behaviors::maze::MazeGeneration;
 use crate::error::Error;
 use crate::grid::Grid;
@@ -9,7 +10,6 @@ use crate::algorithms::aldous_broder::AldousBroder;
 use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
-use crate::behaviors::display::JsonDisplay;
 
 pub mod binary_tree;
 pub mod sidewinder;

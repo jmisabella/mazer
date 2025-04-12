@@ -54,27 +54,39 @@ pub enum CellOrientation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
-    pub coords: Coordinates, // x,y coordinates
-    pub maze_type: MazeType, // Orthogonal, Delta, Sigma, Polar 
-    pub neighbors_by_direction: HashMap<String, Coordinates>, // Neighbors' coordinates mapped by direction
-    pub linked: HashSet<Coordinates>, // Coordinates of neighboring cells linked to current cell (e.g. no walls in between)
-    pub distance: i32, // Distance to the goal cell
-    pub is_start: bool, // Whether it's the starting cell
-    pub is_goal: bool, // Whether it's the goal cell
-    pub is_active: bool, // Whether this is the cell the user is currently visiting
-    // Whether the user has visited (or unvisited via backtracking) this cell in the current path.
-    // When this flag is modified (set to true for visiting or false for backtracking),
-    // the cell's permanent marker is also set: has_been_visited remains true once it has been touched.
-    pub is_visited: bool, 
-    // Once a cell is ever visited (i.e. when is_visited is set), this flag is permanently set to true.
-    // This flag serves as the permanent trail marker for visual representations,
-    // ensuring that the cell is recognized as visited even if the dynamic trail (is_visited) is later undone.
-    pub has_been_visited: bool, 
-    pub on_solution_path: bool, // Whether this cell is on the path from start to goal
-    pub orientation: CellOrientation, // Normal or Inverted, only applicable for delta cells
-    pub open_walls: Vec<String>, // Directions in which there are no walls restricting movement
+    /// The x,y coordinates of the cell.
+    pub coords: Coordinates,
+    /// The maze type (e.g., Orthogonal, Delta, Sigma, Polar).
+    pub maze_type: MazeType,
+    /// Maps directions to the coordinates of neighboring cells.
+    pub neighbors_by_direction: HashMap<String, Coordinates>,
+    /// Coordinates of neighboring cells that are linked to this cell (i.e., no walls in between).
+    pub linked: HashSet<Coordinates>,
+    /// Distance to the goal cell.
+    pub distance: i32,
+    /// Whether this cell is the starting cell.
+    pub is_start: bool,
+    /// Whether this cell is the goal cell.
+    pub is_goal: bool,
+    /// Whether this is the cell the user is currently visiting.
+    pub is_active: bool,
+    /// Whether the user has visited (or unvisited via backtracking) this cell in the current path.
+    ///
+    /// When this flag is modified (set to `true` for visiting or `false` for backtracking),
+    /// the cell's permanent marker is also set: `has_been_visited` remains `true` once it has been touched.
+    pub is_visited: bool,
+    /// Once a cell is ever visited (i.e., when `is_visited` is set), this flag is permanently set to `true`.
+    ///
+    /// This flag serves as the permanent trail marker for visual representations,
+    /// ensuring that the cell is recognized as visited even if the dynamic trail (`is_visited`) is later undone.
+    pub has_been_visited: bool,
+    /// Indicates whether this cell is on the solution path from the start to the goal.
+    pub on_solution_path: bool,
+    /// The orientation of the cell (Normal or Inverted); applicable only for delta cells.
+    pub orientation: CellOrientation,
+    /// The directions in which there are no walls restricting movement.
+    pub open_walls: Vec<String>,
 }
-
 
 impl Default for Cell {
     fn default() -> Self {
@@ -209,7 +221,6 @@ impl Cell {
             })
             .collect()
     }
-
 }
 
 pub struct CellBuilder(Cell);
