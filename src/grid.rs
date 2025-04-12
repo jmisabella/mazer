@@ -1,5 +1,5 @@
 use std::fmt;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use rand::{ thread_rng, Rng };
 use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use crate::behaviors::display::JsonDisplay;

@@ -1,4 +1,6 @@
-
+use std::fmt;
+use serde::{ Serialize, Deserialize };
+use crate::behaviors::maze::MazeGeneration;
 use crate::error::Error;
 use crate::grid::Grid;
 use crate::algorithms::binary_tree::BinaryTree;
@@ -7,9 +9,7 @@ use crate::algorithms::aldous_broder::AldousBroder;
 use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
-
-use serde::{ Serialize, Deserialize };
-use std::fmt;
+use crate::behaviors::display::JsonDisplay;
 
 pub mod binary_tree;
 pub mod sidewinder;
@@ -31,12 +31,12 @@ pub enum MazeAlgorithm {
 impl MazeAlgorithm {
     pub fn generate<'a>(&self, grid: &'a mut Grid) -> Result<&'a Grid, Error> {
         match self {
-            MazeAlgorithm::BinaryTree => BinaryTree::generate(grid)?,
-            MazeAlgorithm::Sidewinder => Sidewinder::generate(grid)?,
-            MazeAlgorithm::AldousBroder => AldousBroder::generate(grid)?,
-            MazeAlgorithm::Wilsons => Wilsons::generate(grid)?,
-            MazeAlgorithm::HuntAndKill => HuntAndKill::generate(grid)?,
-            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker::generate(grid)?,
+            MazeAlgorithm::BinaryTree => BinaryTree.generate(grid)?,
+            MazeAlgorithm::Sidewinder => Sidewinder.generate(grid)?,
+            MazeAlgorithm::AldousBroder => AldousBroder.generate(grid)?,
+            MazeAlgorithm::Wilsons => Wilsons.generate(grid)?,
+            MazeAlgorithm::HuntAndKill => HuntAndKill.generate(grid)?,
+            MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.generate(grid)?,
         };
     
         let start = grid.start_coords;
@@ -77,7 +77,7 @@ impl MazeAlgorithm {
 
 impl fmt::Display for MazeAlgorithm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
+        match self.to_json() {
             Ok(json) => write!(f, "{}", json),
             Err(_) => Err(fmt::Error),
         }
