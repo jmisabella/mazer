@@ -79,13 +79,13 @@ impl TryFrom<&str> for Grid {
 
 impl Grid {
 
-    // get x,y coordinate's index in the flattened 1D vector
+    /// Get x,y coordinate's index in the flattened 1D vector
     pub fn get_flattened_index(&self, x: usize, y: usize) -> usize {
         // when unflattened to become a 2D vector, cells are stored in row-major order 
         y * self.width + x
     }
     
-    // retrieve a cell by its coordinates
+    /// Retrieve a cell by its coordinates
     pub fn get(&self, coords: Coordinates) -> Result<&Cell, Error> {
         let index = self.get_flattened_index(coords.x, coords.y);
         self.cells
@@ -109,6 +109,7 @@ impl Grid {
             })
     }
 
+    /// Get the currently active Cell
     pub fn get_active_cell(&mut self) -> Result<&mut Cell, Error> {
         let active_count = self.cells.iter().filter(|cell| cell.is_active).count();
         if active_count > 1 {
@@ -121,6 +122,7 @@ impl Grid {
         }
     }
 
+    /// Manually make a user move to a specified Direction
     pub fn make_move(&mut self, direction: &str) -> Result<(), Error> {
         // Borrow active_cell mutably.
         let active_cell = self.get_active_cell()?;
@@ -157,18 +159,18 @@ impl Grid {
         
         Ok(())
     }
-        
 
-    // retrieve a cell by its coordinates
+    /// Retrieve a cell by its coordinates
     pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
         self.get(Coordinates { x: x, y: y })
     }
     
-    // retrieve a cell by its coordinates
+    /// Retrieve a mutable cell by its coordinates
     pub fn get_mut_by_coords(&mut self, x: usize, y: usize) -> Result<&mut Cell, Error> {
         self.get_mut(Coordinates { x: x, y: y })
     }
 
+    /// Set a particular cell in the grid
     pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
         if cell.x() >= self.width || cell.y() >= self.height {
             return Err(Error::OutOfBoundsCoordinates { coordinates: cell.coords, maze_width: self.width, maze_height: self.height } );
@@ -178,6 +180,7 @@ impl Grid {
         Ok(())
     }
 
+    /// Random unsigned integer within bounds of an upper boundary
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
         let seed= rng.gen_range(0..upper_bound + 1);
@@ -185,12 +188,13 @@ impl Grid {
         return seed;
     }
 
+    /// Random boolean
     pub fn random_bool(&mut self) -> bool {
         let rando: bool = self.bounded_random_usize(1000000) % 2 == 0;
         return rando;
     }
  
-    // transform 1D (flattened) cells into a unflattened 2D vector
+    /// Transform 1D (flattened) cells into a unflattened 2D vector
     pub fn unflatten(&self) -> Vec<Vec<Cell>> {
         self.cells
             .chunks(self.width) // split into row-sized slices
@@ -198,7 +202,8 @@ impl Grid {
             .collect()
     }
 
-    pub fn generate_triangle_cells(&mut self) -> Result<(), Error> {
+    /// Prepare grid for Delta maze type by initialzing cells as triangular cells (e.g. having some cells as Inverted)
+    pub fn initialize_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type != MazeType::Delta {
             return Err(Error::InvalidCellForNonDeltaMaze { cell_maze_type: self.maze_type } );
         }
@@ -240,7 +245,8 @@ impl Grid {
         Ok(())
     }
     
-    pub fn generate_non_triangle_cells(&mut self) -> Result<(), Error> {
+    /// Prepare grid for non-Delta maze type by initialzing cells as non-triangular (e.g. do not have any Inverted)
+    pub fn initialize_non_triangle_cells(&mut self) -> Result<(), Error> {
         if self.maze_type == MazeType::Delta {
             return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type });
         }
@@ -275,7 +281,7 @@ impl Grid {
     }
     
 
-    /// Creates a new grid based on the maze type, dimensions, start, and goal.
+    /// Create a new grid based on the maze type, dimensions, start, and goal.
     pub fn new(
         maze_type: MazeType, 
         width: usize, 
@@ -298,8 +304,8 @@ impl Grid {
 
         // Generate different types of cells based on maze_type.
         match maze_type {
-            MazeType::Delta => grid.generate_triangle_cells()?,
-            _             => grid.generate_non_triangle_cells()?,
+            MazeType::Delta => grid.initialize_triangle_cells()?,
+            _             => grid.initialize_non_triangle_cells()?,
         };
 
         // Assign neighbor information based on maze type.
@@ -308,14 +314,14 @@ impl Grid {
         Ok(grid)
     }
 
-    /// Generates a seed based on the grid dimensions.
+    /// Generate a seed based on the grid dimensions.
     fn generate_seed(width: usize, height: usize) -> u64 {
         use rand::{thread_rng, Rng};
         let mut rng = thread_rng();
         rng.gen_range(0..(width * height + 1)) as u64
     }
 
-    /// Assigns neighbor relationships for each cell based on the maze type.
+    /// Assign neighbor relationships for each cell based on the maze type.
     fn assign_neighbors(&mut self) -> Result<(), Error> {
         match self.maze_type {
             MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
@@ -325,7 +331,7 @@ impl Grid {
         }
     }
 
-    /// Assigns neighbors for Orthogonal mazes.
+    /// Assign neighbors for Orthogonal mazes.
     fn assign_neighbors_orthogonal(&mut self) -> Result<(), Error> {
         for row in 0..self.height {
             for col in 0..self.width {
@@ -415,7 +421,7 @@ impl Grid {
         Ok(())
     }
 
-    /// Assigns neighbors for Sigma (hexagonal) mazes.
+    /// Assign neighbors for Sigma (hexagonal) mazes.
     fn assign_neighbors_sigma(&mut self) -> Result<(), Error> {
         // The helper function below determines whether a value is even.
         fn is_even(value: usize) -> bool { value % 2 == 0 }
@@ -474,7 +480,7 @@ impl Grid {
         Ok(())
     }
 
-    /// Assigns neighbors for Polar mazes.
+    /// Assign neighbors for Polar mazes.
     fn assign_neighbors_polar(&mut self) -> Result<(), Error> {
         for row in 0..self.height {
             for col in 0..self.width {
@@ -516,7 +522,7 @@ impl Grid {
         Ok(())
     }
 
-    /// Links two cells together by their coordinates.
+    /// Link two cells together by their coordinates.
     pub fn link(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
         let (row1, col1) = (coord1.y, coord1.x);
         let (row2, col2) = (coord2.y, coord2.x);
@@ -550,6 +556,12 @@ impl Grid {
         graph::bfs_distances(start, neighbor_fn)
     }    
 
+    /// Compute a path from the given start coordinates to the goal coordinates within the maze grid.
+    /// 
+    /// The method first calculates the distance from the start cell to all accessible cells, defines
+    /// linked neighbors for each cell, and then uses a generic graph pathfinder to determine a valid path.
+    /// It returns a `HashMap` mapping each coordinate along the found path to its distance from the start.
+    /// If no path exists, an empty map is returned.
     pub fn get_path_to(
         &self,
         start_x: usize,
@@ -586,7 +598,7 @@ impl Grid {
         }
     }
 
-    /// Returns all cells reachable from the given start coordinates
+    /// Return all cells reachable from the given start coordinates
     /// Get all connected cells from a starting coordinate.
     pub fn all_connected_cells(&self, start: Coordinates) -> HashSet<Coordinates> {
         let neighbor_fn = |coords: Coordinates| -> Vec<Coordinates> {
@@ -601,7 +613,7 @@ impl Grid {
     }
     
 
-    /// Counts the number of edges in the maze
+    /// Count the number of edges in the maze
     pub fn count_edges(&self) -> usize {
         self.cells
             .iter()
@@ -610,7 +622,7 @@ impl Grid {
         / 2 // Each edge is stored twice (once for each linked cell)
     }
 
-    /// Checks if the maze is perfect
+    /// Whether the maze is perfect
     pub fn is_perfect_maze(&self) -> Result<bool, Error> {
         // Total number of cells
         let total_cells = self.width * self.height;

@@ -25,7 +25,7 @@ where
 }
 
 pub trait FilterKeys<K, V> {
-    /// Returns a collection (e.g., Vec or HashSet) containing the keys for which the predicate over the value returns true.
+    /// Return a collection (e.g., Vec or HashSet) containing the keys for which the predicate over the value returns true.
     fn filter_keys<F>(&self, predicate: F) -> Vec<K>
     where
         F: Fn(&V) -> bool,
