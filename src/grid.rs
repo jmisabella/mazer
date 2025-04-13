@@ -126,12 +126,12 @@ impl Grid {
 
     /// Manually make a user move to a specified Direction
     pub fn make_move(&mut self, direction: &str) -> Result<(), Error> {
-        // Borrow active_cell mutably.
+        // Get the current active cell and record its coordinates.
         let active_cell = self.get_active_cell()?;
         let original_coords = active_cell.coords;
-
-        // Extract necessary data from active_cell while it's still borrowed.
-        let open_walls = active_cell.open_walls.clone(); // if cloning is acceptable
+    
+        // Clone the available moves before proceeding.
+        let open_walls = active_cell.open_walls.clone();
         let attempted_move = direction.to_string();
         if !open_walls.contains(&attempted_move) {
             return Err(Error::MoveUnavailable { 
@@ -140,28 +140,36 @@ impl Grid {
             });
         }
         
-        // Extract the neighbor coordinate. Note: this borrows active_cell immutably.
+        // Determine the neighbor coordinate based on the provided direction.
         let neighbor_coords = *active_cell.neighbors_by_direction.get(direction)
             .ok_or(Error::InvalidDirection { direction: direction.to_string() })?;
         
-        // drop active_cell explicitly to end its borrow
-        let _ = active_cell;
-        
-        // mutably borrow the next_cell
-        let next_cell = self.get_mut(neighbor_coords)?;
-        next_cell.set_active(true);
-        // set to visited (unless it's already been visited on current path and is being de-visited)
-        // TODO: THIS LINE CAUSES RESULT TO NOT HAVE AN ACTIVE CELL 
-        next_cell.set_visited(!next_cell.is_visited); // TODO: test/proofread this!
-        let _ = next_cell;
-
-        // re-obtain the previous cell now that we're no longer mutably borrowing next_cell 
-        let previous_cell = self.get_mut(original_coords)?;
-        previous_cell.set_active(false);
-        
+        // Determine whether this move is a backtracking move by checking if the neighbor is already visited.
+        let going_back: bool;
+        {
+            // Mutably borrow the next cell.
+            let next_cell = self.get_mut(neighbor_coords)?;
+            going_back = next_cell.is_visited;  // If already visited, then we're going backward.
+            if !going_back {
+                // Forward move: mark the new cell as visited.
+                next_cell.set_visited(true);
+            }
+            // Mark the new cell as active.
+            next_cell.set_active(true);
+        }
+        {
+            // Now handle the cell that was active.
+            let previous_cell = self.get_mut(original_coords)?;
+            if going_back {
+                // Backtracking move: unvisit the cell that we are leaving.
+                previous_cell.set_visited(false);
+            }
+            // Mark the previous cell as no longer active.
+            previous_cell.set_active(false);
+        }
         Ok(())
     }
-
+    
     /// Retrieve a cell by its coordinates
     pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
         self.get(Coordinates { x: x, y: y })
