@@ -1255,6 +1255,8 @@ mod tests {
                 // Define a helper closure to get the reverse of a given Delta move.
                 let reverse_direction = |dir: &str| -> &str {
                     match dir {
+                        "Up"       => "Up",
+                        "Down"       => "Down",
                         "Left"       => "Right",
                         "Right"      => "Left",
                         "UpperLeft"  => "LowerRight",
@@ -1361,7 +1363,6 @@ mod tests {
 
     #[test]
     fn test_make_move_delta_aldous_broder() {
-
         run_make_move_delta_test("AldousBroder");
     }
 
