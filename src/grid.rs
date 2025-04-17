@@ -133,7 +133,7 @@ impl Grid {
     }
 
     /// Manually make a user move to a specified direction.
-    pub fn make_move(&mut self, direction: &str) -> Result<(), Error> {
+    pub fn make_move(&mut self, direction: &str) -> Result<String, Error> {
         // Extract maze_type from self before borrowing any cells.
         let maze_type = self.maze_type;  // Assumes MazeType is Copy or implements Clone.
         
@@ -142,7 +142,7 @@ impl Grid {
         let original_coords = active_cell.coords;
 
         // Determine the effective direction to use, accounting for Delta maze fallback logic.
-        let effective_direction = if maze_type == MazeType::Delta {
+        let picked: Option<String> = if maze_type == MazeType::Delta {
             // Define a helper closure: it checks whether a candidate move is both open (in open_walls)
             // and valid (exists in neighbors_by_direction).
             let try_direction = |cell: &Cell, cand: &str| -> Option<String> {
@@ -160,63 +160,48 @@ impl Grid {
                     // For "Left", try UpperLeft first then LowerLeft.
                     try_direction(active_cell, "UpperLeft")
                         .or_else(|| try_direction(active_cell, "LowerLeft"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 "Right" => {
                     // For "Right", try UpperRight first then LowerRight.
                     try_direction(active_cell, "UpperRight")
                         .or_else(|| try_direction(active_cell, "LowerRight"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 "UpperLeft" => {
                     // For "UpperLeft", try UpperLeft first then fall back to Up.
                     try_direction(active_cell, "UpperLeft")
                         .or_else(|| try_direction(active_cell, "Up"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 "LowerLeft" => {
                     // For "LowerLeft", try LowerLeft first then fall back to Down.
                     try_direction(active_cell, "LowerLeft")
                         .or_else(|| try_direction(active_cell, "Down"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 "UpperRight" => {
                     // For "UpperRight", try UpperRight first then fall back to Up.
                     try_direction(active_cell, "UpperRight")
                         .or_else(|| try_direction(active_cell, "Up"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 "LowerRight" => {
                     // For "LowerRight", try LowerRight first then fall back to UpperRight.
                     try_direction(active_cell, "LowerRight")
                         .or_else(|| try_direction(active_cell, "UpperRight"))
-                        .ok_or(Error::MoveUnavailable {
-                            attempted_move: direction.to_string(),
-                            available_moves: active_cell.open_walls.clone(),
-                        })?
                 },
                 // If the provided direction isn't one of the Delta-specific ones, use it as given.
-                _ => direction.to_string(),
+                _ => Some(direction.to_string()),
             }
         } else {
             // For non-Delta maze types, simply use the provided direction.
-            direction.to_string()
+            Some(direction.to_string())
         };
+
+        let effective_direction = picked
+            .ok_or_else(|| Error::MoveUnavailable {
+                attempted_move: direction.to_string(),
+                available_moves: active_cell.open_walls.clone(),
+            })?;
+
+        // this is the actual move made successfully, should be returned (used to programmatically backtrack Delta mazes, for example)
+        let actual_move = effective_direction.clone();
 
         // Optional: Verify that the effective direction is valid.
         if !active_cell.open_walls.contains(&effective_direction) {
@@ -253,9 +238,8 @@ impl Grid {
             // Mark the previous cell as no longer active.
             previous_cell.set_active(false);
         }
-        Ok(())
+        Ok(actual_move)
     }
-    
 
     /// Retrieve a cell by its coordinates
     pub fn get_by_coords(&self, x: usize, y: usize) -> Result<&Cell, Error> {
@@ -1171,7 +1155,7 @@ mod tests {
         assert!(start_cell.has_been_visited, "Start cell should remain has_been_visited");
     }
 
-    fn run_make_move_delta_test<'a>(algorithm: &str) {
+    fn run_make_move_delta_test(algorithm: &str) {
         let json = format!(r#"
         {{
             "maze_type": "Delta",
@@ -1182,153 +1166,115 @@ mod tests {
             "goal":  {{ "x": 11, "y": 11 }}
         }}
         "#);
-
-        // Attempt to construct the maze from the JSON.
-        match Grid::try_from(json) {
-            Ok(mut maze) => {
-                // Verify that the maze is perfect.
-                assert!(maze.is_perfect_maze().unwrap());
-
-                // Obtain the active (start) cell's coordinates and open walls.
-                // Note: For Delta mazes, we expect the available move strings to be:
-                // "Left", "UpperLeft", "UpperRight", "Right", "LowerRight", "LowerLeft".
-                let (original_coords, available_moves, unavailable_moves) = {
-                    if let Ok(active_cell) = maze.get_active_cell() {
-                        let original_coords = active_cell.coords.clone();
-                        let available_moves: Vec<String> = active_cell.open_walls.clone();
-                        let available_refs: Vec<&str> = available_moves.iter().map(|s| s.as_str()).collect();
-                        let unavailable_moves: Vec<String> = 
-                            ["Left", "UpperLeft", "UpperRight", "Right", "LowerRight", "LowerLeft"]
-                                .diff(&available_refs)
-                                .into_iter()
-                                .map(|s| s.to_string())
-                                .collect();
-                        (original_coords, available_moves, unavailable_moves)
-                    } else {
-                        panic!("Expected an active cell at the start");
-                    }
-                };
-
-                // Verify that initially only one cell is marked visited.
-                assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
-                    1,
-                    "There should be 1 visited cell on dynamic path at the beginning"
-                );
-                assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
-                    1,
-                    "There should be 1 visited cell on permanent path at the beginning"
-                );
-
-                // Attempt an unavailable move on a copied maze.
-                let mut copied_maze = maze.clone();
-                let some_unavailable_move = unavailable_moves.first().expect("Should have at least one unavailable move");
-                assert!(
-                    copied_maze.make_move(some_unavailable_move).is_err(),
-                    "Should not allow an unavailable move"
-                );
-
-                // ==================================================
-                // 1. Make the first forward move from the start cell.
-                // ==================================================
-                let move1 = available_moves
-                    .first()
-                    .expect("There should be at least one available move")
-                    .clone();
-                assert!(
-                    maze.make_move(move1.as_str()).is_ok(),
-                    "The first valid move should succeed"
-                );
-                let cell_after_first = maze.get_active_cell().expect("Expected an active cell after first move");
-                let cell_after_first_coords = cell_after_first.coords.clone();
-                assert_ne!(
-                    cell_after_first_coords, original_coords,
-                    "After the first move, the active cell should be different from the start cell"
-                );
-
-                // ==================================================
-                // 2. Make a second forward move from the new active cell.
-                // ==================================================
-                let available_moves_cell1 = cell_after_first.open_walls.clone();
-
-                // Define a helper closure to get the reverse of a given Delta move.
-                let reverse_direction = |dir: &str| -> &str {
-                    match dir {
-                        "Up"       => "Up",
-                        "Down"       => "Down",
-                        "Left"       => "Right",
-                        "Right"      => "Left",
-                        "UpperLeft"  => "LowerRight",
-                        "LowerRight" => "UpperLeft",
-                        "UpperRight" => "LowerLeft",
-                        "LowerLeft"  => "UpperRight",
-                        other        => panic!("Unknown Delta direction: {}", other),
-                    }
-                };
-
-                let move1_reverse = reverse_direction(move1.as_str());
-                // Select a move from the current cell that is not just the reverse of move1.
-                let move2_option = available_moves_cell1
-                    .iter()
-                    .find(|&dir| dir.as_str() != move1_reverse);
-                if let Some(move2) = move2_option {
-                    let move2 = move2.clone();
-                    // Execute the second forward move.
-                    assert!(
-                        maze.make_move(move2.as_str()).is_ok(),
-                        "The second valid forward move should succeed"
-                    );
-                    let cell_after_second = maze.get_active_cell().expect("Expected an active cell after second move");
-                    let cell_after_second_coords = cell_after_second.coords.clone();
-                    assert_ne!(
-                        cell_after_second_coords, cell_after_first_coords,
-                        "After the second move, the active cell should change"
-                    );
-
-                    // ==================================================
-                    // 3. Backtrack from the second cell to the first cell.
-                    // ==================================================
-                    let move2_reverse = reverse_direction(move2.as_str());
-                    assert!(
-                        maze.make_move(move2_reverse).is_ok(),
-                        "Backtracking from the second cell to the first should succeed"
-                    );
-                    let cell_after_backtrack = maze.get_active_cell().expect("Expected an active cell after backtracking");
-                    let cell_after_backtrack_coords = cell_after_backtrack.coords.clone();
-                    assert_eq!(
-                        cell_after_backtrack_coords, cell_after_first_coords,
-                        "The active cell after backtracking should be the first cell reached"
-                    );
-
-                    // ==================================================
-                    // 4. Backtrack from the first cell to the start cell.
-                    // ==================================================
-                    let move1_reverse = reverse_direction(move1.as_str());
-                    assert!(
-                        maze.make_move(move1_reverse).is_ok(),
-                        "Backtracking to the start cell should be allowed"
-                    );
-                    let cell_after_back_to_start = maze.get_active_cell().expect("Expected an active cell after backtracking to start");
-                    let cell_after_back_to_start_coords = cell_after_back_to_start.coords.clone();
-                    assert_eq!(
-                        cell_after_back_to_start_coords, original_coords,
-                        "Backtracking to the start cell should result in the start cell being active"
-                    );
-
-                    // Optionally, verify that additional backtracking from the start cell is not permitted.
-                    assert!(
-                        maze.make_move(move1_reverse).is_err(),
-                        "Further backtracking from the start cell should not be allowed"
-                    );
-                } else {
-                    println!("Not enough available moves for a second forward move; backtracking test skipped.");
-                }
-            }
-            Err(e) => panic!("Unexpected error constructing maze: {:?}", e),
-        }
-        
     
+        // 0) construct & verify perfectness
+        let mut maze = Grid::try_from(json).expect("Unexpected error constructing maze");
+        assert!(maze.is_perfect_maze().unwrap());
+    
+        // grab the starting cell’s coords, open_walls, and the set of unavailable moves
+        let (original_coords, available_moves, unavailable_moves) = {
+            let start = maze.get_active_cell().expect("Expected active start cell");
+            let orig = start.coords.clone();
+            let avail = start.open_walls.clone();
+            let avail_refs: Vec<&str> = avail.iter().map(|s| s.as_str()).collect();
+            let unavail = ["Left", "UpperLeft", "UpperRight", "Right", "LowerRight", "LowerLeft"]
+                .diff(&avail_refs)
+                .into_iter()
+                .map(String::from)
+                .collect::<Vec<String>>();
+            (orig, avail, unavail)
+        };
+    
+        // sanity: only one visited
+        assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 1);
+        assert_eq!(maze.cells.iter().filter(|c| c.has_been_visited).count(), 1);
+    
+        // unavailable move must error
+        {
+            let mut copy = maze.clone();
+            let bad = &unavailable_moves[0];
+            assert!(copy.make_move(bad).is_err(), "Should not allow {:?}", bad);
+        }
+    
+        // ===== 1) First forward move =====
+        let requested1 = &available_moves[0];
+        let actual1 = maze
+            .make_move(requested1)
+            .expect("First valid move should succeed");
+        assert!(
+            available_moves.contains(&actual1),
+            "Returned {:?} must be one of {:?}",
+            actual1,
+            available_moves
+        );
+        let cell_after_first = maze.get_active_cell().unwrap().coords.clone();
+        assert_ne!(cell_after_first, original_coords);
+    
+        // ===== 2–4) Try a second forward, then backtrack twice =====
+        {
+            // a) compute which wall would go *back* to the start
+            let first_cell = maze.get_active_cell().unwrap();
+            let back_to_start: String = first_cell
+                .neighbors_by_direction
+                .iter()
+                .find_map(|(dir, &coords)| {
+                    if coords == original_coords { Some(dir.clone()) } else { None }
+                })
+                .expect("Expected a reverse link back to the start cell");
+    
+            // b) pick *any* other open wall (if there is one)
+            if let Some(requested2) = first_cell.open_walls.iter()
+                .find(|dir| *dir != &back_to_start)
+                .cloned()
+            {
+                // 2c) make the second forward move
+                let actual2 = maze
+                    .make_move(&requested2)
+                    .expect("Second valid move should succeed");
+                let cell_after_second = maze.get_active_cell().unwrap().coords.clone();
+                assert_ne!(cell_after_second, cell_after_first);
+    
+                // 3) backtrack from the second cell → first
+                let second_cell = maze.get_active_cell().unwrap();
+                let back2: String = second_cell
+                    .neighbors_by_direction
+                    .iter()
+                    .find_map(|(dir, &coords)| {
+                        if coords == cell_after_first { Some(dir.clone()) } else { None }
+                    })
+                    .expect("Expected a neighbor mapping back to the first cell");
+                let actual_back2 = maze
+                    .make_move(&back2)
+                    .expect("Backtracking from the second to the first should succeed");
+                assert_eq!(actual_back2, back2);
+                let cell_after_back = maze.get_active_cell().unwrap().coords.clone();
+                assert_eq!(cell_after_back, cell_after_first);
+    
+                // 4) backtrack from the first cell → start
+                let first_again = maze.get_active_cell().unwrap();
+                let back1_again: String = first_again
+                    .neighbors_by_direction
+                    .iter()
+                    .find_map(|(dir, &coords)| {
+                        if coords == original_coords { Some(dir.clone()) } else { None }
+                    })
+                    .expect("Expected a neighbor mapping back to the start cell");
+                let actual_back1 = maze
+                    .make_move(&back1_again)
+                    .expect("Backtracking to the start cell should succeed");
+                assert_eq!(actual_back1, back1_again);
+                let cell_after_back_to_start = maze.get_active_cell().unwrap().coords.clone();
+                assert_eq!(cell_after_back_to_start, original_coords);
+    
+                // 4c) no further backtracking allowed
+                assert!(
+                    maze.make_move(&back1_again).is_err(),
+                    "Further backtracking from start should fail"
+                );
+            } else {
+                println!("Not enough available moves for a second forward move; skipping Delta backtracking tests.");
+            }
+        }
     }
     
     #[test]
