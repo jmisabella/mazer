@@ -5,6 +5,7 @@ use crate::error::Error;
 
 pub struct AldousBroder;
 
+// TODO: This current implementation of Aldous Broder leads to unperfect Delta mazes; is this to be expected?
 impl MazeGeneration for AldousBroder {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         // Step 1: Initialize visited tracking using Vec<Vec<bool>>
@@ -104,6 +105,18 @@ mod tests {
     #[test]
     fn generate_12_x_6_delta_maze() {
         match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                AldousBroder.generate(&mut grid).expect("AldousBroder maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn generate_12_x_12_delta_maze() {
+        match Grid::new(MazeType::Delta, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder.generate(&mut grid).expect("AldousBroder maze generation failed");
