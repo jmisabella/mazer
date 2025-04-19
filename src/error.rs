@@ -1,7 +1,8 @@
-use crate::cell::{ Coordinates, MazeType };
-use crate::algorithms::MazeAlgorithm;
 use std::fmt;
 use serde_json;
+use crate::cell::{ Coordinates, MazeType };
+use crate::direction::Direction;
+use crate::algorithms::MazeAlgorithm;
 
 #[derive(Debug)]
 pub enum Error {
@@ -15,7 +16,7 @@ pub enum Error {
     MultipleActiveCells { count: usize },
     NoActiveCells,
     InvalidDirection { direction: String },
-    MoveUnavailable { attempted_move: String, available_moves: Vec<String>},
+    MoveUnavailable { attempted_move: Direction, available_moves: Vec<Direction>},
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -51,7 +52,7 @@ impl fmt::Display for Error {
                 write!(f, "No active cells, there should always be exactly 1 active cell" )
             }
             Error::MoveUnavailable { attempted_move, available_moves } => {
-                write!(f, "Cannot make move {:?} because it is unavailable. Available moves are: {:?}", attempted_move, available_moves.join(", ") )
+                write!(f, "Cannot make move {:?} because it is unavailable. Available moves are: {:?}", attempted_move, available_moves.into_iter().map(|dir| dir.to_string()).collect::<Vec<_>>().join(", ") )
             }
             Error::InvalidDirection { direction } => {
                 write!(f, "Invalid Direction: {:?}", direction )

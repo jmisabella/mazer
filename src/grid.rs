@@ -5,7 +5,7 @@ use serde::ser::{ Serialize, Serializer, SerializeStruct };
 use crate::behaviors::display::JsonDisplay;
 use crate::behaviors::graph;
 use crate::cell::{CellOrientation, MazeType, Cell, CellBuilder, Coordinates};
-use crate::direction::{SquareDirection, TriangleDirection, HexDirection, PolarDirection};
+use crate::direction::Direction;
 use crate::error::Error;
 use crate::request::MazeRequest;
 
@@ -132,8 +132,21 @@ impl Grid {
         }
     }
 
+    /// All the “raw” directions this maze shape can ever use.
+    pub fn all_moves(&self) -> &'static [Direction] {
+        use Direction::*;
+        match self.maze_type {
+            MazeType::Orthogonal => &[Up, Right, Down, Left],
+            MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight,
+                                       Down, LowerLeft, Left, UpperLeft],
+            MazeType::Delta      => &[Up, UpperLeft, UpperRight,
+                                       Down, LowerLeft, LowerRight],
+            MazeType::Polar      => &[Inward, Outward, Clockwise, CounterClockwise],
+        }
+    }
+
     /// Manually make a user move to a specified direction.
-    pub fn make_move(&mut self, direction: &str) -> Result<String, Error> {
+    pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
         // Extract maze_type from self before borrowing any cells.
         let maze_type = self.maze_type;  // Assumes MazeType is Copy or implements Clone.
         
@@ -142,61 +155,61 @@ impl Grid {
         let original_coords = active_cell.coords;
 
         // Determine the effective direction to use, accounting for Delta maze fallback logic.
-        let picked: Option<String> = if maze_type == MazeType::Delta {
+        let picked: Option<Direction> = if maze_type == MazeType::Delta {
             // Define a helper closure: it checks whether a candidate move is both open (in open_walls)
             // and valid (exists in neighbors_by_direction).
-            let try_direction = |cell: &Cell, cand: &str| -> Option<String> {
-                if cell.open_walls.contains(&cand.to_string())
+            let try_direction = |cell: &Cell, cand: &Direction| -> Option<Direction> {
+                if cell.open_walls.contains(&cand)
                     && cell.neighbors_by_direction.contains_key(cand)
                 {
-                    Some(cand.to_string())
+                    Some(cand.clone())
                 } else {
                     None
                 }
             };
 
             match direction {
-                "Left" => {
+                Direction::Left => {
                     // For "Left", try UpperLeft first then LowerLeft.
-                    try_direction(active_cell, "UpperLeft")
-                        .or_else(|| try_direction(active_cell, "LowerLeft"))
+                    try_direction(active_cell, &Direction::UpperLeft)
+                        .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
                 },
-                "Right" => {
+                Direction::Right => {
                     // For "Right", try UpperRight first then LowerRight.
-                    try_direction(active_cell, "UpperRight")
-                        .or_else(|| try_direction(active_cell, "LowerRight"))
+                    try_direction(active_cell, &Direction::UpperRight)
+                        .or_else(|| try_direction(active_cell, &Direction::LowerRight))
                 },
-                "UpperLeft" => {
+                Direction::UpperLeft =>{
                     // For "UpperLeft", try UpperLeft first then fall back to Up.
-                    try_direction(active_cell, "UpperLeft")
-                        .or_else(|| try_direction(active_cell, "Up"))
+                    try_direction(active_cell, &Direction::UpperLeft)
+                        .or_else(|| try_direction(active_cell, &Direction::Up))
                 },
-                "LowerLeft" => {
+                Direction::LowerLeft => {
                     // For "LowerLeft", try LowerLeft first then fall back to Down.
-                    try_direction(active_cell, "LowerLeft")
-                        .or_else(|| try_direction(active_cell, "Down"))
+                    try_direction(active_cell, &Direction::LowerLeft)
+                        .or_else(|| try_direction(active_cell, &Direction::Down))
                 },
-                "UpperRight" => {
+                Direction::UpperRight => {
                     // For "UpperRight", try UpperRight first then fall back to Up.
-                    try_direction(active_cell, "UpperRight")
-                        .or_else(|| try_direction(active_cell, "Up"))
+                    try_direction(active_cell, &Direction::UpperRight)
+                        .or_else(|| try_direction(active_cell, &Direction::Up))
                 },
-                "LowerRight" => {
+                Direction::LowerRight => {
                     // For "LowerRight", try LowerRight first then fall back to UpperRight.
-                    try_direction(active_cell, "LowerRight")
-                        .or_else(|| try_direction(active_cell, "UpperRight"))
+                    try_direction(active_cell, &Direction::LowerRight)
+                        .or_else(|| try_direction(active_cell, &Direction::UpperRight))
                 },
                 // If the provided direction isn't one of the Delta-specific ones, use it as given.
-                _ => Some(direction.to_string()),
+                _ => Some(direction.clone()),
             }
         } else {
             // For non-Delta maze types, simply use the provided direction.
-            Some(direction.to_string())
+            Some(direction.clone())
         };
 
         let effective_direction = picked
             .ok_or_else(|| Error::MoveUnavailable {
-                attempted_move: direction.to_string(),
+                attempted_move: direction,
                 available_moves: active_cell.open_walls.clone(),
             })?;
 
@@ -213,7 +226,7 @@ impl Grid {
 
         // Get the neighbor coordinate based on the effective direction.
         let neighbor_coords = *active_cell.neighbors_by_direction.get(&effective_direction)
-            .ok_or(Error::InvalidDirection { direction: effective_direction.clone() })?;
+            .ok_or(Error::InvalidDirection { direction: effective_direction.to_string() })?;
 
         // Determine whether this move is a backtracking move by checking if the neighbor is already visited.
         let going_back: bool;
@@ -417,29 +430,29 @@ impl Grid {
         for row in 0..self.height {
             for col in 0..self.width {
                 let mut cell = self.get_mut_by_coords(col, row)?.clone();
-                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
 
                 if cell.y() != 0 {
                     neighbors.insert(
-                        SquareDirection::Up.to_string(), 
+                        Direction::Up, 
                         self.get_by_coords(cell.x(), cell.y() - 1)?.coords
                     );
                 }
                 if cell.x() < self.width - 1 {
                     neighbors.insert(
-                        SquareDirection::Right.to_string(), 
+                        Direction::Right, 
                         self.get_by_coords(cell.x() + 1, cell.y())?.coords
                     );
                 }
                 if cell.y() < self.height - 1 {
                     neighbors.insert(
-                        SquareDirection::Down.to_string(), 
+                        Direction::Down, 
                         self.get_by_coords(cell.x(), cell.y() + 1)?.coords
                     );
                 }
                 if cell.x() != 0 {
                     neighbors.insert(
-                        SquareDirection::Left.to_string(), 
+                        Direction::Left, 
                         self.get_by_coords(cell.x() - 1, cell.y())?.coords
                     );
                 }
@@ -455,7 +468,7 @@ impl Grid {
         for row in 0..self.height {
             for col in 0..self.width {
                 let mut cell = self.get_mut_by_coords(col, row)?.clone();
-                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
                 
                 // Left and right neighbors
                 let left  = if col > 0 { Some(Coordinates { x: col - 1, y: row }) } else { None };
@@ -463,17 +476,17 @@ impl Grid {
                 
                 if let Some(left_coords) = left {
                     let key = if cell.orientation == CellOrientation::Normal {
-                        TriangleDirection::UpperLeft.to_string()
+                        Direction::UpperLeft
                     } else {
-                        TriangleDirection::LowerLeft.to_string()
+                        Direction::LowerLeft
                     };
                     neighbors.insert(key, left_coords);
                 }
                 if let Some(right_coords) = right {
                     let key = if cell.orientation == CellOrientation::Normal {
-                        TriangleDirection::UpperRight.to_string()
+                        Direction::UpperRight
                     } else {
-                        TriangleDirection::LowerRight.to_string()
+                        Direction::LowerRight
                     };
                     neighbors.insert(key, right_coords);
                 }
@@ -490,10 +503,10 @@ impl Grid {
                     None
                 };
                 if let Some(up_coords) = up {
-                    neighbors.insert(TriangleDirection::Up.to_string(), up_coords);
+                    neighbors.insert(Direction::Up, up_coords);
                 }
                 if let Some(down_coords) = down {
-                    neighbors.insert(TriangleDirection::Down.to_string(), down_coords);
+                    neighbors.insert(Direction::Down, down_coords);
                 }
                 cell.set_neighbors(neighbors);
                 self.set(cell)?;
@@ -510,7 +523,7 @@ impl Grid {
         for row in 0..self.height {
             for col in 0..self.width {
                 let mut cell = self.get_mut_by_coords(col, row)?.clone();
-                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
 
                 let (north_diagonal, south_diagonal) = match is_even(col) {
                     true if row > 0 => (row - 1, row),
@@ -520,37 +533,37 @@ impl Grid {
                 };
                 if col > 0 && north_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::UpperLeft.to_string(),
+                        Direction::UpperLeft,
                         self.get_by_coords(col - 1, north_diagonal)?.coords,
                     );
                 }
                 if col < self.width && row > 0 {
                     neighbors.insert(
-                        HexDirection::Up.to_string(),
+                        Direction::Up,
                         self.get_by_coords(col, row - 1)?.coords,
                     );
                 }
                 if col < self.width - 1 && north_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::UpperRight.to_string(),
+                        Direction::UpperRight,
                         self.get_by_coords(col + 1, north_diagonal)?.coords,
                     );
                 }
                 if col > 0 && south_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::LowerLeft.to_string(),
+                        Direction::LowerLeft,
                         self.get_by_coords(col - 1, south_diagonal)?.coords,
                     );
                 }
                 if row < self.height - 1 && col < self.width {
                     neighbors.insert(
-                        HexDirection::Down.to_string(),
+                        Direction::Down,
                         self.get_by_coords(col, row + 1)?.coords,
                     );
                 }
                 if col < self.width - 1 && south_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::LowerRight.to_string(),
+                        Direction::LowerRight,
                         self.get_by_coords(col + 1, south_diagonal)?.coords,
                     );
                 }
@@ -566,18 +579,18 @@ impl Grid {
         for row in 0..self.height {
             for col in 0..self.width {
                 let mut cell = self.get_mut_by_coords(col, row)?.clone();
-                let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
+                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
 
                 // Inward and outward neighbors.
                 if row > 0 {
                     neighbors.insert(
-                        PolarDirection::Inward.to_string(), 
+                        Direction::Inward, 
                         self.get_by_coords(col, row - 1)?.coords,
                     );
                 }
                 if row < self.height - 1 {
                     neighbors.insert(
-                        PolarDirection::Outward.to_string(), 
+                        Direction::Outward, 
                         self.get_by_coords(col, row + 1)?.coords,
                     );
                 }
@@ -585,13 +598,13 @@ impl Grid {
                 // Clockwise and counter-clockwise neighbors.
                 if col > 0 {
                     neighbors.insert(
-                        PolarDirection::CounterClockwise.to_string(), 
+                        Direction::CounterClockwise, 
                         self.get_by_coords((col - 1) % self.width, row)?.coords,
                     );
                 }
                 if col < self.width - 1 {
                     neighbors.insert(
-                        PolarDirection::Clockwise.to_string(), 
+                        Direction::Clockwise, 
                         self.get_by_coords((col + 1) % self.width, row)?.coords,
                     );
                 }
@@ -731,14 +744,14 @@ impl Grid {
             let mut bottom = String::from("+");
             for cell in row {
                 let body = "   ";
-                let east_boundary = match cell.neighbors_by_direction.get(&SquareDirection::Right.to_string()).is_some() {
-                    true if cell.is_linked_direction(SquareDirection::Right) => " ",
+                let east_boundary = match cell.neighbors_by_direction.get(&Direction::Right).is_some() {
+                    true if cell.is_linked_direction(Direction::Right) => " ",
                     _ => "|",
                 };
                 top.push_str(body);
                 top.push_str(east_boundary);
-                let south_boundary = match cell.neighbors_by_direction.get(&SquareDirection::Down.to_string()).is_some() {
-                    true if cell.is_linked_direction(SquareDirection::Down) => "   ",
+                let south_boundary = match cell.neighbors_by_direction.get(&Direction::Down).is_some() {
+                    true if cell.is_linked_direction(Direction::Down) => "   ",
                     _ => "---"
                 };
                 let corner ="+";
@@ -1041,23 +1054,34 @@ mod tests {
 
         // pull out start‐cell info
         let (original_coords, available_moves, unavailable_moves) = {
-            let c = maze.get_active_cell().expect("Expected start cell");
-            let orig = c.coords.clone();
-            let available: Vec<String> = c.open_walls.clone();
-            let available_refs: Vec<&str> = available.iter().map(String::as_str).collect();
-            let unavailable: Vec<String> = ["Up", "Right", "Down", "Left"]
-                .diff(&available_refs)
-                .into_iter()
-                .map(str::to_string)
+            // 1) Temporarily borrow mutably just to pull out coords, open_walls, and maze_type
+            let (orig, open_walls, maze_type) = {
+                let c = maze
+                    .get_active_cell()
+                    .expect("Expected start cell");
+                (c.coords.clone(), c.open_walls.clone(), maze.maze_type)
+            }; // ← `c` (and its &mut borrow) drops here
+        
+            // 2) available_moves is just the cloned open_walls
+            let available_moves: Vec<Direction> = open_walls.into_iter().collect();
+        
+            // 3) Compute unavailable = all possible minus available
+            let unavailable_moves: Vec<Direction> = maze
+                .all_moves()           // &'static [Direction]
+                .iter()
+                .filter(|d| !available_moves.contains(d))
+                .cloned()
                 .collect();
-            (orig, available, unavailable)
+        
+            (orig, available_moves, unavailable_moves)
         };
+
 
         // unavailable move must error, and counts stay the same
         {
             let mut copy = maze.clone();
             let bad = &unavailable_moves[0];
-            assert!(copy.make_move(bad).is_err(), "Unavailable move `{}` should fail", bad);
+            assert!(copy.make_move(*bad).is_err(), "Unavailable move `{}` should fail", bad);
             assert_eq!(
                 copy.cells.iter().filter(|c| c.is_visited).count(),
                 1,
@@ -1073,8 +1097,8 @@ mod tests {
         // ================================
         // STEP 1: first valid move
         // ================================
-        let mv1 = available_moves.iter().next().unwrap().as_str();
-        assert!(maze.make_move(mv1).is_ok(), "Valid move `{}` should succeed", mv1);
+        let mv1 = available_moves.iter().next().unwrap();
+        assert!(maze.make_move(*mv1).is_ok(), "Valid move `{}` should succeed", mv1);
 
         // after first move
         assert_eq!(
@@ -1099,12 +1123,12 @@ mod tests {
             .clone();
 
         // helper to reverse orthogonal directions
-        let reverse_direction = |dir: &str| -> &str {
+        let reverse_direction = |dir: Direction| -> Direction {
             match dir {
-                "Up" => "Down",
-                "Down" => "Up",
-                "Right"  => "Left",
-                "Left"  => "Right",
+                Direction::Up => Direction::Down,
+                Direction::Down => Direction::Up,
+                Direction::Right  => Direction::Left,
+                Direction::Left  => Direction::Right,
                 other   => panic!("Unknown direction: {}", other),
             }
         };
@@ -1112,7 +1136,7 @@ mod tests {
         // ================================
         // STEP 2: backtrack to start
         // ================================
-        let back1 = reverse_direction(mv1);
+        let back1 = reverse_direction(*mv1);
         assert!(maze.make_move(back1).is_ok(), "Backtracking `{}` should succeed", back1);
 
         // after backtrack
@@ -1167,23 +1191,31 @@ mod tests {
         }}
         "#);
     
-        // 0) construct & verify perfectness
-        let mut maze = Grid::try_from(json).expect("Unexpected error constructing maze");
-        assert!(maze.is_perfect_maze().unwrap());
-    
         // grab the starting cell’s coords, open_walls, and the set of unavailable moves
-        let (original_coords, available_moves, unavailable_moves) = {
-            let start = maze.get_active_cell().expect("Expected active start cell");
-            let orig = start.coords.clone();
-            let avail = start.open_walls.clone();
-            let avail_refs: Vec<&str> = avail.iter().map(|s| s.as_str()).collect();
-            let unavail = ["Left", "UpperLeft", "UpperRight", "Right", "LowerRight", "LowerLeft"]
-                .diff(&avail_refs)
-                .into_iter()
-                .map(String::from)
-                .collect::<Vec<String>>();
-            (orig, avail, unavail)
-        };
+        // 0) construct & verify perfectness
+        let mut maze = Grid::try_from(json).unwrap();
+        assert!(maze.is_perfect_maze().unwrap());
+
+        // 1) Pull coords & open_walls in their own scope
+        let (original_coords, available_moves) = {
+            let start = maze.get_active_cell()
+                .expect("Expected active start cell");
+            (start.coords.clone(), start.open_walls.clone())
+        }; // <— `start` (and its &mut borrow) dies here
+
+        // 2) Now it’s safe to borrow `maze` again, immutably, to get all moves
+        let unavailable_moves: Vec<Direction> = maze
+            .all_moves()                    // &'static [Direction]
+            .iter()
+            .filter(|d| !available_moves.contains(d))
+            .cloned()
+            .collect();
+
+        // You now have:
+        //   original_coords: Coordinates
+        //   available_moves: Vec<Direction>
+        //   unavailable_moves: Vec<Direction>
+
     
         // sanity: only one visited
         assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 1);
@@ -1193,13 +1225,13 @@ mod tests {
         {
             let mut copy = maze.clone();
             let bad = &unavailable_moves[0];
-            assert!(copy.make_move(bad).is_err(), "Should not allow {:?}", bad);
+            assert!(copy.make_move(*bad).is_err(), "Should not allow {:?}", bad);
         }
     
         // ===== 1) First forward move =====
         let requested1 = &available_moves[0];
         let actual1 = maze
-            .make_move(requested1)
+            .make_move(*requested1)
             .expect("First valid move should succeed");
         assert!(
             available_moves.contains(&actual1),
@@ -1214,7 +1246,7 @@ mod tests {
         {
             // a) compute which wall would go *back* to the start
             let first_cell = maze.get_active_cell().unwrap();
-            let back_to_start: String = first_cell
+            let back_to_start: Direction = first_cell
                 .neighbors_by_direction
                 .iter()
                 .find_map(|(dir, &coords)| {
@@ -1229,14 +1261,14 @@ mod tests {
             {
                 // 2c) make the second forward move
                 let actual2 = maze
-                    .make_move(&requested2)
+                    .make_move(requested2)
                     .expect("Second valid move should succeed");
                 let cell_after_second = maze.get_active_cell().unwrap().coords.clone();
                 assert_ne!(cell_after_second, cell_after_first);
     
                 // 3) backtrack from the second cell → first
                 let second_cell = maze.get_active_cell().unwrap();
-                let back2: String = second_cell
+                let back2: Direction = second_cell
                     .neighbors_by_direction
                     .iter()
                     .find_map(|(dir, &coords)| {
@@ -1244,7 +1276,7 @@ mod tests {
                     })
                     .expect("Expected a neighbor mapping back to the first cell");
                 let actual_back2 = maze
-                    .make_move(&back2)
+                    .make_move(back2)
                     .expect("Backtracking from the second to the first should succeed");
                 assert_eq!(actual_back2, back2);
                 let cell_after_back = maze.get_active_cell().unwrap().coords.clone();
@@ -1252,7 +1284,7 @@ mod tests {
     
                 // 4) backtrack from the first cell → start
                 let first_again = maze.get_active_cell().unwrap();
-                let back1_again: String = first_again
+                let back1_again: Direction = first_again
                     .neighbors_by_direction
                     .iter()
                     .find_map(|(dir, &coords)| {
@@ -1260,7 +1292,7 @@ mod tests {
                     })
                     .expect("Expected a neighbor mapping back to the start cell");
                 let actual_back1 = maze
-                    .make_move(&back1_again)
+                    .make_move(back1_again)
                     .expect("Backtracking to the start cell should succeed");
                 assert_eq!(actual_back1, back1_again);
                 let cell_after_back_to_start = maze.get_active_cell().unwrap().coords.clone();

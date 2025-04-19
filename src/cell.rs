@@ -60,7 +60,7 @@ pub struct Cell {
     /// The maze type (e.g., Orthogonal, Delta, Sigma, Polar).
     pub maze_type: MazeType,
     /// Maps directions to the coordinates of neighboring cells.
-    pub neighbors_by_direction: HashMap<String, Coordinates>,
+    pub neighbors_by_direction: HashMap<Direction, Coordinates>,
     /// Coordinates of neighboring cells that are linked to this cell (i.e., no walls in between).
     pub linked: HashSet<Coordinates>,
     /// Distance to the goal cell.
@@ -86,7 +86,7 @@ pub struct Cell {
     /// The orientation of the cell (Normal or Inverted); applicable only for delta cells.
     pub orientation: CellOrientation,
     /// The directions in which there are no walls restricting movement.
-    pub open_walls: Vec<String>,
+    pub open_walls: Vec<Direction>,
 }
 
 impl Default for Cell {
@@ -117,7 +117,7 @@ impl Serialize for Cell {
         let mut state = serializer.serialize_struct("Cell", 7)?;
         state.serialize_field("coords", &self.coords)?;
         
-        let linked_dirs: HashSet<String> = self.linked_directions();
+        let linked_dirs: HashSet<String> = self.linked_directions().iter().map(|dir| dir.to_string()).collect();
         state.serialize_field("linked", &linked_dirs)?;
         state.serialize_field("distance", &self.distance)?;
         state.serialize_field("is_start", &self.is_start)?;
@@ -161,7 +161,7 @@ impl Cell {
     }
 
     /// Directions from this Cell to linked neighboring Cells (linked indicating no walls separating these linked neighbors from this Cell)
-    pub fn linked_directions(&self) -> HashSet<String> {
+    pub fn linked_directions(&self) -> HashSet<Direction> {
         // Assuming neighbors_by_direction provides the mapping
         self.neighbors_by_direction
             .filter_keys(|coords| self.linked.contains(coords))
@@ -170,9 +170,9 @@ impl Cell {
     }
 
     /// Whether neighbor in specified Direction is linked to this Cell
-    pub fn is_linked_direction<D: Direction + Into<String> + Clone>(&self, direction: D) -> bool {
+    pub fn is_linked_direction(&self, direction: Direction) -> bool {
         // Find the neighbor for the given direction
-        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction.as_str()) {
+        if let Some(neighbor_coords) = self.neighbors_by_direction.get(&direction) {
             self.linked.contains(neighbor_coords)
         } else {
             false
@@ -220,7 +220,7 @@ impl Cell {
     }
     
     /// Set neighbors_by_direction 
-    pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) {
+    pub fn set_neighbors(&mut self, neighbors_by_direction: HashMap<Direction, Coordinates>) {
         self.neighbors_by_direction = neighbors_by_direction;
     }
 
@@ -304,7 +304,7 @@ impl CellBuilder {
         self
     }
     
-    pub fn neighbors(&mut self, neighbors_by_direction: HashMap<String, Coordinates>) -> &Self {
+    pub fn neighbors(&mut self, neighbors_by_direction: HashMap<Direction, Coordinates>) -> &Self {
         self.0.neighbors_by_direction = neighbors_by_direction;
         self
     }
@@ -314,16 +314,16 @@ impl CellBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::direction::SquareDirection;
+    use crate::direction::Direction;
 
     #[test]
     fn access_neighbors() {
         let cell1 = CellBuilder::new(1, 1, MazeType::Orthogonal).build();
         let mut neighbors = HashMap::new();
-        neighbors.insert("North".to_string(), Coordinates{ x: 1, y: 0});
-        neighbors.insert("East".to_string(), Coordinates{ x: 2, y: 1});
-        neighbors.insert("South".to_string(), Coordinates{ x: 1, y: 2});
-        neighbors.insert("West".to_string(), Coordinates{ x: 0, y: 1});
+        neighbors.insert(Direction::Up, Coordinates{ x: 1, y: 0});
+        neighbors.insert(Direction::Right, Coordinates{ x: 2, y: 1});
+        neighbors.insert(Direction::Down, Coordinates{ x: 1, y: 2});
+        neighbors.insert(Direction::Left, Coordinates{ x: 0, y: 1});
         let cell2 = Cell {
             neighbors_by_direction: neighbors,
             ..cell1
@@ -333,15 +333,15 @@ mod tests {
         assert!(cell2.neighbors().contains(&Coordinates{x: 1, y: 2}));
         assert!(cell2.neighbors().contains(&Coordinates{x: 0, y: 1}));
         assert!(cell2.neighbors().len() == 4);
-        assert!(*cell2.neighbors_by_direction.get("North").expect("Missing North neighbor") == Coordinates{x: 1, y: 0});
-        assert!(*cell2.neighbors_by_direction.get("East").expect("Missing East neighbor") == Coordinates{x: 2, y: 1});
-        assert!(*cell2.neighbors_by_direction.get("South").expect("Missing South neighbor") == Coordinates{x: 1, y: 2});
-        assert!(*cell2.neighbors_by_direction.get("West").expect("Missing West neighbor") == Coordinates{x: 0, y: 1});
+        assert!(*cell2.neighbors_by_direction.get(&Direction::Up).expect("Missing North neighbor") == Coordinates{x: 1, y: 0});
+        assert!(*cell2.neighbors_by_direction.get(&Direction::Right).expect("Missing East neighbor") == Coordinates{x: 2, y: 1});
+        assert!(*cell2.neighbors_by_direction.get(&Direction::Down).expect("Missing South neighbor") == Coordinates{x: 1, y: 2});
+        assert!(*cell2.neighbors_by_direction.get(&Direction::Left).expect("Missing West neighbor") == Coordinates{x: 0, y: 1});
 
         // cell with no neighbors assigned
         let cell3 = CellBuilder::new(1, 1, MazeType::Orthogonal).build();
         assert!(cell3.neighbors().is_empty());
-        assert!(cell3.neighbors_by_direction.get("North").is_none());
+        assert!(cell3.neighbors_by_direction.get(&Direction::Up).is_none());
         
     }
 
@@ -353,10 +353,10 @@ mod tests {
         let east = Coordinates{ x: 2, y: 1 };
         let south = Coordinates{ x: 1, y: 2 };
         let west = Coordinates{ x: 0, y: 1 };
-        neighbors.insert("Up".to_string(), north.clone());
-        neighbors.insert("Right".to_string(), east.clone());
-        neighbors.insert("Down".to_string(), south.clone());
-        neighbors.insert("Left".to_string(), west.clone());
+        neighbors.insert(Direction::Up, north.clone());
+        neighbors.insert(Direction::Right, east.clone());
+        neighbors.insert(Direction::Down, south.clone());
+        neighbors.insert(Direction::Left, west.clone());
         let mut linked: HashSet<Coordinates> = HashSet::new();
         linked.insert(north.clone());
         linked.insert(south.clone());
@@ -372,16 +372,16 @@ mod tests {
         assert!(cell2.unlinked_neighbors().contains(&east));
         assert!(cell2.unlinked_neighbors().contains(&west));
         assert!(cell2.unlinked_neighbors().len() == 2);
-        assert!(cell2.is_linked_direction(SquareDirection::Up));
-        assert!(cell2.is_linked_direction(SquareDirection::Down));
-        assert!(!cell2.is_linked_direction(SquareDirection::Right));
-        assert!(!cell2.is_linked_direction(SquareDirection::Left));
+        assert!(cell2.is_linked_direction(Direction::Up));
+        assert!(cell2.is_linked_direction(Direction::Down));
+        assert!(!cell2.is_linked_direction(Direction::Right));
+        assert!(!cell2.is_linked_direction(Direction::Left));
         assert!(cell2.is_linked(north));
         assert!(cell2.is_linked(south));
         assert!(!cell2.is_linked(east));
         assert!(!cell2.is_linked(west));
-        assert!(cell2.linked_directions().contains("Up"));
-        assert!(cell2.linked_directions().contains("Down"));
+        assert!(cell2.linked_directions().contains(&Direction::Up));
+        assert!(cell2.linked_directions().contains(&Direction::Down));
         assert!(cell2.linked_directions().len() == 2);
         let mut cell3 = Cell {
             neighbors_by_direction: neighbors,
@@ -395,16 +395,16 @@ mod tests {
         assert!(cell3.unlinked_neighbors().contains(&east));
         assert!(cell3.unlinked_neighbors().contains(&west));
         assert!(cell3.unlinked_neighbors().len() == 2);
-        assert!(cell3.is_linked_direction(SquareDirection::Up));
-        assert!(cell3.is_linked_direction(SquareDirection::Down));
-        assert!(!cell3.is_linked_direction(SquareDirection::Right));
-        assert!(!cell3.is_linked_direction(SquareDirection::Left));
+        assert!(cell3.is_linked_direction(Direction::Up));
+        assert!(cell3.is_linked_direction(Direction::Down));
+        assert!(!cell3.is_linked_direction(Direction::Right));
+        assert!(!cell3.is_linked_direction(Direction::Left));
         assert!(cell3.is_linked(north));
         assert!(cell3.is_linked(south));
         assert!(!cell3.is_linked(east));
         assert!(!cell3.is_linked(west));
-        assert!(cell3.linked_directions().contains("Up"));
-        assert!(cell3.linked_directions().contains("Down"));
+        assert!(cell3.linked_directions().contains(&Direction::Up));
+        assert!(cell3.linked_directions().contains(&Direction::Down));
         assert!(cell3.linked_directions().len() == 2);
 
     }
@@ -412,8 +412,8 @@ mod tests {
     #[test]
     fn serialize_cell_to_json() {
         let mut neighbors = HashMap::new();
-        neighbors.insert("East".to_string(), Coordinates { x: 1, y: 0 });
-        neighbors.insert("South".to_string(), Coordinates { x: 0, y: 1 });
+        neighbors.insert(Direction::Right, Coordinates { x: 1, y: 0 });
+        neighbors.insert(Direction::Down, Coordinates { x: 0, y: 1 });
 
         let mut linked = HashSet::new();
         linked.insert(Coordinates { x: 1, y: 0 });
@@ -440,8 +440,8 @@ mod tests {
 
         assert!(json.contains("\"x\":1"));
         assert!(json.contains("\"y\":1"));
-        assert!(json.contains("\"East\""));
-        assert!(json.contains("\"South\""));
+        assert!(json.contains("\"Right\""));
+        assert!(json.contains("\"Down\""));
         assert!(json.contains("\"on_solution_path\":true"));
     }
 
