@@ -353,10 +353,10 @@ mod tests {
         let east = Coordinates{ x: 2, y: 1 };
         let south = Coordinates{ x: 1, y: 2 };
         let west = Coordinates{ x: 0, y: 1 };
-        neighbors.insert("North".to_string(), north.clone());
-        neighbors.insert("East".to_string(), east.clone());
-        neighbors.insert("South".to_string(), south.clone());
-        neighbors.insert("West".to_string(), west.clone());
+        neighbors.insert("Up".to_string(), north.clone());
+        neighbors.insert("Right".to_string(), east.clone());
+        neighbors.insert("Down".to_string(), south.clone());
+        neighbors.insert("Left".to_string(), west.clone());
         let mut linked: HashSet<Coordinates> = HashSet::new();
         linked.insert(north.clone());
         linked.insert(south.clone());
@@ -372,16 +372,16 @@ mod tests {
         assert!(cell2.unlinked_neighbors().contains(&east));
         assert!(cell2.unlinked_neighbors().contains(&west));
         assert!(cell2.unlinked_neighbors().len() == 2);
-        assert!(cell2.is_linked_direction(SquareDirection::North));
-        assert!(cell2.is_linked_direction(SquareDirection::South));
-        assert!(!cell2.is_linked_direction(SquareDirection::East));
-        assert!(!cell2.is_linked_direction(SquareDirection::West));
+        assert!(cell2.is_linked_direction(SquareDirection::Up));
+        assert!(cell2.is_linked_direction(SquareDirection::Down));
+        assert!(!cell2.is_linked_direction(SquareDirection::Right));
+        assert!(!cell2.is_linked_direction(SquareDirection::Left));
         assert!(cell2.is_linked(north));
         assert!(cell2.is_linked(south));
         assert!(!cell2.is_linked(east));
         assert!(!cell2.is_linked(west));
-        assert!(cell2.linked_directions().contains("North"));
-        assert!(cell2.linked_directions().contains("South"));
+        assert!(cell2.linked_directions().contains("Up"));
+        assert!(cell2.linked_directions().contains("Down"));
         assert!(cell2.linked_directions().len() == 2);
         let mut cell3 = Cell {
             neighbors_by_direction: neighbors,
@@ -395,16 +395,16 @@ mod tests {
         assert!(cell3.unlinked_neighbors().contains(&east));
         assert!(cell3.unlinked_neighbors().contains(&west));
         assert!(cell3.unlinked_neighbors().len() == 2);
-        assert!(cell3.is_linked_direction(SquareDirection::North));
-        assert!(cell3.is_linked_direction(SquareDirection::South));
-        assert!(!cell3.is_linked_direction(SquareDirection::East));
-        assert!(!cell3.is_linked_direction(SquareDirection::West));
+        assert!(cell3.is_linked_direction(SquareDirection::Up));
+        assert!(cell3.is_linked_direction(SquareDirection::Down));
+        assert!(!cell3.is_linked_direction(SquareDirection::Right));
+        assert!(!cell3.is_linked_direction(SquareDirection::Left));
         assert!(cell3.is_linked(north));
         assert!(cell3.is_linked(south));
         assert!(!cell3.is_linked(east));
         assert!(!cell3.is_linked(west));
-        assert!(cell3.linked_directions().contains("North"));
-        assert!(cell3.linked_directions().contains("South"));
+        assert!(cell3.linked_directions().contains("Up"));
+        assert!(cell3.linked_directions().contains("Down"));
         assert!(cell3.linked_directions().len() == 2);
 
     }

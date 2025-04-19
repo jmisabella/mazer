@@ -13,12 +13,12 @@ pub trait Direction: Serialize {
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HexDirection {
-    Northwest,
-    North,
-    Northeast,
-    Southwest,
-    South,
-    Southeast,
+    UpperLeft,
+    Up,
+    UpperRight,
+    LowerRight,
+    Down,
+    LowerLeft,
 }
 impl Direction for HexDirection {}
 
@@ -31,12 +31,12 @@ impl fmt::Display for HexDirection {
 impl From<HexDirection> for String {
     fn from(direction: HexDirection) -> Self {
         match direction {
-            HexDirection::Northwest => "Northwest".to_string(),
-            HexDirection::North => "North".to_string(),
-            HexDirection::Northeast => "Northeast".to_string(),
-            HexDirection::Southwest => "Southwest".to_string(),
-            HexDirection::South => "South".to_string(),
-            HexDirection::Southeast => "Southeast".to_string(),
+            HexDirection::UpperLeft => "UpperLeft".to_string(),
+            HexDirection::Up => "Up".to_string(),
+            HexDirection::UpperRight => "UpperRight".to_string(),
+            HexDirection::LowerRight => "LowerRight".to_string(),
+            HexDirection::Down => "Down".to_string(),
+            HexDirection::LowerLeft => "LowerLeft".to_string(),
         }
     }
 }
@@ -45,12 +45,12 @@ impl TryFrom<&str> for HexDirection {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "Northwest" => Ok(HexDirection::Northwest),
-            "North" => Ok(HexDirection::North),
-            "Northeast" => Ok(HexDirection::Northeast),
-            "Southwest" => Ok(HexDirection::Southwest),
-            "South" => Ok(HexDirection::South),
-            "Southeast" => Ok(HexDirection::Southeast),
+            "UpperLeft" => Ok(HexDirection::UpperLeft),
+            "Up" => Ok(HexDirection::Up),
+            "UpperRight" => Ok(HexDirection::UpperRight),
+            "LowerRight" => Ok(HexDirection::LowerRight),
+            "Down" => Ok(HexDirection::Down),
+            "LowerLeft" => Ok(HexDirection::LowerLeft),
             d => Err(Error::InvalidDirection { direction: String::from(d) }),
         }
     }
@@ -98,10 +98,10 @@ impl TryFrom<&str> for PolarDirection {
 
 #[derive(Debug, Hash, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SquareDirection {
-    North,
-    East,
-    South,
-    West
+    Up,
+    Right,
+    Down,
+    Left 
 }
 
 impl Direction for SquareDirection {}
@@ -115,10 +115,10 @@ impl fmt::Display for SquareDirection {
 impl From<SquareDirection> for String {
     fn from(direction: SquareDirection) -> Self {
         match direction {
-            SquareDirection::North => "North".to_string(),
-            SquareDirection::East => "East".to_string(),
-            SquareDirection::South => "South".to_string(),
-            SquareDirection::West => "West".to_string(),
+            SquareDirection::Up => "Up".to_string(),
+            SquareDirection::Right => "Right".to_string(),
+            SquareDirection::Down => "Down".to_string(),
+            SquareDirection::Left => "Left".to_string(),
         }
     }
 }
@@ -127,10 +127,10 @@ impl TryFrom<&str> for SquareDirection {
     type Error = Error;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         match s {
-            "North" => Ok(SquareDirection::North),
-            "East" => Ok(SquareDirection::East),
-            "South" => Ok(SquareDirection::South),
-            "West" => Ok(SquareDirection::West),
+            "Up" => Ok(SquareDirection::Up),
+            "Right" => Ok(SquareDirection::Right),
+            "Down" => Ok(SquareDirection::Down),
+            "Left" => Ok(SquareDirection::Left),
             d => Err(Error::InvalidDirection { direction: String::from(d) }),
         }
     }

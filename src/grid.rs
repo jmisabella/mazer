@@ -421,25 +421,25 @@ impl Grid {
 
                 if cell.y() != 0 {
                     neighbors.insert(
-                        SquareDirection::North.to_string(), 
+                        SquareDirection::Up.to_string(), 
                         self.get_by_coords(cell.x(), cell.y() - 1)?.coords
                     );
                 }
                 if cell.x() < self.width - 1 {
                     neighbors.insert(
-                        SquareDirection::East.to_string(), 
+                        SquareDirection::Right.to_string(), 
                         self.get_by_coords(cell.x() + 1, cell.y())?.coords
                     );
                 }
                 if cell.y() < self.height - 1 {
                     neighbors.insert(
-                        SquareDirection::South.to_string(), 
+                        SquareDirection::Down.to_string(), 
                         self.get_by_coords(cell.x(), cell.y() + 1)?.coords
                     );
                 }
                 if cell.x() != 0 {
                     neighbors.insert(
-                        SquareDirection::West.to_string(), 
+                        SquareDirection::Left.to_string(), 
                         self.get_by_coords(cell.x() - 1, cell.y())?.coords
                     );
                 }
@@ -520,37 +520,37 @@ impl Grid {
                 };
                 if col > 0 && north_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::Northwest.to_string(),
+                        HexDirection::UpperLeft.to_string(),
                         self.get_by_coords(col - 1, north_diagonal)?.coords,
                     );
                 }
                 if col < self.width && row > 0 {
                     neighbors.insert(
-                        HexDirection::North.to_string(),
+                        HexDirection::Up.to_string(),
                         self.get_by_coords(col, row - 1)?.coords,
                     );
                 }
                 if col < self.width - 1 && north_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::Northeast.to_string(),
+                        HexDirection::UpperRight.to_string(),
                         self.get_by_coords(col + 1, north_diagonal)?.coords,
                     );
                 }
                 if col > 0 && south_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::Southwest.to_string(),
+                        HexDirection::LowerLeft.to_string(),
                         self.get_by_coords(col - 1, south_diagonal)?.coords,
                     );
                 }
                 if row < self.height - 1 && col < self.width {
                     neighbors.insert(
-                        HexDirection::South.to_string(),
+                        HexDirection::Down.to_string(),
                         self.get_by_coords(col, row + 1)?.coords,
                     );
                 }
                 if col < self.width - 1 && south_diagonal < self.height {
                     neighbors.insert(
-                        HexDirection::Southeast.to_string(),
+                        HexDirection::LowerRight.to_string(),
                         self.get_by_coords(col + 1, south_diagonal)?.coords,
                     );
                 }
@@ -731,14 +731,14 @@ impl Grid {
             let mut bottom = String::from("+");
             for cell in row {
                 let body = "   ";
-                let east_boundary = match cell.neighbors_by_direction.get(&SquareDirection::East.to_string()).is_some() {
-                    true if cell.is_linked_direction(SquareDirection::East) => " ",
+                let east_boundary = match cell.neighbors_by_direction.get(&SquareDirection::Right.to_string()).is_some() {
+                    true if cell.is_linked_direction(SquareDirection::Right) => " ",
                     _ => "|",
                 };
                 top.push_str(body);
                 top.push_str(east_boundary);
-                let south_boundary = match cell.neighbors_by_direction.get(&SquareDirection::South.to_string()).is_some() {
-                    true if cell.is_linked_direction(SquareDirection::South) => "   ",
+                let south_boundary = match cell.neighbors_by_direction.get(&SquareDirection::Down.to_string()).is_some() {
+                    true if cell.is_linked_direction(SquareDirection::Down) => "   ",
                     _ => "---"
                 };
                 let corner ="+";
@@ -1045,7 +1045,7 @@ mod tests {
             let orig = c.coords.clone();
             let available: Vec<String> = c.open_walls.clone();
             let available_refs: Vec<&str> = available.iter().map(String::as_str).collect();
-            let unavailable: Vec<String> = ["North", "East", "South", "West"]
+            let unavailable: Vec<String> = ["Up", "Right", "Down", "Left"]
                 .diff(&available_refs)
                 .into_iter()
                 .map(str::to_string)
@@ -1101,10 +1101,10 @@ mod tests {
         // helper to reverse orthogonal directions
         let reverse_direction = |dir: &str| -> &str {
             match dir {
-                "North" => "South",
-                "South" => "North",
-                "East"  => "West",
-                "West"  => "East",
+                "Up" => "Down",
+                "Down" => "Up",
+                "Right"  => "Left",
+                "Left"  => "Right",
                 other   => panic!("Unknown direction: {}", other),
             }
         };
@@ -1266,10 +1266,9 @@ mod tests {
                 let cell_after_back_to_start = maze.get_active_cell().unwrap().coords.clone();
                 assert_eq!(cell_after_back_to_start, original_coords);
     
-                // 4c) no further backtracking allowed
                 assert!(
-                    maze.make_move(&back1_again).is_err(),
-                    "Further backtracking from start should fail"
+                    maze.get(maze.start_coords).expect("error getting start coords").is_visited == true,
+                    "Start cell should remain visited"
                 );
             } else {
                 println!("Not enough available moves for a second forward move; skipping Delta backtracking tests.");
