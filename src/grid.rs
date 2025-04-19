@@ -772,8 +772,6 @@ impl Grid {
 mod tests {
     use super::*;
 
-    use crate::behaviors::collections::SetDifference;
-
     #[test]
     fn init_orthogonal_grid() {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}) {
@@ -1055,11 +1053,11 @@ mod tests {
         // pull out start‐cell info
         let (original_coords, available_moves, unavailable_moves) = {
             // 1) Temporarily borrow mutably just to pull out coords, open_walls, and maze_type
-            let (orig, open_walls, maze_type) = {
+            let (orig, open_walls) = {
                 let c = maze
                     .get_active_cell()
                     .expect("Expected start cell");
-                (c.coords.clone(), c.open_walls.clone(), maze.maze_type)
+                (c.coords.clone(), c.open_walls.clone())
             }; // ← `c` (and its &mut borrow) drops here
         
             // 2) available_moves is just the cloned open_walls
@@ -1260,7 +1258,7 @@ mod tests {
                 .cloned()
             {
                 // 2c) make the second forward move
-                let actual2 = maze
+                let _ = maze
                     .make_move(requested2)
                     .expect("Second valid move should succeed");
                 let cell_after_second = maze.get_active_cell().unwrap().coords.clone();

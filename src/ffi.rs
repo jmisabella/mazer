@@ -315,7 +315,6 @@ pub extern "C" fn mazer_ffi_integration_test() -> i32 {
 mod tests {
     use super::*;
     use std::collections::{HashSet, HashMap};
-    use crate::behaviors::collections::SetDifference;
     use crate::cell::{CellOrientation, MazeType, Cell, Coordinates};
    
     #[test]
