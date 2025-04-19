@@ -3,6 +3,8 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
 use crate::grid::Grid;
 use crate::cell::Cell;
+use crate::direction::Direction;
+
 
 /// Representation of a cell for the FFI layer.
 ///
@@ -64,7 +66,7 @@ impl From<&Cell> for FFICell {
         let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
             .map(|direction| {
                 // Convert each Rust string into a raw C string.
-                CString::new(direction.clone())
+                CString::new(direction.to_string())
                     .unwrap()
                     .into_raw() as *const c_char
             })
@@ -265,28 +267,24 @@ pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
 pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_char) -> *mut c_void {
     // Safety: Ensure that both pointers are non-null.
     if grid_ptr.is_null() || direction.is_null() {
-        // Optionally, return a null pointer or handle errors in a way that your client (Swift)
-        // can understand.
+        // bad inputs -> null
         return ptr::null_mut();
     }
 
-    // Convert the opaque pointer back to a mutable reference to Grid.
+    // Reclaim the grid: convert the opaque pointer back to a mutable reference to Grid.
     #[allow(unused_unsafe)]
     let grid: &mut Grid = unsafe { &mut *(grid_ptr as *mut Grid) };
 
     // Convert the C string to a Rust &str.
     #[allow(unused_unsafe)]
-    let c_str_direction = unsafe { CStr::from_ptr(direction) };
-    let direction_str = match c_str_direction.to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            // If the string conversion fails, return null or decide on an error handling strategy.
-            return ptr::null_mut();
-        }
-    };
-
-    // Call the make_move method on the mutable grid.
-    let _ = grid.make_move(direction_str);
+    let dir_str = unsafe { CStr::from_ptr(direction) }
+        .to_str()
+        .unwrap_or_default();
+        
+    if let Ok(dir) = Direction::try_from(dir_str) {
+        // attempt to move, but ignore the Err case
+        let _ = grid.make_move(dir);
+    }
 
     // Return the same pointer to the grid.
     grid_ptr
@@ -308,24 +306,23 @@ pub extern "C" fn mazer_ffi_integration_test() -> i32 {
 mod tests {
     use super::*;
     use std::collections::{HashSet, HashMap};
-    use crate::behaviors::collections::SetDifference;
     use crate::cell::{CellOrientation, MazeType, Cell, Coordinates};
    
     #[test]
     fn test_memory_allocation_for_ffi_cell() {
-        let mut neighbors: HashMap<String, Coordinates> = HashMap::new();
-        neighbors.insert("North".to_string(), Coordinates { x: 1, y: 1 });
-        neighbors.insert("East".to_string(), Coordinates { x: 2, y: 2 });
-        neighbors.insert("South".to_string(), Coordinates { x: 1, y: 3 });
-        neighbors.insert("West".to_string(), Coordinates { x: 0, y: 2 });
+        let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
+        neighbors.insert(Direction::Up, Coordinates { x: 1, y: 1 });
+        neighbors.insert(Direction::Right, Coordinates { x: 2, y: 2 });
+        neighbors.insert(Direction::Down, Coordinates { x: 1, y: 3 });
+        neighbors.insert(Direction::Left, Coordinates { x: 0, y: 2 });
 
         let mut linked: HashSet<Coordinates> = HashSet::new();
         linked.insert(Coordinates { x: 2, y: 2 });
         linked.insert(Coordinates { x: 1, y: 3 });
 
-        let mut open_walls: Vec<String> = Vec::new();
-        open_walls.push(String::from("East"));
-        open_walls.push(String::from("South"));
+        let mut open_walls: Vec<Direction> = Vec::new();
+        open_walls.push(Direction::Right);
+        open_walls.push(Direction::Down);
 
         let cell = Cell {
             coords: Coordinates { x: 1, y: 2 },
@@ -367,7 +364,7 @@ mod tests {
             .iter()
             .filter_map(|(k, &v)| {
                 if cell.linked.contains(&v) {
-                    Some(k.clone())
+                    Some(k.to_string().clone())
                 } else {
                     None
                 }
@@ -496,7 +493,7 @@ mod tests {
                 let grid_ptr: *mut c_void = Box::into_raw(boxed_grid) as *mut c_void;
 
                 // Create a CString for the direction.
-                let direction = CString::new("North").expect("CString::new failed");
+                let direction = CString::new("Up").expect("CString::new failed");
 
                 // Call the FFI function within an unsafe block.
                 let updated_ptr = mazer_make_move(grid_ptr, direction.as_ptr());
@@ -524,38 +521,43 @@ mod tests {
                 
                 // Limit the borrow's scope and return only owned data.
                 let (original_coords, available_moves, unavailable_moves) = {
-                    if let Ok(active_cell) = maze.get_active_cell() {
-                        // Clone the data so we own it.
-                        let original_coords = active_cell.coords.clone();
-                        // Clone available moves to a Vec<String>.
-                        let available_moves: Vec<String> = active_cell.open_walls.clone();
-                        // Create a vector of &str from the owned Strings,
-                        // which we then use to compute diff.
-                        let available_refs: Vec<&str> = available_moves.iter().map(|s| s.as_str()).collect();
-                        // Use your diff helper to get the unavailable moves.
-                        // Then convert those to owned Strings so that they don't borrow available_moves.
-                        let unavailable_moves: Vec<String> = ["North", "East", "South", "West"].diff(&available_refs)
-                            .into_iter()
-                            .map(|s| s.to_string())
-                            .collect();
-
-                        (original_coords, available_moves, unavailable_moves)
-                    } else {
-                        panic!("Expected an active cell at the start");
-                    }
-                }; // All borrows are dropped here.
+                    // 1) Grab the active cell or panic
+                    let active = maze
+                        .get_active_cell()
+                        .expect("Expected an active cell at the start");
+                
+                    // 2) Clone its coords
+                    let original_coords = active.coords.clone();
+                
+                    // 3) Collect its open_walls directly as a Vec<Direction>
+                    //    (assuming open_walls: HashSet<Direction> or Vec<Direction>)
+                    let available_moves: Vec<Direction> = active.open_walls.iter().cloned().collect();
+                
+                    // 4) Anything in `all_moves` not in `available_moves` is “unavailable”
+                    let unavailable_moves: Vec<Direction> = maze.all_moves()
+                        .iter()
+                        .filter(|d| !available_moves.contains(d))
+                        .cloned()
+                        .collect();
+                
+                    (original_coords, available_moves, unavailable_moves)
+                }; // all borrows dropped here
 
                 // Now it's safe to perform mutable operations.
 
                 // Try a move that is unavailable using a copied maze.
                 let mut copied_maze = maze.clone();
+
+                let bad_move = unavailable_moves
+                    .first()
+                    .expect("Expected at least 1 unavailable move");
+
                 assert!(
-                    copied_maze
-                        .make_move(unavailable_moves.iter().next().unwrap())
-                        .is_err(),
-                    "Should not allow an unavailable move"
+                    copied_maze.make_move(*bad_move).is_err(),
+                    "Should not allow unavailable move {}",
+                    bad_move
                 );
-                
+
                 assert_eq!(
                     copied_maze.cells.iter().filter(|cell| cell.is_visited).count(),
                     1,
@@ -569,13 +571,8 @@ mod tests {
                 );
                 
                 // Try a valid move on the original maze.
-                assert!(
-                    maze
-                        .make_move(available_moves.iter().next().unwrap().as_str())
-                        .is_ok(),
-                    "Should allow a valid move"
-                );
-                
+                let next = available_moves.first().expect("There should be available moves"); 
+                assert!(maze.make_move(*next).is_ok(), "Should allow a valid move");
 
                 // Verify that exactly one cell is active.
                 assert_eq!(
