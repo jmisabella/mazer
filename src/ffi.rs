@@ -66,7 +66,7 @@ impl From<&Cell> for FFICell {
         let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
             .map(|direction| {
                 // Convert each Rust string into a raw C string.
-                CString::new(direction.to_string().clone())
+                CString::new(direction.to_string())
                     .unwrap()
                     .into_raw() as *const c_char
             })
@@ -267,33 +267,24 @@ pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
 pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_char) -> *mut c_void {
     // Safety: Ensure that both pointers are non-null.
     if grid_ptr.is_null() || direction.is_null() {
-        // Optionally, return a null pointer or handle errors in a way that your client (Swift)
-        // can understand.
+        // bad inputs -> null
         return ptr::null_mut();
     }
 
-    // Convert the opaque pointer back to a mutable reference to Grid.
+    // Reclaim the grid: convert the opaque pointer back to a mutable reference to Grid.
     #[allow(unused_unsafe)]
     let grid: &mut Grid = unsafe { &mut *(grid_ptr as *mut Grid) };
 
     // Convert the C string to a Rust &str.
     #[allow(unused_unsafe)]
-    let c_str_direction = unsafe { CStr::from_ptr(direction) };
-    let direction_str = match c_str_direction.to_str() {
-        Ok(s) => s,
-        Err(_) => {
-            // If the string conversion fails, return null or decide on an error handling strategy.
-            return ptr::null_mut();
-        }
-    };
-
-    let dir = match Direction::try_from(direction_str) {
-        Ok(d)   => d,
-        Err(_)  => return ptr::null_mut(),
-    };
-
-    // Call the make_move method on the mutable grid.
-    let _ = grid.make_move(dir);
+    let dir_str = unsafe { CStr::from_ptr(direction) }
+        .to_str()
+        .unwrap_or_default();
+        
+    if let Ok(dir) = Direction::try_from(dir_str) {
+        // attempt to move, but ignore the Err case
+        let _ = grid.make_move(dir);
+    }
 
     // Return the same pointer to the grid.
     grid_ptr
