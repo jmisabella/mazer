@@ -145,6 +145,30 @@ impl Grid {
         }
     }
 
+    /// Which directions would make_move reject *right now*?
+    pub fn unavailable_moves(&self) -> Vec<Direction> {
+        self.all_moves()
+            .iter()
+            .cloned()
+            .filter(|d| {
+                let mut copy = self.clone();
+                copy.make_move(*d).is_err()
+            })
+            .collect()
+    }
+
+    /// Which directions would make_move accept *right now*? 
+    pub fn effective_moves(&self) -> Vec<Direction> {
+        self.all_moves()
+            .iter()
+            .cloned()
+            .filter(|d| {
+                let mut copy = self.clone();
+                copy.make_move(*d).is_ok()
+            })
+            .collect()
+    }
+
     /// Manually make a user move to a specified direction.
     pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
         // Extract maze_type from self before borrowing any cells.
@@ -198,6 +222,18 @@ impl Grid {
                     // For "LowerRight", try LowerRight first then fall back to UpperRight.
                     try_direction(active_cell, &Direction::LowerRight)
                         .or_else(|| try_direction(active_cell, &Direction::UpperRight))
+                },
+                Direction::Up => {
+                    // For Up, try Up first then fall back to UpperLeft, then fail back to UpperRight.
+                    try_direction(active_cell, &Direction::Up)
+                        .or_else(|| try_direction(active_cell, &Direction::UpperLeft))
+                        .or_else(|| try_direction(active_cell, &Direction::UpperRight))
+                },
+                Direction::Down => {
+                    // For Down, try Down first then fall back to LowerLeft, then fail back to LowerRight.
+                    try_direction(active_cell, &Direction::Down)
+                        .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
+                        .or_else(|| try_direction(active_cell, &Direction::LowerRight))
                 },
                 // If the provided direction isn't one of the Delta-specific ones, use it as given.
                 _ => Some(direction.clone()),
@@ -1195,26 +1231,23 @@ mod tests {
         assert!(maze.is_perfect_maze().unwrap());
 
         // 1) Pull coords & open_walls in their own scope
-        let (original_coords, available_moves) = {
+        let (original_coords, _open_walls) = {
             let start = maze.get_active_cell()
                 .expect("Expected active start cell");
             (start.coords.clone(), start.open_walls.clone())
         }; // <— `start` (and its &mut borrow) dies here
 
         // 2) Now it’s safe to borrow `maze` again, immutably, to get all moves
-        let unavailable_moves: Vec<Direction> = maze
+        let _unavailable_moves: Vec<Direction> = maze
             .all_moves()                    // &'static [Direction]
             .iter()
-            .filter(|d| !available_moves.contains(d))
             .cloned()
+            .filter(|d| {
+                let mut copy = maze.clone();
+                copy.make_move(*d).is_err()
+            })
             .collect();
 
-        // You now have:
-        //   original_coords: Coordinates
-        //   available_moves: Vec<Direction>
-        //   unavailable_moves: Vec<Direction>
-
-    
         // sanity: only one visited
         assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 1);
         assert_eq!(maze.cells.iter().filter(|c| c.has_been_visited).count(), 1);
@@ -1222,20 +1255,22 @@ mod tests {
         // unavailable move must error
         {
             let mut copy = maze.clone();
-            let bad = &unavailable_moves[0];
-            assert!(copy.make_move(*bad).is_err(), "Should not allow {:?}", bad);
+            let bad = maze.unavailable_moves()[0];
+            assert!(copy.make_move(bad).is_err(), "Should not allow {:?}", bad);
         }
-    
+   
         // ===== 1) First forward move =====
-        let requested1 = &available_moves[0];
+        let initial_moves = maze.effective_moves(); 
+        assert!(!initial_moves.is_empty(), "Expected at least 1 valid move");
+        let requested1 = initial_moves[0];
         let actual1 = maze
-            .make_move(*requested1)
+            .make_move(requested1)
             .expect("First valid move should succeed");
         assert!(
-            available_moves.contains(&actual1),
+            initial_moves.contains(&actual1),
             "Returned {:?} must be one of {:?}",
             actual1,
-            available_moves
+            initial_moves
         );
         let cell_after_first = maze.get_active_cell().unwrap().coords.clone();
         assert_ne!(cell_after_first, original_coords);
