@@ -54,16 +54,23 @@ impl fmt::Display for Grid {
 }
 
 impl TryFrom<MazeRequest> for Grid {
-    type Error = crate::Error; // explicitly reference our custom Error type
+    type Error = crate::Error;
 
     fn try_from(request: MazeRequest) -> Result<Self, Self::Error> {
+        // decide start/goal, falling back to sensible defaults
+        let (start_coords, goal_coords) = match (request.start, request.goal) {
+            (Some(s), Some(g)) => (s, g),
+            _ => Grid::default_endpoints(request.width, request.height),
+        };
+
         let mut grid = Grid::new(
             request.maze_type,
             request.width,
             request.height,
-            request.start,
-            request.goal,
+            start_coords,
+            goal_coords,
         )?;
+
         request.algorithm.generate(&mut grid)?;
         Ok(grid)
     }
@@ -88,6 +95,24 @@ impl TryFrom<String> for Grid {
 }
 
 impl Grid {
+
+    ////// TODO: incorporate this behavior, to use these start/goal defaults when not specified in request
+    /// if height >= width, middle bottom → middle top,
+    /// otherwise middle left → middle right
+    pub fn default_endpoints(
+        width: usize,
+        height: usize,
+    ) -> (Coordinates, Coordinates) {
+        if height >= width {
+            let x = width / 2;
+            ( Coordinates { x, y: height - 1 },
+            Coordinates { x, y: 0 } )
+        } else {
+            let y = height / 2;
+            ( Coordinates { x: 0, y },
+            Coordinates { x: width - 1, y } )
+        }
+    }
 
     /// Get x,y coordinate's index in the flattened 1D vector
     pub fn get_flattened_index(&self, x: usize, y: usize) -> usize {
@@ -1056,6 +1081,26 @@ mod tests {
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
+    }
+
+
+    #[test]
+    fn render_maze_default_start_and_goal() {
+        let json = format!(r#"
+        {{
+            "maze_type": "Orthogonal",
+            "width": 12,
+            "height": 12,
+            "algorithm": "AldousBroder"
+        }}
+        "#);
+
+        let maze = Grid::try_from(json)
+            .expect("Unexpected error constructing maze");
+        
+        assert!(maze.is_perfect_maze().unwrap());
+        assert!(maze.goal_coords == Coordinates{ x: maze.width / 2, y: 0 });
+        assert!(maze.start_coords == Coordinates{ x: maze.width / 2, y: maze.height - 1 });
     }
 
     fn run_make_move_orthogonal_test(algorithm: &str) {

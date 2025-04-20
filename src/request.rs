@@ -9,8 +9,8 @@ pub struct MazeRequest {
     pub width: usize,
     pub height: usize,
     pub algorithm: MazeAlgorithm,
-    pub start: Coordinates,
-    pub goal: Coordinates,
+    pub start: Option<Coordinates>,
+    pub goal: Option<Coordinates>,
 }
 
 #[cfg(test)]
@@ -25,8 +25,8 @@ mod tests {
             width: 10,
             height: 10,
             algorithm: MazeAlgorithm::BinaryTree,
-            start: Coordinates { x: 0, y: 0 },
-            goal: Coordinates { x: 9, y: 9 },
+            start: Some(Coordinates { x: 0, y: 0 }),
+            goal: Some(Coordinates { x: 9, y: 9 }),
         };
 
         let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
@@ -54,7 +54,7 @@ mod tests {
         assert_eq!(request.width, 10);
         assert_eq!(request.height, 10);
         assert_eq!(request.algorithm, MazeAlgorithm::RecursiveBacktracker);
-        assert_eq!(request.start, Coordinates { x: 0, y: 0 });
-        assert_eq!(request.goal, Coordinates { x: 9, y: 9 });
+        assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
+        assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
     }
 }
