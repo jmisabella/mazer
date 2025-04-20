@@ -1083,6 +1083,26 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn render_maze_default_start_and_goal() {
+        let json = format!(r#"
+        {{
+            "maze_type": "Orthogonal",
+            "width": 12,
+            "height": 12,
+            "algorithm": "AldousBroder"
+        }}
+        "#);
+
+        let maze = Grid::try_from(json)
+            .expect("Unexpected error constructing maze");
+        
+        assert!(maze.is_perfect_maze().unwrap());
+        assert!(maze.goal_coords == Coordinates{ x: maze.width / 2, y: 0 });
+        assert!(maze.start_coords == Coordinates{ x: maze.width / 2, y: maze.height - 1 });
+    }
+
     fn run_make_move_orthogonal_test(algorithm: &str) {
         let json = format!(r#"
         {{
