@@ -14,7 +14,7 @@ use crate::direction::Direction;
 /// - `x`: The x-coordinate of the cell.
 /// - `y`: The y-coordinate of the cell.
 /// - `maze_type`: A pointer to a null-terminated C string identifying the maze type.
-/// - `linked`: A pointer to an array of null-terminated C strings representing linked cells.
+/// - `linked`: A pointer to an array of null-terminated C strings represe_ting linked cells.
 /// - `linked_len`: The number of elements in the `linked` array.
 /// - `distance`: An integer metric (e.g., the distance from the start).
 /// - `is_start`: Indicates if this cell is the starting cell.
@@ -271,23 +271,29 @@ pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_cha
         return ptr::null_mut();
     }
 
-    // Reclaim the grid: convert the opaque pointer back to a mutable reference to Grid.
+    // reclaim the grid: convert the opaque pointer back to a mutable reference to Grid.
     #[allow(unused_unsafe)]
     let grid: &mut Grid = unsafe { &mut *(grid_ptr as *mut Grid) };
 
-    // Convert the C string to a Rust &str.
-    #[allow(unused_unsafe)]
-    let dir_str = unsafe { CStr::from_ptr(direction) }
-        .to_str()
-        .unwrap_or_default();
-        
-    if let Ok(dir) = Direction::try_from(dir_str) {
-        // attempt to move, but ignore the Err case
-        let _ = grid.make_move(dir);
-    }
+    // convert the C string to a Rust &str.
+    let dir_str = match unsafe { CStr::from_ptr(direction) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
 
-    // Return the same pointer to the grid.
-    grid_ptr
+    let dir_enum = match Direction::try_from(dir_str) {
+        Ok(d) => d,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    // attempt the move
+    if grid.make_move(dir_enum).is_ok() {
+        // on successful move, return the same pointer to the grid.
+        grid_ptr
+    } else {
+        eprintln!("mazer_make_move failed on {:?} at {:?}", dir_enum, grid_ptr);
+        std::ptr::null_mut()
+    }
 }
 
 /// Verifies FFI connectivity.
@@ -496,13 +502,13 @@ mod tests {
                 let direction = CString::new("Up").expect("CString::new failed");
 
                 // Call the FFI function within an unsafe block.
-                let updated_ptr = mazer_make_move(grid_ptr, direction.as_ptr());
+                let unsuccessful_move_ptr = mazer_make_move(grid_ptr, direction.as_ptr());
 
-                // Check that the returned pointer is not null.
-                assert!(!updated_ptr.is_null());
+                // Check that the result didn't succeed to move to a different cell 
+                assert!(unsuccessful_move_ptr.is_null());
 
-                // convert the pointer back to a Rust mutable reference.
-                let maze: &mut Grid = unsafe { &mut *(updated_ptr as *mut Grid) };
+                // Convert the pointer back to a Rust mutable reference.
+                let maze: &mut Grid = unsafe { &mut *(grid_ptr as *mut Grid) };
                 
                 assert!(maze.is_perfect_maze().unwrap());
                 println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
