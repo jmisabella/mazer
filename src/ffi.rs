@@ -1,9 +1,15 @@
+use std::collections::HashSet;
 use std::ptr;
+use std::slice;
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_void};
+use std::os::raw::{c_char, c_void, c_uint};
 use crate::grid::Grid;
-use crate::cell::Cell;
+use crate::cell::{Cell, CellOrientation};
 use crate::direction::Direction;
+use crate::render::*;
+use crate::render::delta::*;
+use crate::render::sigma::*;
+use crate::render::heatmap::*;
 
 
 /// Representation of a cell for the FFI layer.
@@ -120,6 +126,8 @@ impl Drop for FFICell {
         }
     }
 }
+
+
 
 /// Generates a maze from a JSON request.
 ///
@@ -294,6 +302,86 @@ pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_cha
         eprintln!("mazer_make_move failed on {:?} at {:?}", dir_enum, grid_ptr);
         std::ptr::null_mut()
     }
+}
+
+/// A 2-tuple of vertex indices for one wall segment.
+#[repr(C)]
+pub struct EdgePair {
+    pub first: usize,
+    pub second: usize,
+}
+
+/// A pointer+length describing an array of `EdgePair`s.
+#[repr(C)]
+pub struct EdgePairs {
+    pub ptr: *mut EdgePair,
+    pub len: usize,
+}
+
+/// Frees an EdgePairs buffer previously returned by `mazer_delta_wall_segments`.
+#[no_mangle]
+pub extern "C" fn mazer_free_edge_pairs(ep: EdgePairs) {
+    if ep.ptr.is_null() { return; }
+    // reconstruct the Vec to drop it
+    unsafe { Vec::from_raw_parts(ep.ptr, ep.len, ep.len); }
+}
+
+/// C-ABI wrapper for `delta_wall_segments`.
+///
+/// - `linked_dirs` is a pointer to an array of `u32` codes (one per direction).
+///   Each code should match the `as u32` of your `Direction` enum variants (see below).
+/// - `linked_len` is the length of that array.
+/// - `orientation_code` is 0 for Normal, 1 for Inverted (matching `CellOrientation as u32`).
+/// 
+/// Returns an `EdgePairs` (pointer+length) you must later free by calling
+/// `mazer_free_edge_pairs`.
+#[no_mangle]
+pub extern "C" fn mazer_delta_wall_segments(
+    linked_dirs: *const c_uint,
+    linked_len: usize,
+    orientation_code: c_uint,
+) -> EdgePairs {
+    // 1) Reconstruct the incoming slice of u32 codes
+    let slice = unsafe { slice::from_raw_parts(linked_dirs, linked_len) };
+    let mut linked: HashSet<Direction> = HashSet::with_capacity(linked_len);
+    
+    // 2) Convert each u32 → Direction
+    for &code in slice {
+        if let Ok(dir) = Direction::try_from(code) {
+            linked.insert(dir);
+        }
+    }
+
+    // 3) Convert the orientation code into your enum
+    let orientation = match orientation_code {
+        0 => CellOrientation::Normal,
+        1 => CellOrientation::Inverted,
+        _ => CellOrientation::Normal,  // fallback
+    };
+
+    // 4) Call the pure-Rust logic
+    let segments = delta_wall_segments(&linked, orientation);
+
+    // 5) Move into a C buffer
+    let mut v: Vec<EdgePair> = segments
+        .into_iter()
+        .map(|(a, b)| EdgePair { first: a, second: b })
+        .collect();
+
+    let len = v.len();
+    let ptr = v.as_mut_ptr();
+    std::mem::forget(v);
+
+    EdgePairs { ptr, len }
+}
+
+/// C-ABI wrapper for `shade_index(distance, max_distance) ⇒ usize`
+#[no_mangle]
+pub extern "C" fn mazer_shade_index(
+    distance: usize,
+    max_distance: usize,
+) -> usize {
+    shade_index(distance, max_distance)
 }
 
 /// Verifies FFI connectivity.

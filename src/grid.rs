@@ -1559,5 +1559,68 @@ mod tests {
         run_make_move_delta_test("Wilsons");
     }
 
+    /// Manually linking two cells should produce a bidirectional link.
+    #[test]
+    fn test_manual_link_is_bidirectional() {
+        let mut grid = Grid::new(
+            MazeType::Orthogonal,
+            3,
+            3,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 2, y: 2 },
+        ).unwrap();
+
+        let a = Coordinates { x: 0, y: 1 };
+        let b = Coordinates { x: 1, y: 1 };
+
+        grid.link(a, b).unwrap();
+
+        let cell_a = grid.get(a).unwrap();
+        let cell_b = grid.get(b).unwrap();
+
+        assert!(
+            cell_a.linked.contains(&b),
+            "cell at {:?} should be linked to {:?}",
+            a,
+            b
+        );
+        assert!(
+            cell_b.linked.contains(&a),
+            "cell at {:?} should be linked to {:?}",
+            b,
+            a
+        );
+    }
+
+    /// Any link created by the maze‐generation algorithm must also be bidirectional.
+    #[test]
+    fn test_generated_maze_links_are_bidirectional() {
+        // Use a small perfect maze so we know it's fully linked
+        let json = r#"
+        {
+            "maze_type": "Sigma",
+            "width": 99,
+            "height": 99,
+            "algorithm": "RecursiveBacktracker",
+            "start": { "x": 0, "y": 0 },
+            "goal":  { "x": 98, "y": 98 }
+        }
+        "#;
+        let maze = Grid::try_from(json).unwrap();
+
+        for cell in &maze.cells {
+            for &neighbor_coords in &cell.linked {
+                let neighbor = maze.get(neighbor_coords).unwrap();
+                assert!(
+                    neighbor.linked.contains(&cell.coords),
+                    "Link not mutual: {:?} → {:?} exists but not {:?} → {:?}",
+                    cell.coords,
+                    neighbor.coords,
+                    neighbor.coords,
+                    cell.coords
+                );
+            }
+        }
+    }
 
 }
