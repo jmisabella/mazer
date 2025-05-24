@@ -31,8 +31,8 @@ pub fn sigma_wall_segments(
     for &dir in Direction::sigma_neighbors().iter() {
         let (dq, dr) = dir.offset_delta(is_odd);
         // Compute neighbor coordinates, checking for underflow/overflow
-        let x = (q as isize + dq);
-        let y = (r as isize + dr);
+        let x = q as isize + dq;
+        let y = r as isize + dr;
         // Skip if coordinates are negative or out of bounds
         if x < 0 || y < 0 || x >= grid.width as isize || y >= grid.height as isize {
             continue;
@@ -74,7 +74,6 @@ pub fn sigma_wall_segments(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{HashMap, HashSet};
     use crate::cell::{Cell, Coordinates, CellOrientation, MazeType};
 
     #[test]

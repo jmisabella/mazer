@@ -92,7 +92,7 @@ FFICell* mazer_get_cells(Grid *maze, size_t *length);
  */
 void mazer_free_cells(FFICell *ptr, size_t length);
 
-i/**
+/**
  * Frees an array of Coordinates previously allocated by mazer_solution_path_order.
  *
  * This function deallocates the memory for an array of FFICoordinates that was previously

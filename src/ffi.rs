@@ -12,6 +12,20 @@ use crate::render::delta::*;
 use crate::render::sigma::*;
 use crate::render::heatmap::*;
 
+/// A 2-tuple of vertex indices for one wall segment.
+#[repr(C)]
+pub struct EdgePair {
+    pub first: usize,
+    pub second: usize,
+}
+
+/// A pointer+length describing an array of `EdgePair`s.
+#[repr(C)]
+pub struct EdgePairs {
+    pub ptr: *mut EdgePair,
+    pub len: usize,
+}
+
 
 /// Representation of a cell for the FFI layer.
 ///
@@ -344,20 +358,6 @@ pub extern "C" fn mazer_solution_path_order(grid: *const Grid, out_length: *mut 
     std::mem::forget(boxed_slice); // Prevent Rust from freeing it
     unsafe { *out_length = len }; // Set the length for the caller
     ptr
-}
-
-/// A 2-tuple of vertex indices for one wall segment.
-#[repr(C)]
-pub struct EdgePair {
-    pub first: usize,
-    pub second: usize,
-}
-
-/// A pointer+length describing an array of `EdgePair`s.
-#[repr(C)]
-pub struct EdgePairs {
-    pub ptr: *mut EdgePair,
-    pub len: usize,
 }
 
 
