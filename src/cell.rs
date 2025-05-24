@@ -46,6 +46,7 @@ impl fmt::Display for MazeType {
     }
 }
 
+#[repr(u32)]
 #[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CellOrientation {
     Normal,
