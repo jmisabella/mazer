@@ -3,10 +3,6 @@ use std::collections::HashSet;
 use crate::cell::CellOrientation;
 use crate::direction::Direction;
 
-fn triangle_height(cell_size: f32) -> f32 {
-    cell_size * (3.0f32).sqrt() / 2.0
-}
-
 fn triangle_unit_points(inverted: bool) -> [(f32, f32); 3] {
     let h = (3.0f32).sqrt() / 2.0;
     if inverted { 
@@ -48,23 +44,4 @@ pub fn delta_wall_segments(
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_triangle_height_unit() {
-        // for cell_size = 2.0, height == sqrt(3)
-        let h = triangle_height(2.0);
-        let expected = (3.0f32).sqrt();
-        assert!((h - expected).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_triangle_height_various() {
-        // arbitrary values
-        for &size in &[0.0_f32, 1.0, 4.5, 10.0] {
-            let h = triangle_height(size);
-            let expected = size * (3.0_f32).sqrt() / 2.0;
-            // 1e-6 is scientific notation, for 1 x 10 to the negative 6th, or 0.000001
-            assert!((h - expected).abs() < 1e-6,
-                "size {} → got {}, expected {}", size, h, expected);
-        }
-    }
 }
