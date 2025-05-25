@@ -134,19 +134,6 @@ void mazer_free_edge_pairs(EdgePairs ep);
 FFICoordinates* mazer_solution_path_order(Grid* grid, size_t* out_length);
 
 /**
- * Computes the height of an equilateral triangle given its side length.
- *
- * This function calculates the height of an equilateral triangle based on the provided
- * side length, using the formula height = (sqrt(3) / 2) * cell_size. It is a pure
- * mathematical utility for geometric calculations, such as in triangular maze rendering,
- * and does not depend on the maze grid.
- *
- * @param cell_size The side length of the equilateral triangle as a float.
- * @return The height of the triangle as a float.
- */
-float mazer_triangle_height(float cell_size);
-
-/**
  * Computes wall segments for a delta (triangular) cell.
  *
  * This function determines the wall segments of a triangular cell, returning an EdgePairs
