@@ -147,6 +147,22 @@ FFICoordinates* mazer_solution_path_order(Grid* grid, size_t* out_length);
 float mazer_triangle_height(float cell_size);
 
 /**
+ * Computes wall segments for a delta (triangular) cell.
+ *
+ * This function determines the wall segments of a triangular cell, returning an EdgePairs
+ * structure containing vertex index pairs to be drawn as walls. The caller must free the
+ * returned structure using mazer_free_edge_pairs. The linked_dirs array contains u32 codes
+ * matching the Direction enum variants, with linked_len specifying the array length.
+ * orientation_code is 0 for Normal, 1 for Inverted.
+ *
+ * @param linked_dirs A pointer to an array of u32 codes for linked directions.
+ * @param linked_len The length of the linked_dirs array.
+ * @param orientation_code The cell orientation (0 for Normal, 1 for Inverted).
+ * @return An EdgePairs structure with vertex index pairs, or one with ptr = NULL if inputs are invalid.
+ */
+EdgePairs mazer_delta_wall_segments(const uint32_t* linked_dirs, size_t linked_len, uint32_t orientation_code);
+
+/**
  * Computes wall segments for a sigma (hexagonal) cell in the maze grid.
  *
  * This function determines the wall segments of a hexagonal cell within the maze grid,
