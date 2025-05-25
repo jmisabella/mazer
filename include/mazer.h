@@ -59,6 +59,19 @@ typedef struct {
 Grid* mazer_generate_maze(const char *request_json);
 
 /**
+ * Updates the maze by performing a move in the specified direction.
+ *
+ * This function takes an opaque pointer to the mutable Grid and a null-terminated
+ * C string that indicates the direction for the move. It calls the internal `make_move`
+ * function on the Grid instance and returns an updated opaque pointer.
+ *
+ * @param grid_ptr A pointer to the mutable Grid.
+ * @param direction A null-terminated C string indicating the move direction.
+ * @return A pointer to the updated `Grid` instance if successful, or a null pointer if an error occurs.
+ */
+void* mazer_make_move(void* grid_ptr, const char* direction);
+
+/**
  * Destroys a maze instance.
  *
  * This function deallocates the memory and any associated resources for the given maze (Grid).
@@ -164,17 +177,18 @@ EdgePairs mazer_delta_wall_segments(const uint32_t* linked_dirs, size_t linked_l
 EdgePairs mazer_sigma_wall_segments(Grid* grid, FFICoordinates cell_coords);
 
 /**
- * Updates the maze by performing a move in the specified direction.
+ * Computes the shade index for a maze cell's heat map visualization.
  *
- * This function takes an opaque pointer to the mutable Grid and a null-terminated
- * C string that indicates the direction for the move. It calls the internal `make_move`
- * function on the Grid instance and returns an updated opaque pointer.
+ * Given a cell's distance to the goal and the maximum distance to the goal in the maze,
+ * this function calculates an index (0–9) used to select a gradient shade for the heat map.
+ * The index is computed by scaling the distance relative to the max distance, ensuring the
+ * result is clamped to the valid range.
  *
- * @param grid_ptr A pointer to the mutable Grid.
- * @param direction A null-terminated C string indicating the move direction.
- * @return A pointer to the updated `Grid` instance if successful, or a null pointer if an error occurs.
+ * @param distance The distance from the cell to the goal (non-negative integer).
+ * @param max_distance The maximum distance to the goal in the maze (non-negative integer).
+ * @return An integer index (0–9) for selecting a shade, or 0 if max_distance is 0.
  */
-void* mazer_make_move(void* grid_ptr, const char* direction);
+size_t mazer_shade_index(size_t distance, size_t max_distance);
 
 /**
  * To verify FFI connectivity, call verify this returns 42.
