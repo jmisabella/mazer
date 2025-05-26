@@ -117,6 +117,7 @@ fn test_aldous_broder_delta_12_x_24_maze_generation_from_json() {
     }
 }
 
+
 #[test]
 fn test_aldous_broder_sigma_12_x_24_maze_generation_from_json() {
     let json = r#"
