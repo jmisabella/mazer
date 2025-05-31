@@ -103,7 +103,8 @@ impl Grid {
         width: usize,
         height: usize,
     ) -> (Coordinates, Coordinates) {
-        if height >= width {
+        // stronger preference towards start/goal coords being bottom/top rows
+        if height as f64 * 1.35 >= width as f64 {
             let x = width / 2;
             ( Coordinates { x, y: height - 1 },
             Coordinates { x, y: 0 } )
@@ -194,127 +195,6 @@ impl Grid {
             .collect()
     }
 
-    // /// Manually make a user move to a specified direction.
-    // pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
-    //     // Extract maze_type from self before borrowing any cells.
-    //     let maze_type = self.maze_type;  // Assumes MazeType is Copy or implements Clone.
-    //     
-    //     // Get the current active cell and record its coordinates.
-    //     let active_cell = self.get_active_cell()?;
-    //     let original_coords = active_cell.coords;
-
-    //     // Determine the effective direction to use, accounting for Delta maze fallback logic.
-    //     let picked: Option<Direction> = if maze_type == MazeType::Delta {
-    //         // Define a helper closure: it checks whether a candidate move is both open (in open_walls)
-    //         // and valid (exists in neighbors_by_direction).
-    //         let try_direction = |cell: &Cell, cand: &Direction| -> Option<Direction> {
-    //             if cell.open_walls.contains(&cand)
-    //                 && cell.neighbors_by_direction.contains_key(cand)
-    //             {
-    //                 Some(cand.clone())
-    //             } else {
-    //                 None
-    //             }
-    //         };
-
-    //         match direction {
-    //             Direction::Left => {
-    //                 // For "Left", try UpperLeft first then LowerLeft.
-    //                 try_direction(active_cell, &Direction::UpperLeft)
-    //                     .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
-    //             },
-    //             Direction::Right => {
-    //                 // For "Right", try UpperRight first then LowerRight.
-    //                 try_direction(active_cell, &Direction::UpperRight)
-    //                     .or_else(|| try_direction(active_cell, &Direction::LowerRight))
-    //             },
-    //             Direction::UpperLeft =>{
-    //                 // For "UpperLeft", try UpperLeft first then fall back to Up.
-    //                 try_direction(active_cell, &Direction::UpperLeft)
-    //                     .or_else(|| try_direction(active_cell, &Direction::Up))
-    //             },
-    //             Direction::LowerLeft => {
-    //                 // For "LowerLeft", try LowerLeft first then fall back to Down.
-    //                 try_direction(active_cell, &Direction::LowerLeft)
-    //                     .or_else(|| try_direction(active_cell, &Direction::Down))
-    //             },
-    //             Direction::UpperRight => {
-    //                 // For "UpperRight", try UpperRight first then fall back to Up.
-    //                 try_direction(active_cell, &Direction::UpperRight)
-    //                     .or_else(|| try_direction(active_cell, &Direction::Up))
-    //             },
-    //             Direction::LowerRight => {
-    //                 // For "LowerRight", try LowerRight first then fall back to UpperRight.
-    //                 try_direction(active_cell, &Direction::LowerRight)
-    //                     .or_else(|| try_direction(active_cell, &Direction::UpperRight))
-    //             },
-    //             Direction::Up => {
-    //                 // For Up, try Up first then fall back to UpperLeft, then fail back to UpperRight.
-    //                 try_direction(active_cell, &Direction::Up)
-    //                     .or_else(|| try_direction(active_cell, &Direction::UpperLeft))
-    //                     .or_else(|| try_direction(active_cell, &Direction::UpperRight))
-    //             },
-    //             Direction::Down => {
-    //                 // For Down, try Down first then fall back to LowerLeft, then fail back to LowerRight.
-    //                 try_direction(active_cell, &Direction::Down)
-    //                     .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
-    //                     .or_else(|| try_direction(active_cell, &Direction::LowerRight))
-    //             },
-    //             // If the provided direction isn't one of the Delta-specific ones, use it as given.
-    //             _ => Some(direction.clone()),
-    //         }
-    //     } else {
-    //         // For non-Delta maze types, simply use the provided direction.
-    //         Some(direction.clone())
-    //     };
-
-    //     let effective_direction = picked
-    //         .ok_or_else(|| Error::MoveUnavailable {
-    //             attempted_move: direction,
-    //             available_moves: active_cell.open_walls.clone(),
-    //         })?;
-
-    //     // this is the actual move made successfully, should be returned (used to programmatically backtrack Delta mazes, for example)
-    //     let actual_move = effective_direction.clone();
-
-    //     // Optional: Verify that the effective direction is valid.
-    //     if !active_cell.open_walls.contains(&effective_direction) {
-    //         return Err(Error::MoveUnavailable {
-    //             attempted_move: effective_direction.clone(),
-    //             available_moves: active_cell.open_walls.clone(),
-    //         });
-    //     }
-
-    //     // Get the neighbor coordinate based on the effective direction.
-    //     let neighbor_coords = *active_cell.neighbors_by_direction.get(&effective_direction)
-    //         .ok_or(Error::InvalidDirection { direction: effective_direction.to_string() })?;
-
-    //     // Determine whether this move is a backtracking move by checking if the neighbor is already visited.
-    //     let going_back: bool;
-    //     {
-    //         // Mutably borrow the next cell.
-    //         let next_cell = self.get_mut(neighbor_coords)?;
-    //         going_back = next_cell.is_visited;  // If already visited, then we're going backward.
-    //         if !going_back {
-    //             // For a forward move: mark the new cell as visited.
-    //             next_cell.set_visited(true);
-    //         }
-    //         // Mark the new cell as active.
-    //         next_cell.set_active(true);
-    //     }
-    //     {
-    //         // Now handle the previously active cell.
-    //         let previous_cell = self.get_mut(original_coords)?;
-    //         if going_back {
-    //             // For a backtracking move: unvisit the cell that we are leaving.
-    //             previous_cell.set_visited(false);
-    //         }
-    //         // Mark the previous cell as no longer active.
-    //         previous_cell.set_active(false);
-    //     }
-    //     Ok(actual_move)
-    // }
-    
     /// Manually make a user move to a specified direction.
     pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
         // Get the current active cell and record its coordinates.
