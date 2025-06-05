@@ -698,6 +698,24 @@ impl Grid {
         Ok(())
     }
 
+    /// Unlink two cells by their coordinates, removing the connection between them.
+    pub fn unlink(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
+        let (row1, col1) = (coord1.y, coord1.x);
+        let (row2, col2) = (coord2.y, coord2.x);
+
+        // Unlink cell at coord1 from cell at coord2.
+        {
+            let cell1 = self.get_mut_by_coords(col1, row1)?;
+            cell1.linked.remove(&coord2);
+        }
+        // Unlink cell at coord2 from cell at coord1.
+        {
+            let cell2 = self.get_mut_by_coords(col2, row2)?;
+            cell2.linked.remove(&coord1);
+        }
+        Ok(())
+    }
+
     /// Get a map of distances from the start coordinate to all other connected coordinates.
     pub fn distances(&self, start: Coordinates) -> HashMap<Coordinates, u32> {
         // Define a closure that returns the linked (neighbor) coordinates for a given coordinate.
@@ -912,6 +930,67 @@ mod tests {
                 // many cells are walled-off and unreachable, not a perfect maze 
                 assert!(!grid.is_perfect_maze().unwrap());
                 println!("\n\n{}\n\n", grid.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn unlink_cells_in_orthogonal_grid() {
+        match Grid::new(
+            MazeType::Orthogonal,
+            4,
+            4,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 3, y: 3 },
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
+                let cell2 = grid.get_by_coords(0, 1).unwrap().coords;
+
+                // Link cells
+                grid.link(cell1, cell2).unwrap();
+                assert!(grid.get(cell1).unwrap().linked.contains(&cell2));
+                assert!(grid.get(cell2).unwrap().linked.contains(&cell1));
+
+                // Unlink cells
+                grid.unlink(cell1, cell2).unwrap();
+                assert!(!grid.get(cell1).unwrap().linked.contains(&cell2));
+                assert!(!grid.get(cell2).unwrap().linked.contains(&cell1));
+                assert!(!grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn unlink_multiple_cells_in_orthogonal_grid() {
+        match Grid::new(
+            MazeType::Orthogonal,
+            4,
+            4,
+            Coordinates { x: 0, y: 0 },
+            Coordinates { x: 3, y: 3 },
+        ) {
+            Ok(mut grid) => {
+                let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
+                let cell2 = grid.get_by_coords(0, 1).unwrap().coords;
+                let cell3 = grid.get_by_coords(1, 1).unwrap().coords;
+                let cell4 = grid.get_by_coords(1, 2).unwrap().coords;
+
+                // Link cells in a chain
+                grid.link(cell1, cell2).unwrap();
+                grid.link(cell2, cell3).unwrap();
+                grid.link(cell3, cell4).unwrap();
+                assert_eq!(grid.count_edges(), 3);
+
+                // Unlink one pair
+                grid.unlink(cell2, cell3).unwrap();
+                assert!(grid.get(cell1).unwrap().linked.contains(&cell2));
+                assert!(!grid.get(cell2).unwrap().linked.contains(&cell3));
+                assert!(!grid.get(cell3).unwrap().linked.contains(&cell2));
+                assert!(grid.get(cell3).unwrap().linked.contains(&cell4));
+                assert_eq!(grid.count_edges(), 2);
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }

@@ -10,6 +10,11 @@ use crate::algorithms::aldous_broder::AldousBroder;
 use crate::algorithms::wilsons::Wilsons;
 use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
+use crate::algorithms::prims::Prims;
+use crate::algorithms::kruskals::Kruskals;
+use crate::algorithms::growing_tree::GrowingTree;
+use crate::algorithms::ellers::Ellers;
+use crate::algorithms::recursive_division::RecursiveDivision;
 
 pub mod binary_tree;
 pub mod sidewinder;
@@ -17,6 +22,11 @@ pub mod aldous_broder;
 pub mod wilsons;
 pub mod hunt_and_kill;
 pub mod recursive_backtracker;
+pub mod prims;
+pub mod kruskals;
+pub mod growing_tree;
+pub mod ellers;
+pub mod recursive_division;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MazeAlgorithm {
@@ -25,7 +35,12 @@ pub enum MazeAlgorithm {
     AldousBroder,
     Wilsons,
     HuntAndKill,
-    RecursiveBacktracker
+    RecursiveBacktracker,
+    Prims,
+    Kruskals,
+    GrowingTree,
+    Ellers,
+    RecursiveDivision,
 }
 
 impl MazeAlgorithm {
@@ -37,6 +52,11 @@ impl MazeAlgorithm {
             MazeAlgorithm::Wilsons => Wilsons.build(grid),
             MazeAlgorithm::HuntAndKill => HuntAndKill.build(grid),
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.build(grid),
+            MazeAlgorithm::Prims => Prims.build(grid),
+            MazeAlgorithm::Kruskals => Kruskals.build(grid),
+            MazeAlgorithm::GrowingTree => GrowingTree.build(grid),
+            MazeAlgorithm::Ellers => Ellers.build(grid),
+            MazeAlgorithm::RecursiveDivision => RecursiveDivision.build(grid),
         }
     }
 }

@@ -19,7 +19,7 @@ mod tests {
     use serde_json;
 
     #[test]
-    fn test_serialization() {
+    fn test_serialization_of_binary_tree_orthogonal() {
         let request = MazeRequest {
             maze_type: MazeType::Orthogonal,
             width: 10,
@@ -36,7 +36,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialization() {
+    fn test_deserialization_of_recursive_backtracker_orthogonal() {
         let json = r#"
         {
             "maze_type": "Orthogonal",
@@ -57,4 +57,46 @@ mod tests {
         assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
         assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
     }
+
+    #[test]
+    fn test_serialization_of_ellers_orthogonal() {
+        let request = MazeRequest {
+            maze_type: MazeType::Orthogonal,
+            width: 10,
+            height: 10,
+            algorithm: MazeAlgorithm::Ellers,
+            start: Some(Coordinates { x: 0, y: 0 }),
+            goal: Some(Coordinates { x: 9, y: 9 }),
+        };
+
+        let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
+        assert!(json.contains("\"algorithm\":\"Ellers\""));
+        assert!(json.contains("\"width\":10"));
+        assert!(json.contains("\"height\":10"));
+    }
+
+    #[test]
+    fn test_deserialization_of_recursive_division_sigma() {
+        let json = r#"
+        {
+            "maze_type": "Sigma",
+            "width": 10,
+            "height": 10,
+            "algorithm": "RecursiveDivision",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 9, "y": 9 }
+        }
+        "#;
+
+        let request: MazeRequest = serde_json::from_str(json).expect("Failed to deserialize MazeRequest");
+
+        assert_eq!(request.maze_type, MazeType::Sigma);
+        assert_eq!(request.width, 10);
+        assert_eq!(request.height, 10);
+        assert_eq!(request.algorithm, MazeAlgorithm::RecursiveDivision);
+        assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
+        assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
+    }
+
+
 }
