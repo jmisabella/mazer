@@ -151,6 +151,23 @@ mod tests {
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
+
+    #[test]
+    fn test_sidewinder_with_capture_steps() {
+        let start = Coordinates { x: 0, y: 0 };
+        let goal = Coordinates { x: 11, y: 11 };
+        match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                Sidewinder.generate(&mut grid).expect("Maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+                assert!(grid.generation_steps.is_some());
+                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+            }
+            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+
 }
 
 

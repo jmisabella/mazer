@@ -1,3 +1,4 @@
+
 use crate::behaviors::maze::MazeGeneration;
 use crate::grid::Grid;
 use crate::cell::Coordinates;
@@ -167,8 +168,24 @@ mod tests {
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
-}
 
+    #[test]
+    fn test_recursive_backtracker_with_capture_steps() {
+        let start = Coordinates { x: 0, y: 0 };
+        let goal = Coordinates { x: 19, y: 19 };
+        match Grid::new(MazeType::Orthogonal, 20, 20, start, goal, true) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                RecursiveBacktracker.generate(&mut grid).expect("Maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+                assert!(grid.generation_steps.is_some());
+                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+            }
+            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+
+}
 
 // use crate::behaviors::maze::MazeGeneration;
 // use crate::grid::Grid;
@@ -325,6 +342,21 @@ mod tests {
 //         }
 //     }
 
+//     #[test]
+//     fn test_recursive_backtracker_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 19, y: 19 };
+//         match Grid::new(MazeType::Orthogonal, 20, 20, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 RecursiveBacktracker.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
 
 // }
 
