@@ -249,6 +249,48 @@ pub extern "C" fn mazer_free_cells(ptr: *mut FFICell, length: usize) {
     }
 }
 
+/// Returns the number of generation steps if capture_steps is enabled.
+#[no_mangle]
+pub extern "C" fn mazer_get_generation_steps_count(grid: *mut Grid) -> usize {
+    if grid.is_null() {
+        return 0;
+    }
+    let grid = unsafe { &*grid };
+    if let Some(steps) = &grid.generation_steps {
+        steps.len()
+    } else {
+        0
+    }
+}
+
+/// Returns the cells for a specific generation step.
+#[no_mangle]
+pub extern "C" fn mazer_get_generation_step_cells(
+    grid: *mut Grid,
+    step_index: usize,
+    length: *mut usize,
+) -> *mut FFICell {
+    if grid.is_null() || length.is_null() {
+        return std::ptr::null_mut();
+    }
+    let grid = unsafe { &*grid };
+    if let Some(steps) = &grid.generation_steps {
+        if step_index < steps.len() {
+            let step_grid = &steps[step_index];
+            let ffi_cells: Vec<FFICell> = step_grid.cells.iter().map(FFICell::from).collect();
+            let len = ffi_cells.len();
+            unsafe {
+                *length = len;
+            }
+            Box::into_raw(ffi_cells.into_boxed_slice()) as *mut FFICell
+        } else {
+            std::ptr::null_mut()
+        }
+    } else {
+        std::ptr::null_mut()
+    }
+}
+
 /// Performs a move on the maze grid based on the provided direction.
 ///
 /// This function takes an opaque pointer to a mutable `Grid` instance and a null-terminated C string
