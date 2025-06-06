@@ -79,7 +79,7 @@ mod tests {
     
     #[test]
     fn print_5_x_5_maze() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Sidewinder.generate(&mut grid).expect("Sidewinder maze generation failed");
@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn print_12_x_6_maze() {
-        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Sidewinder.generate(&mut grid).expect("Sidewinder maze generation failed");
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn reject_5_x_5_delta_binary_tree_maze() {
-        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 match Sidewinder.generate(&mut grid) {
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn reject_5_x_5_sigma_binary_tree_maze() {
-        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 match Sidewinder.generate(&mut grid) {

@@ -18,9 +18,6 @@ impl MazeGeneration for RecursiveDivision {
             }
         }
 
-        // Start with a grid with no links (all walls present)
-        // Grid::new initializes cells with no links by default
-
         // Recursively divide the grid
         self.divide(grid, 0, 0, grid.width, grid.height)?;
 
@@ -146,7 +143,7 @@ mod tests {
 
     #[test]
     fn generate_and_print_5_x_5_orthogonal_maze() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveDivision.generate(&mut grid).expect("Recursive Division maze generation failed");
@@ -160,7 +157,7 @@ mod tests {
 
     #[test]
     fn generate_and_print_12_x_6_orthogonal_maze() {
-        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 RecursiveDivision.generate(&mut grid).expect("Recursive Division maze generation failed");
@@ -174,7 +171,7 @@ mod tests {
 
     #[test]
     fn reject_5_x_5_delta_recursive_division_maze() {
-        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 match RecursiveDivision.generate(&mut grid) {
@@ -188,7 +185,7 @@ mod tests {
 
     #[test]
     fn reject_5_x_5_sigma_recursive_division_maze() {
-        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 match RecursiveDivision.generate(&mut grid) {
@@ -202,7 +199,7 @@ mod tests {
 
     #[test]
     fn reject_12_x_12_polar_recursive_division_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }) {
+        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 match RecursiveDivision.generate(&mut grid) {

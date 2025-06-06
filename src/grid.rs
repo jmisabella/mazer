@@ -31,6 +31,10 @@ pub struct Grid {
     pub start_coords: Coordinates,
     /// The coordinates of the goal cell within the grid.
     pub goal_coords: Coordinates,
+
+    pub capture_steps: bool,
+
+    pub generation_steps: Option<Vec<Grid>>,
 }
 
 
@@ -69,6 +73,7 @@ impl TryFrom<MazeRequest> for Grid {
             request.height,
             start_coords,
             goal_coords,
+            request.capture_steps.unwrap_or_default(),
         )?;
 
         request.algorithm.generate(&mut grid)?;
@@ -445,7 +450,8 @@ impl Grid {
         width: usize, 
         height: usize, 
         start: Coordinates, 
-        goal: Coordinates
+        goal: Coordinates,
+        capture_steps: bool,
     ) -> Result<Self, Error> {
         let seed = Self::generate_seed(width, height);
 
@@ -458,6 +464,8 @@ impl Grid {
             seed, 
             start_coords: start, 
             goal_coords: goal,
+            capture_steps: capture_steps,
+            generation_steps: if capture_steps { Some(Vec::new()) } else { None }, 
         };
 
         // Generate different types of cells based on maze_type.
@@ -856,7 +864,7 @@ mod tests {
 
     #[test]
     fn init_orthogonal_grid() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates{x:0, y:0}, Coordinates{x:3, y:3}, false) {
             Ok(grid) => {
                 assert!(grid.cells.len() != 0);
                 assert!(grid.cells.len() == 4 * 4);
@@ -875,6 +883,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(grid) => {
                 let cell1 = grid.get(Coordinates { x: 0, y: 0 }).unwrap();
@@ -911,6 +920,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(mut grid) => {
                 let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
@@ -943,6 +953,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(mut grid) => {
                 let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
@@ -971,6 +982,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(mut grid) => {
                 let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
@@ -1004,6 +1016,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(mut grid) => {
                 let cell1 = grid.get_by_coords(0, 0).unwrap().coords;
@@ -1039,6 +1052,7 @@ mod tests {
             4,
             Coordinates { x: 0, y: 0 },
             Coordinates { x: 3, y: 3 },
+            false,
         ) {
             Ok(grid) => {
                 let initial_cells = grid.cells.clone();
@@ -1055,7 +1069,7 @@ mod tests {
 
     #[test]
     fn test_perfect_maze_detection() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 let _ = grid.link(grid.get_by_coords(0, 0).unwrap().coords, grid.get_by_coords(1, 0).unwrap().coords);
@@ -1099,7 +1113,7 @@ mod tests {
 
     #[test]
     fn test_get_path_to() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 let _ = grid.link(Coordinates { x: 0, y: 0 }, Coordinates { x: 0, y: 1 });
                 let _ = grid.link(Coordinates { x: 0, y: 1 }, Coordinates { x: 1, y: 1 });

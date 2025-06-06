@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn generate_and_print_5_x_5_orthogonal_maze() {
-        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn generate_and_print_12_x_6_orthogonal_maze() {
-        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn generate_5_x_5_delta_maze() {
-        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn generate_12_x_6_delta_maze() {
-        match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn generate_5_x_5_sigma_maze() {
-        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }) {
+        match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn generate_12_x_6_sigma_maze() {
-        match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn generate_12_x_12_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }) {
+        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn generate_12_x_6_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }) {
+        match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Prims.generate(&mut grid).expect("Prim's maze generation failed");
