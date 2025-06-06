@@ -106,7 +106,34 @@ FFICell* mazer_get_cells(Grid *maze, size_t *length);
 void mazer_free_cells(FFICell *ptr, size_t length);
 
 /**
- * Frees an array of Coordinates previously allocated by mazer_solution_path_order.
+ * Updates the maze by performing a move in the specified direction.
+/**
+
+FFICell* mazer_get_generation_step_cells(Grid *grid, size_t step_index, size_t *length);
+ */
+ *         pointers are invalid or the step index is out of range.
+ * @return A pointer to an array of FFICell structures for the specified step, or NULL if the input
+ * @param length A pointer to a size_t variable where the function will store the number of cells.
+ * @param step_index The index of the generation step to retrieve.
+ * @param grid A pointer to the Grid instance.
+ *
+ * 'length' pointer.
+ * specific step in the generation process. It also writes the number of cells into the provided
+ * This function returns an array of FFICell structures representing the cells of the maze at a
+ *
+ * Retrieves the cells for a specific generation step of the maze.
+/**
+
+size_t mazer_get_generation_steps_count(Grid *grid);
+ */
+ * @return The number of generation steps, or 0 if capture_steps is not enabled or the grid is invalid.
+ * @param grid A pointer to the Grid instance.
+ *
+ * is invalid, it returns 0.
+ * if the capture_steps feature is enabled. If capture_steps is not enabled or if the grid pointer
+ * This function returns the number of intermediate grid states recorded during maze generation
+ *
+ * Retrieves the number of generation steps for the maze.
  *
  * This function deallocates the memory for an array of FFICoordinates that was previously
  * allocated by mazer_solution_path_order. It checks if the pointer is NULL and does nothing
