@@ -11,6 +11,7 @@ pub struct MazeRequest {
     pub algorithm: MazeAlgorithm,
     pub start: Option<Coordinates>,
     pub goal: Option<Coordinates>,
+    pub capture_steps: Option<bool>,
 }
 
 #[cfg(test)]
@@ -27,6 +28,7 @@ mod tests {
             algorithm: MazeAlgorithm::BinaryTree,
             start: Some(Coordinates { x: 0, y: 0 }),
             goal: Some(Coordinates { x: 9, y: 9 }),
+            capture_steps: None,
         };
 
         let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
@@ -67,6 +69,7 @@ mod tests {
             algorithm: MazeAlgorithm::Ellers,
             start: Some(Coordinates { x: 0, y: 0 }),
             goal: Some(Coordinates { x: 9, y: 9 }),
+            capture_steps: None,
         };
 
         let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
