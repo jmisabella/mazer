@@ -31,12 +31,11 @@ pub struct Grid {
     pub start_coords: Coordinates,
     /// The coordinates of the goal cell within the grid.
     pub goal_coords: Coordinates,
-
+    /// Enables intermediate grid states to be recorded during maze generation, for education purposes to the user.
     pub capture_steps: bool,
-
+    /// When capture_steps is true, contains a vector of `Grid` states representing each significant step of the maze generation process
     pub generation_steps: Option<Vec<Grid>>,
 }
-
 
 impl Serialize for Grid {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -48,6 +47,7 @@ impl Serialize for Grid {
         return grid_map.end(); 
     }
 }
+
 impl fmt::Display for Grid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.to_json() {
