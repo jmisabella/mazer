@@ -453,6 +453,10 @@ impl Grid {
         goal: Coordinates,
         capture_steps: bool,
     ) -> Result<Self, Error> {
+        if capture_steps && (width > 100 || height > 100) {
+            return Err(Error::GridDimensionsExceedLimitForCaptureSteps{width: width, height: height});
+        }
+
         let seed = Self::generate_seed(width, height);
 
         // Initialize the grid with a flattened vector of cells using CellBuilder.
