@@ -20,12 +20,10 @@ impl MazeGeneration for GrowingTree {
         active.push(start_coords);
         visited.insert(start_coords);
 
-        // Capture initial state if capture_steps is true
+        // Capture initial state with no changed cells
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         while !active.is_empty() {
@@ -58,12 +56,12 @@ impl MazeGeneration for GrowingTree {
                 visited.insert(next_coords);
                 active.push(next_coords);
 
-                // Capture step after linking if capture_steps is true
+                // Capture step with changed cells after linking
                 if grid.capture_steps {
-                    let mut grid_clone = grid.clone();
-                    grid_clone.capture_steps = false;
-                    grid_clone.generation_steps = None;
-                    grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                    let mut changed_cells = HashSet::new();
+                    changed_cells.insert(current_coords);
+                    changed_cells.insert(next_coords);
+                    self.capture_step(grid, &changed_cells);
                 }
             }
         }
@@ -185,12 +183,21 @@ mod tests {
                 GrowingTree.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap();
+                assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
 }
 
 // use crate::behaviors::maze::MazeGeneration;
@@ -214,6 +221,14 @@ mod tests {
 //         };
 //         active.push(start_coords);
 //         visited.insert(start_coords);
+
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
 
 //         while !active.is_empty() {
 //             // Choose a random cell from active list (can be modified for other strategies)
@@ -244,6 +259,14 @@ mod tests {
 //                 // Mark neighbor as visited and add to active list
 //                 visited.insert(next_coords);
 //                 active.push(next_coords);
+
+//                 // Capture step after linking if capture_steps is true
+//                 if grid.capture_steps {
+//                     let mut grid_clone = grid.clone();
+//                     grid_clone.capture_steps = false;
+//                     grid_clone.generation_steps = None;
+//                     grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//                 }
 //             }
 //         }
 
@@ -353,4 +376,31 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
+
+//     #[test]
+//     fn test_growing_tree_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 11, y: 11 };
+//         match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 GrowingTree.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap();
+//                 assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
+
 // }

@@ -16,10 +16,8 @@ impl MazeGeneration for Wilsons {
 
         // Capture initial state if capture_steps is true
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         let grid_size = grid.width * grid.height;
@@ -78,15 +76,15 @@ impl MazeGeneration for Wilsons {
                     let _ = grid.link(*current, *next);
                     visited.insert(*current);
                     visited.insert(*next);
+                    // Capture state after each link if capture_steps is true
+                    if grid.capture_steps {
+                        let mut changed_cells = HashSet::new();
+                        changed_cells.insert(*current);
+                        changed_cells.insert(*next);
+                        self.capture_step(grid, &changed_cells);
+                    }
                 });
 
-            // Capture state after carving the path if capture_steps is true
-            if grid.capture_steps {
-                let mut grid_clone = grid.clone();
-                grid_clone.capture_steps = false;
-                grid_clone.generation_steps = None;
-                grid.generation_steps.as_mut().unwrap().push(grid_clone);
-            }
         }
         
         Ok(())
@@ -206,12 +204,20 @@ mod tests {
                 Wilsons.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");            
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
 }
 
 // use crate::behaviors::maze::MazeGeneration;
@@ -229,6 +235,14 @@ mod tests {
 
 //         // Mark the start cell as visited
 //         visited.insert(grid.start_coords);
+
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
 
 //         let grid_size = grid.width * grid.height;
 
@@ -274,7 +288,7 @@ mod tests {
 //             }
             
 //             // Carve the path into the maze
-//             walk.windows(2) // iterator producing all windows of size 2
+//             walk.windows(2)
 //                 .filter_map(|pair| { 
 //                     if let [current, next] = pair {
 //                         Some((current, next))
@@ -287,12 +301,19 @@ mod tests {
 //                     visited.insert(*current);
 //                     visited.insert(*next);
 //                 });
+
+//             // Capture state after carving the path if capture_steps is true
+//             if grid.capture_steps {
+//                 let mut grid_clone = grid.clone();
+//                 grid_clone.capture_steps = false;
+//                 grid_clone.generation_steps = None;
+//                 grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//             }
 //         }
         
 //         Ok(())
 //     }
 // }
-
 
 // #[cfg(test)]
 // mod tests {
@@ -397,5 +418,29 @@ mod tests {
 //         }
 //     }
 
+//     #[test]
+//     fn test_wilsons_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 11, y: 11 };
+//         match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 Wilsons.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");            
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
 
 // }

@@ -3,7 +3,7 @@ use crate::grid::Grid;
 use crate::cell::Coordinates;
 use crate::error::Error;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use rand::seq::SliceRandom;
 use rand::Rng;
 
@@ -101,24 +101,22 @@ impl MazeGeneration for Kruskals {
         // Step 3: Shuffle edges for random selection
         edges.shuffle(&mut rng);
 
-        // Capture initial state if capture_steps is true
+        // Capture initial state with no changed cells
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         // Step 4: Process edges to build the maze
         for (coords1, coords2, _weight) in edges {
             if disjoint_set.union(coords1, coords2) {
                 grid.link(coords1, coords2)?;
-                // Capture step after linking if capture_steps is true
+                // Capture step with changed cells after linking
                 if grid.capture_steps {
-                    let mut grid_clone = grid.clone();
-                    grid_clone.capture_steps = false;
-                    grid_clone.generation_steps = None;
-                    grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                    let mut changed_cells = HashSet::new();
+                    changed_cells.insert(coords1);
+                    changed_cells.insert(coords2);
+                    self.capture_step(grid, &changed_cells);
                 }
             }
         }
@@ -240,12 +238,21 @@ mod tests {
                 Kruskals.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap();
+                assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
 }
 
 // use crate::behaviors::maze::MazeGeneration;
@@ -351,10 +358,25 @@ mod tests {
 //         // Step 3: Shuffle edges for random selection
 //         edges.shuffle(&mut rng);
 
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
+
 //         // Step 4: Process edges to build the maze
 //         for (coords1, coords2, _weight) in edges {
 //             if disjoint_set.union(coords1, coords2) {
 //                 grid.link(coords1, coords2)?;
+//                 // Capture step after linking if capture_steps is true
+//                 if grid.capture_steps {
+//                     let mut grid_clone = grid.clone();
+//                     grid_clone.capture_steps = false;
+//                     grid_clone.generation_steps = None;
+//                     grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//                 }
 //             }
 //         }
 
@@ -464,4 +486,31 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
+
+//     #[test]
+//     fn test_kruskals_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 19, y: 19 };
+//         match Grid::new(MazeType::Orthogonal, 20, 20, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 Kruskals.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap();
+//                 assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
+
 // }

@@ -53,10 +53,8 @@ impl MazeGeneration for Prims {
 
         // Capture initial state with starting cell marked but no links
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         // Step 3: Process the frontier until it's empty
@@ -92,10 +90,10 @@ impl MazeGeneration for Prims {
                 grid.link(coords, neighbor_coords)?;
                 // Capture state after each link is made
                 if grid.capture_steps {
-                    let mut grid_clone = grid.clone();
-                    grid_clone.capture_steps = false;
-                    grid_clone.generation_steps = None;
-                    grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                    let mut changed_cells = HashSet::new();
+                    changed_cells.insert(coords);
+                    changed_cells.insert(neighbor_coords);
+                    self.capture_step(grid, &changed_cells);
                 }
             }
 
@@ -225,12 +223,20 @@ mod tests {
                 Prims.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
 }
 
 // use crate::behaviors::maze::MazeGeneration;
@@ -286,6 +292,14 @@ mod tests {
 //             }
 //         }
 
+//         // Capture initial state with starting cell marked but no links
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
+
 //         // Step 3: Process the frontier until it's empty
 //         while let Some(FrontierCell { coords, .. }) = frontier.pop() {
 //             if visited.contains(&coords) {
@@ -317,6 +331,13 @@ mod tests {
 //                 let neighbor_index = grid.bounded_random_usize(visited_neighbors.len() - 1);
 //                 let neighbor_coords = visited_neighbors[neighbor_index];
 //                 grid.link(coords, neighbor_coords)?;
+//                 // Capture state after each link is made
+//                 if grid.capture_steps {
+//                     let mut grid_clone = grid.clone();
+//                     grid_clone.capture_steps = false;
+//                     grid_clone.generation_steps = None;
+//                     grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//                 }
 //             }
 
 //             // Add unvisited neighbors to the frontier
@@ -434,4 +455,30 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
+
+//     #[test]
+//     fn test_prims_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 19, y: 19 };
+//         match Grid::new(MazeType::Orthogonal, 20, 20, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 Prims.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
+
 // }

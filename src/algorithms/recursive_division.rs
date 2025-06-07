@@ -3,6 +3,7 @@ use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
 use crate::cell::{Coordinates, MazeType};
 use crate::error::Error;
+use std::collections::HashSet;
 
 pub struct RecursiveDivision;
 
@@ -20,10 +21,8 @@ impl MazeGeneration for RecursiveDivision {
 
         // Capture initial state if capture_steps is true
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         // Recursively divide the grid
@@ -100,10 +99,10 @@ impl RecursiveDivision {
 
             // Capture state after passage creation if capture_steps is true
             if grid.capture_steps {
-                let mut grid_clone = grid.clone();
-                grid_clone.capture_steps = false;
-                grid_clone.generation_steps = None;
-                grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                let mut changed_cells = HashSet::new();
+                changed_cells.insert(coords);
+                changed_cells.insert(below);
+                self.capture_step(grid, &changed_cells);
             }
 
             // Recursively divide the two regions
@@ -143,10 +142,10 @@ impl RecursiveDivision {
 
             // Capture state after passage creation if capture_steps is true
             if grid.capture_steps {
-                let mut grid_clone = grid.clone();
-                grid_clone.capture_steps = false;
-                grid_clone.generation_steps = None;
-                grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                let mut changed_cells = HashSet::new();
+                changed_cells.insert(coords);
+                changed_cells.insert(right);
+                self.capture_step(grid, &changed_cells);
             }
 
             // Recursively divide the two regions
@@ -245,12 +244,20 @@ mod tests {
                 RecursiveDivision.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
 }
 
 // use crate::behaviors::maze::MazeGeneration;
@@ -271,6 +278,14 @@ mod tests {
 //                     maze_type,
 //                 });
 //             }
+//         }
+
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
 //         }
 
 //         // Recursively divide the grid
@@ -345,6 +360,14 @@ mod tests {
 //             let below = Coordinates { x: passage_x, y: wall_y + 1 };
 //             grid.link(coords, below)?;
 
+//             // Capture state after passage creation if capture_steps is true
+//             if grid.capture_steps {
+//                 let mut grid_clone = grid.clone();
+//                 grid_clone.capture_steps = false;
+//                 grid_clone.generation_steps = None;
+//                 grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//             }
+
 //             // Recursively divide the two regions
 //             let top_height = wall_y - y + 1;
 //             let bottom_height = height - top_height;
@@ -379,6 +402,14 @@ mod tests {
 //             let coords = Coordinates { x: wall_x, y: passage_y };
 //             let right = Coordinates { x: wall_x + 1, y: passage_y };
 //             grid.link(coords, right)?;
+
+//             // Capture state after passage creation if capture_steps is true
+//             if grid.capture_steps {
+//                 let mut grid_clone = grid.clone();
+//                 grid_clone.capture_steps = false;
+//                 grid_clone.generation_steps = None;
+//                 grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//             }
 
 //             // Recursively divide the two regions
 //             let left_width = wall_x - x + 1;
@@ -465,4 +496,30 @@ mod tests {
 //             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
 //         }
 //     }
+
+//     #[test]
+//     fn test_recursive_division_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 11, y: 11 };
+//         match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 RecursiveDivision.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
+
 // }
