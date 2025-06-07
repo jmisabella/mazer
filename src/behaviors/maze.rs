@@ -1,4 +1,7 @@
 use crate::{Grid, Error};
+use crate::cell::Coordinates;
+
+use std::collections::HashSet;
 
 pub trait MazeGeneration {
     /// Carve a maze on the provided grid.
@@ -37,7 +40,24 @@ pub trait MazeGeneration {
             Ok(())
         }
     }
-    
+
+    // Capture a step with minimal overhead
+    fn capture_step(&self, grid: &mut Grid, changed_cells: &HashSet<Coordinates>) {
+        if grid.capture_steps {
+            // Update open_walls only for changed cells
+            for coord in changed_cells {
+                if let Ok(cell) = grid.get_mut(*coord) {
+                    cell.set_open_walls(); // Assumes this only reads linked and sets open_walls
+                }
+            }
+            // Clone the grid minimally for storage
+            let mut grid_clone = grid.clone();
+            grid_clone.capture_steps = false;
+            grid_clone.generation_steps = None; // Prevent recursive cloning
+            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+        }
+    }
+
     fn build<'a>(&self, grid: &'a mut Grid) -> Result<&'a Grid, Error> {
         self.generate(grid)?;
         self.finalize(grid)?;

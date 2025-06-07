@@ -3,23 +3,23 @@ use crate::grid::Grid;
 use crate::cell::Coordinates;
 use crate::error::Error;
 
+use std::collections::HashSet;
+
 pub struct HuntAndKill;
 
 impl MazeGeneration for HuntAndKill {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
-        let mut visited = std::collections::HashSet::new();
+        let mut visited = HashSet::new();
         let mut current_coords = Coordinates {
             x: grid.bounded_random_usize(grid.width - 1),
             y: grid.bounded_random_usize(grid.height - 1),
         };
         visited.insert(current_coords);
 
-        // Capture initial state if capture_steps is true
+        // Capture initial state with no changed cells
         if grid.capture_steps {
-            let mut grid_clone = grid.clone();
-            grid_clone.capture_steps = false;
-            grid_clone.generation_steps = None;
-            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells);
         }
 
         loop {
@@ -30,12 +30,12 @@ impl MazeGeneration for HuntAndKill {
                 visited.insert(next_coords);
                 current_coords = next_coords;
 
-                // Capture step after linking if capture_steps is true
+                // Capture step with changed cells after linking
                 if grid.capture_steps {
-                    let mut grid_clone = grid.clone();
-                    grid_clone.capture_steps = false;
-                    grid_clone.generation_steps = None;
-                    grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                    let mut changed_cells = HashSet::new();
+                    changed_cells.insert(current_coords);
+                    changed_cells.insert(next_coords);
+                    self.capture_step(grid, &changed_cells);
                 }
             }
 
@@ -46,12 +46,12 @@ impl MazeGeneration for HuntAndKill {
                 visited.insert(new_coords);
                 current_coords = new_coords;
 
-                // Capture step after linking if capture_steps is true
+                // Capture step with changed cells after linking
                 if grid.capture_steps {
-                    let mut grid_clone = grid.clone();
-                    grid_clone.capture_steps = false;
-                    grid_clone.generation_steps = None;
-                    grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                    let mut changed_cells = HashSet::new();
+                    changed_cells.insert(new_coords);
+                    changed_cells.insert(neighbor);
+                    self.capture_step(grid, &changed_cells);
                 }
             } else {
                 // No more unvisited cells, maze generation complete
@@ -67,7 +67,7 @@ impl HuntAndKill {
     fn random_unvisited_neighbor(
         grid: &mut Grid,
         coords: &Coordinates,
-        visited: &std::collections::HashSet<Coordinates>,
+        visited: &HashSet<Coordinates>,
     ) -> Option<Coordinates> {
         if let Ok(current_cell) = grid.get(*coords) {
             let neighbors: Vec<_> = current_cell
@@ -90,7 +90,7 @@ impl HuntAndKill {
     /// Finds the first unvisited cell with at least one visited neighbor.
     fn find_hunt_target(
         grid: &Grid,
-        visited: &std::collections::HashSet<Coordinates>,
+        visited: &HashSet<Coordinates>,
     ) -> Option<(Coordinates, Coordinates)> {
         (0..grid.height)
             .flat_map(|y| (0..grid.width).map(move |x| Coordinates { x, y }))
@@ -224,13 +224,22 @@ mod tests {
                 HuntAndKill.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap();
+                assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
 }
-
 
 // use crate::behaviors::maze::MazeGeneration;
 // use crate::grid::Grid;
@@ -248,6 +257,14 @@ mod tests {
 //         };
 //         visited.insert(current_coords);
 
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
+
 //         loop {
 //             // Kill Phase: Randomly carve passages to unvisited neighbors
 //             while let Some(next_coords) = Self::random_unvisited_neighbor(grid, &current_coords, &visited) {
@@ -255,6 +272,14 @@ mod tests {
 //                 grid.link(current_coords, next_coords)?;
 //                 visited.insert(next_coords);
 //                 current_coords = next_coords;
+
+//                 // Capture step after linking if capture_steps is true
+//                 if grid.capture_steps {
+//                     let mut grid_clone = grid.clone();
+//                     grid_clone.capture_steps = false;
+//                     grid_clone.generation_steps = None;
+//                     grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//                 }
 //             }
 
 //             // Hunt Phase: Find the first unvisited cell with at least one visited neighbor
@@ -263,6 +288,14 @@ mod tests {
 //                 grid.link(new_coords, neighbor)?;
 //                 visited.insert(new_coords);
 //                 current_coords = new_coords;
+
+//                 // Capture step after linking if capture_steps is true
+//                 if grid.capture_steps {
+//                     let mut grid_clone = grid.clone();
+//                     grid_clone.capture_steps = false;
+//                     grid_clone.generation_steps = None;
+//                     grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//                 }
 //             } else {
 //                 // No more unvisited cells, maze generation complete
 //                 break;
@@ -270,7 +303,6 @@ mod tests {
 //         }
 //         Ok(())
 //     }
-
 // }
 
 // impl HuntAndKill {
@@ -280,9 +312,8 @@ mod tests {
 //         coords: &Coordinates,
 //         visited: &std::collections::HashSet<Coordinates>,
 //     ) -> Option<Coordinates> {
-
 //         if let Ok(current_cell) = grid.get(*coords) {
-//             let neighbors: Vec<_> = current_cell 
+//             let neighbors: Vec<_> = current_cell
 //                 .neighbors()
 //                 .into_iter()
 //                 .filter(|neighbor| !visited.contains(neighbor))
@@ -291,9 +322,7 @@ mod tests {
 //             if neighbors.is_empty() {
 //                 None
 //             } else {
-//                 let index = {
-//                     grid.bounded_random_usize(neighbors.len() - 1)
-//                 };
+//                 let index = grid.bounded_random_usize(neighbors.len() - 1);
 //                 Some(neighbors[index])
 //             }
 //         } else {
@@ -307,9 +336,8 @@ mod tests {
 //         visited: &std::collections::HashSet<Coordinates>,
 //     ) -> Option<(Coordinates, Coordinates)> {
 //         (0..grid.height)
-//             // flat map to have a single iterator over the x and y ranges 
-//             .flat_map(|y| (0..grid.width).map(move |x| Coordinates { x, y}))
-//             .find_map(|coords| { // find first matching element and apply a transformation
+//             .flat_map(|y| (0..grid.width).map(move |x| Coordinates { x, y }))
+//             .find_map(|coords| {
 //                 if visited.contains(&coords) {
 //                     None
 //                 } else {
@@ -319,19 +347,18 @@ mod tests {
 //                             .into_iter()
 //                             .find(|neighbor| visited.contains(neighbor))
 //                             .map(|neighbor| (coords, neighbor)),
-//                         Err(_) => None
+//                         Err(_) => None,
 //                     }
 //                 }
 //             })
 //     }
-
 // }
 
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-//     use crate::cell::{ MazeType, Coordinates };
-    
+//     use crate::cell::{MazeType, Coordinates};
+
 //     #[test]
 //     fn generate_and_print_5_x_5_orthogonal_maze() {
 //         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
@@ -344,7 +371,7 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
-    
+
 //     #[test]
 //     fn generate_and_print_12_x_6_orthogonal_maze() {
 //         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
@@ -369,7 +396,7 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
-    
+
 //     #[test]
 //     fn generate_12_x_6_delta_maze() {
 //         match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
@@ -381,7 +408,7 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
-    
+
 //     #[test]
 //     fn generate_5_x_5_sigma_maze() {
 //         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
@@ -393,7 +420,7 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
-    
+
 //     #[test]
 //     fn generate_12_x_6_sigma_maze() {
 //         match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
@@ -417,7 +444,7 @@ mod tests {
 //             Err(e) => panic!("Unexpected error running test: {:?}", e),
 //         }
 //     }
-    
+
 //     #[test]
 //     fn generate_12_x_6_polar_maze() {
 //         match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
@@ -430,5 +457,29 @@ mod tests {
 //         }
 //     }
 
+//     #[test]
+//     fn test_hunt_and_kill_with_capture_steps() {
+//         let start = Coordinates { x: 0, y: 0 };
+//         let goal = Coordinates { x: 11, y: 11 };
+//         match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
+//             Ok(mut grid) => {
+//                 assert!(!grid.is_perfect_maze().unwrap());
+//                 HuntAndKill.generate(&mut grid).expect("Maze generation failed");
+//                 assert!(grid.is_perfect_maze().unwrap());
+//                 assert!(grid.generation_steps.is_some());
+//                 let steps = grid.generation_steps.as_ref().unwrap();
+//                 assert!(!steps.is_empty());
+//                 // Check if any cells become linked across all generation steps
+//                 let has_linked_cells = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.linked.is_empty())
+//                 });
+//                 assert!(has_linked_cells, "No cells were linked during maze generation");
+//                 let has_open_walls = steps.iter().any(|step| {
+//                     step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+//                 });
+//                 assert!(has_open_walls, "No cells have open walls in generation steps");
+//             }
+//             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+//         }
+//     }
 // }
-

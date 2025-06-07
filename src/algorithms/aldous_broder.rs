@@ -3,6 +3,8 @@ use crate::grid::Grid;
 use crate::cell::Coordinates;
 use crate::error::Error;
 
+use std::collections::HashSet;
+
 pub struct AldousBroder;
 
 impl MazeGeneration for AldousBroder {
@@ -53,12 +55,11 @@ impl MazeGeneration for AldousBroder {
                         visited[random_neighbor.y][random_neighbor.x] = true;
                         visited_count += 1;
 
-                        // Capture step after linking if capture_steps is true
                         if grid.capture_steps {
-                            let mut grid_clone = grid.clone();
-                            grid_clone.capture_steps = false;
-                            grid_clone.generation_steps = None;
-                            grid.generation_steps.as_mut().unwrap().push(grid_clone);
+                            let mut changed_cells = HashSet::new();
+                            changed_cells.insert(current_coords);
+                            changed_cells.insert(random_neighbor);
+                            self.capture_step(grid, &changed_cells);
                         }
                     }
 
@@ -199,7 +200,17 @@ mod tests {
                 AldousBroder.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
-                assert!(grid.generation_steps.as_ref().unwrap().len() > 0);
+                let steps = grid.generation_steps.as_ref().unwrap();
+                assert!(!steps.is_empty());
+                // Check if any cells become linked across all generation steps
+                let has_linked_cells = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                });
+                assert!(has_linked_cells, "No cells were linked during maze generation");
+                let has_open_walls = steps.iter().any(|step| {
+                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                });
+                assert!(has_open_walls, "No cells have open walls in generation steps");
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
