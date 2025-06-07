@@ -1,30 +1,9 @@
-use std::collections::HashSet;
 use std::ptr;
-use std::slice;
 use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_void, c_uint};
-use libc::size_t;
-use crate::Grid;
-use crate::cell::{Cell, CellOrientation, Coordinates};
+use std::os::raw::{c_char, c_void};
+use crate::grid::Grid;
+use crate::cell::Cell;
 use crate::direction::Direction;
-use crate::render::*;
-use crate::render::delta::*;
-use crate::render::sigma::*;
-use crate::render::heatmap::*;
-
-/// A 2-tuple of vertex indices for one wall segment.
-#[repr(C)]
-pub struct EdgePair {
-    pub first: usize,
-    pub second: usize,
-}
-
-/// A pointer+length describing an array of `EdgePair`s.
-#[repr(C)]
-pub struct EdgePairs {
-    pub ptr: *mut EdgePair,
-    pub len: usize,
-}
 
 
 /// Representation of a cell for the FFI layer.
@@ -141,30 +120,6 @@ impl Drop for FFICell {
         }
     }
 }
-
-#[repr(C)]
-pub struct FFICoordinates {
-    pub x: usize,
-    pub y: usize,
-}
-
-#[no_mangle]
-pub extern "C" fn mazer_free_coordinates(ptr: *mut FFICoordinates, len: usize) {
-    if !ptr.is_null() {
-        unsafe {
-            let _ = Vec::from_raw_parts(ptr, len, len);
-        }
-    }
-}
-
-/// Frees an EdgePairs buffer previously returned by `mazer_delta_wall_segments`.
-#[no_mangle]
-pub extern "C" fn mazer_free_edge_pairs(ep: EdgePairs) {
-    if ep.ptr.is_null() { return; }
-    // reconstruct the Vec to drop it
-    unsafe { Vec::from_raw_parts(ep.ptr, ep.len, ep.len); }
-}
-
 
 /// Generates a maze from a JSON request.
 ///
@@ -381,118 +336,6 @@ pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_cha
         eprintln!("mazer_make_move failed on {:?} at {:?}", dir_enum, grid_ptr);
         std::ptr::null_mut()
     }
-}
-
-#[no_mangle]
-pub extern "C" fn mazer_solution_path_order(grid: *const Grid, out_length: *mut size_t) -> *mut FFICoordinates {
-    if grid.is_null() || out_length.is_null() {
-        return std::ptr::null_mut(); // Return null if inputs are invalid
-    }
-    let grid = unsafe { &*grid };
-    let path = solution_path_order(&grid.cells); // Get Vec<Coordinates>
-    let c_path: Vec<FFICoordinates> = path
-        .iter()
-        .map(|c| FFICoordinates { x: c.x, y: c.y })
-        .collect();
-    let len = c_path.len();
-    let boxed_slice = c_path.into_boxed_slice(); // Convert to Box<[FFICoordinates]>
-    let ptr = boxed_slice.as_ptr() as *mut FFICoordinates; // Get raw pointer
-    std::mem::forget(boxed_slice); // Prevent Rust from freeing it
-    unsafe { *out_length = len }; // Set the length for the caller
-    ptr
-}
-
-
-/// C-ABI wrapper for `delta_wall_segments`.
-///
-/// - `linked_dirs` is a pointer to an array of `u32` codes (one per direction).
-///   Each code should match the `as u32` of your `Direction` enum variants (see below).
-/// - `linked_len` is the length of that array.
-/// - `orientation_code` is 0 for Normal, 1 for Inverted (matching `CellOrientation as u32`).
-/// 
-/// Returns an `EdgePairs` (pointer+length) you must later free by calling
-/// `mazer_free_edge_pairs`.
-#[no_mangle]
-pub extern "C" fn mazer_delta_wall_segments(
-    linked_dirs: *const c_uint,
-    linked_len: usize,
-    orientation_code: c_uint,
-) -> EdgePairs {
-    // 1) Reconstruct the incoming slice of u32 codes
-    let slice = unsafe { slice::from_raw_parts(linked_dirs, linked_len) };
-    let mut linked: HashSet<Direction> = HashSet::with_capacity(linked_len);
-    
-    // 2) Convert each u32 → Direction
-    for &code in slice {
-        if let Ok(dir) = Direction::try_from(code) {
-            linked.insert(dir);
-        }
-    }
-
-    // 3) Convert the orientation code into your enum
-    let orientation = match orientation_code {
-        0 => CellOrientation::Normal,
-        1 => CellOrientation::Inverted,
-        _ => CellOrientation::Normal,  // fallback
-    };
-
-    // 4) Call the pure-Rust logic
-    let segments = delta_wall_segments(&linked, orientation);
-
-    // 5) Move into a C buffer
-    let mut v: Vec<EdgePair> = segments
-        .into_iter()
-        .map(|(a, b)| EdgePair { first: a, second: b })
-        .collect();
-
-    let len = v.len();
-    let ptr = v.as_mut_ptr();
-    std::mem::forget(v);
-
-    EdgePairs { ptr, len }
-}
-
-#[no_mangle]
-pub extern "C" fn mazer_sigma_wall_segments(grid: *const Grid, cell_coords: FFICoordinates) -> EdgePairs {
-    // Check for null pointer
-    if grid.is_null() {
-        return EdgePairs { ptr: std::ptr::null_mut(), len: 0 };
-    }
-
-    let grid = unsafe { &*grid };
-
-    // Convert C coordinates to Rust coordinates
-    let rust_coords = Coordinates { x: cell_coords.x, y: cell_coords.y };
-
-    // Retrieve the cell using grid.get
-    let cell = match grid.get(rust_coords) {
-        Ok(c) => c,
-        Err(_) => return EdgePairs { ptr: std::ptr::null_mut(), len: 0 },
-    };
-
-    // Get wall segments
-    let segments = sigma_wall_segments(cell, grid);
-
-    // Convert to EdgePairs for C
-    let edge_pairs: Vec<EdgePair> = segments
-        .into_iter()
-        .map(|(first, second)| EdgePair { first, second })
-        .collect();
-
-    let len = edge_pairs.len();
-    let ptr = edge_pairs.as_ptr() as *mut EdgePair;
-    std::mem::forget(edge_pairs); // Prevent Rust from deallocating the memory
-
-    EdgePairs { ptr, len }
-}
-
-/// C-ABI wrapper for `shade_index(distance, max_distance) ⇒ usize`
-#[no_mangle]
-pub extern "C" fn mazer_shade_index(
-    distance: usize,
-    max_distance: usize,
-) -> usize {
-    shade_index(distance, max_distance)
 }
 
 /// Verifies FFI connectivity.
@@ -814,91 +657,6 @@ mod tests {
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }       
-    }
-
-    // Test for mazer_solution_path_order
-    #[test]
-    fn test_mazer_solution_path_order() {
-        // Create a simple orthogonal maze with a known solution path
-        let json = r#"{
-            "maze_type": "Orthogonal",
-            "width": 3,
-            "height": 3,
-            "algorithm": "BinaryTree",
-            "start": { "x": 0, "y": 0 },
-            "goal": { "x": 2, "y": 2 }
-        }"#;
-        let c_json = CString::new(json).expect("Failed to create CString");
-        let grid_ptr = mazer_generate_maze(c_json.as_ptr());
-        assert!(!grid_ptr.is_null(), "Grid pointer should not be null");
-
-        // Call the FFI function
-        let mut length: usize = 0;
-        let coords_ptr = mazer_solution_path_order(grid_ptr, &mut length);
-        assert!(!coords_ptr.is_null(), "Coordinates pointer should not be null");
-        assert!(length > 0, "Solution path should have at least one coordinate");
-
-        // Convert to a slice for validation
-        let coords_slice = unsafe { slice::from_raw_parts(coords_ptr, length) };
-
-        // Get the expected result from the Rust function
-        let grid = unsafe { &*grid_ptr };
-        let expected = solution_path_order(&grid.cells);
-
-        // Validate length and contents
-        assert_eq!(length, expected.len(), "Length mismatch between FFI and Rust function");
-        for (ffi_coord, rust_coord) in coords_slice.iter().zip(expected.iter()) {
-            assert_eq!(ffi_coord.x, rust_coord.x, "X coordinate mismatch");
-            assert_eq!(ffi_coord.y, rust_coord.y, "Y coordinate mismatch");
-        }
-
-        // Clean up
-        mazer_free_coordinates(coords_ptr, length);
-        mazer_destroy(grid_ptr);
-    }
-
-    // Test for mazer_sigma_wall_segments
-    #[test]
-    fn test_mazer_sigma_wall_segments() {
-        // Create a sigma (hexagonal) maze
-        let json = r#"{
-            "maze_type": "Sigma",
-            "width": 3,
-            "height": 3,
-            "algorithm": "RecursiveBacktracker",
-            "start": { "x": 0, "y": 0 },
-            "goal": { "x": 2, "y": 2 }
-        }"#;
-        let c_json = CString::new(json).expect("Failed to create CString");
-        let grid_ptr = mazer_generate_maze(c_json.as_ptr());
-        assert!(!grid_ptr.is_null(), "Grid pointer should not be null");
-
-        // Define Coordinates for Rust usage
-        let rust_coords = Coordinates { x: 1, y: 1 };
-        // Convert to FFICoordinates for the FFI function
-        let ffi_coords = FFICoordinates { x: rust_coords.x, y: rust_coords.y };
-        let ep = mazer_sigma_wall_segments(grid_ptr, ffi_coords);
-        assert!(!ep.ptr.is_null(), "EdgePairs pointer should not be null");
-        assert!(ep.len > 0, "Should return at least one wall segment");
-
-        // Convert to a slice for validation
-        let pairs_slice = unsafe { slice::from_raw_parts(ep.ptr, ep.len) };
-
-        // Get the expected result from the Rust function
-        let grid = unsafe { &*grid_ptr };
-        let cell = grid.get(Coordinates { x: 1, y: 1 }).expect("Cell should exist");
-        let expected = sigma_wall_segments(cell, &grid);
-
-        // Validate length and contents
-        assert_eq!(ep.len, expected.len(), "Length mismatch between FFI and Rust function");
-        for (ffi_pair, rust_pair) in pairs_slice.iter().zip(expected.iter()) {
-            assert_eq!(ffi_pair.first, rust_pair.0, "First index mismatch");
-            assert_eq!(ffi_pair.second, rust_pair.1, "Second index mismatch");
-        }
-
-        // Clean up
-        mazer_free_edge_pairs(ep);
-        mazer_destroy(grid_ptr);
     }
 
     #[test]
