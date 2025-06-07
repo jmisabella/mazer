@@ -118,6 +118,33 @@ FFICell* mazer_get_generation_step_cells(Grid *grid, size_t step_index, size_t *
 void* mazer_make_move(void* grid_ptr, const char* direction);
 
 /**
+ * Retrieves the number of generation steps for the maze.
+ *
+ * This function returns the number of intermediate grid states recorded during maze generation
+ * if the capture_steps feature is enabled. If capture_steps is not enabled or if the grid pointer
+ * is invalid, it returns 0.
+ *
+ * @param grid A pointer to the Grid instance.
+ * @return The number of generation steps, or 0 if capture_steps is not enabled or the grid is invalid.
+ */
+size_t mazer_get_generation_steps_count(Grid *grid);
+
+/**
+ * Retrieves the cells for a specific generation step of the maze.
+ *
+ * This function returns an array of FFICell structures representing the cells of the maze at a
+ * specific step in the generation process. It also writes the number of cells into the provided
+ * 'length' pointer.
+ *
+ * @param grid A pointer to the Grid instance.
+ * @param step_index The index of the generation step to retrieve.
+ * @param length A pointer to a size_t variable where the function will store the number of cells.
+ * @return A pointer to an array of FFICell structures for the specified step, or NULL if the input
+ *         pointers are invalid or the step index is out of range.
+ */
+FFICell* mazer_get_generation_step_cells(Grid *grid, size_t step_index, size_t *length);
+
+/**
  * To verify FFI connectivity, call verify this returns 42.
  */
 int mazer_ffi_integration_test();
