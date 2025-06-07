@@ -10,7 +10,6 @@ pub mod direction;
 pub mod request;
 pub mod algorithms;
 pub mod behaviors;
-pub mod render;
 pub mod error;
 pub mod ffi;
 
