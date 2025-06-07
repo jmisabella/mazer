@@ -1,10 +1,9 @@
 use std::ptr;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
-use crate::grid::Grid;
+use crate::Grid;
 use crate::cell::Cell;
 use crate::direction::Direction;
-
 
 /// Representation of a cell for the FFI layer.
 ///
