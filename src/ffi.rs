@@ -290,6 +290,17 @@ pub extern "C" fn mazer_get_generation_step_cells(
     }
 }
 
+#[no_mangle]
+pub extern "C" fn mazer_clear_generation_steps(grid: *mut Grid) {
+    if grid.is_null() {
+        return;
+    }
+    unsafe {
+        let grid_ref = &mut *grid;
+        grid_ref.generation_steps = None;
+    }
+}
+
 /// Performs a move on the maze grid based on the provided direction.
 ///
 /// This function takes an opaque pointer to a mutable `Grid` instance and a null-terminated C string
@@ -354,7 +365,99 @@ mod tests {
     use super::*;
     use std::collections::{HashSet, HashMap};
     use crate::cell::{CellOrientation, MazeType, Cell, Coordinates};
-   
+
+    // Helper function to parse a C string to Direction
+    fn parse_direction(ptr: *const c_char) -> Direction {
+        let s = unsafe { CStr::from_ptr(ptr).to_str().unwrap() };
+        Direction::try_from(s).expect("Invalid direction")
+    }
+
+    // Helper function to parse a C string to CellOrientation
+    fn parse_orientation(ptr: *const c_char) -> CellOrientation {
+        let s = unsafe { CStr::from_ptr(ptr).to_str().unwrap() };
+        match s {
+            "Normal" => CellOrientation::Normal,
+            "Inverted" => CellOrientation::Inverted,
+            _ => panic!("Unknown orientation: {}", s),
+        }
+    }
+
+    // Helper function to get neighbor coordinates for Orthogonal maze
+    fn get_neighbor_coords_orthogonal(coords: Coordinates, direction: Direction, width: usize, height: usize) -> Option<Coordinates> {
+        match direction {
+            Direction::Up if coords.y > 0 => Some(Coordinates { x: coords.x, y: coords.y - 1 }),
+            Direction::Down if coords.y < height - 1 => Some(Coordinates { x: coords.x, y: coords.y + 1 }),
+            Direction::Left if coords.x > 0 => Some(Coordinates { x: coords.x - 1, y: coords.y }),
+            Direction::Right if coords.x < width - 1 => Some(Coordinates { x: coords.x + 1, y: coords.y }),
+            _ => None,
+        }
+    }
+
+    // Helper function to get neighbor coordinates for Delta maze
+    fn get_neighbor_coords_delta(coords: Coordinates, direction: Direction, orientation: CellOrientation, width: usize, height: usize) -> Option<Coordinates> {
+        match (orientation, direction) {
+            (CellOrientation::Normal, Direction::UpperLeft) if coords.x > 0 => Some(Coordinates { x: coords.x - 1, y: coords.y }),
+            (CellOrientation::Normal, Direction::UpperRight) if coords.x < width - 1 => Some(Coordinates { x: coords.x + 1, y: coords.y }),
+            (CellOrientation::Normal, Direction::Down) if coords.y < height - 1 => Some(Coordinates { x: coords.x, y: coords.y + 1 }),
+            (CellOrientation::Inverted, Direction::LowerLeft) if coords.x > 0 => Some(Coordinates { x: coords.x - 1, y: coords.y }),
+            (CellOrientation::Inverted, Direction::LowerRight) if coords.x < width - 1 => Some(Coordinates { x: coords.x + 1, y: coords.y }),
+            (CellOrientation::Inverted, Direction::Up) if coords.y > 0 => Some(Coordinates { x: coords.x, y: coords.y - 1 }),
+            _ => None,
+        }
+    }
+
+    // Helper function to check bidirectional links in FFICell array
+    fn check_bidirectional_links_ffi(
+        cells: &[FFICell],
+        maze_type: MazeType,
+        width: usize,
+        height: usize,
+        step_index: usize,
+    ) {
+        let cell_map: HashMap<Coordinates, &FFICell> = cells
+            .iter()
+            .map(|cell| (Coordinates { x: cell.x, y: cell.y }, cell))
+            .collect();
+
+        for cell in cells {
+            let coords = Coordinates { x: cell.x, y: cell.y };
+            let orientation = parse_orientation(cell.orientation);
+            let linked_dirs: Vec<Direction> = unsafe {
+                std::slice::from_raw_parts(cell.linked, cell.linked_len)
+                    .iter()
+                    .map(|&ptr| parse_direction(ptr))
+                    .collect()
+            };
+
+            for dir in linked_dirs {
+                let neighbor_coords = match maze_type {
+                    MazeType::Orthogonal => get_neighbor_coords_orthogonal(coords, dir, width, height),
+                    MazeType::Delta => get_neighbor_coords_delta(coords, dir, orientation, width, height),
+                    _ => panic!("Unsupported maze type"),
+                };
+
+                if let Some(neighbor_coords) = neighbor_coords {
+                    let neighbor = cell_map.get(&neighbor_coords).expect("Neighbor cell not found");
+                    let opposite_dir = dir.opposite();
+                    let neighbor_linked: Vec<Direction> = unsafe {
+                        std::slice::from_raw_parts(neighbor.linked, neighbor.linked_len)
+                            .iter()
+                            .map(|&ptr| parse_direction(ptr))
+                            .collect()
+                    };
+                    assert!(
+                        neighbor_linked.contains(&opposite_dir),
+                        "Link from {:?} to {:?} in direction {:?} is not bidirectional in step {}",
+                        coords,
+                        neighbor_coords,
+                        dir,
+                        step_index
+                    );
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_memory_allocation_for_ffi_cell() {
         let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
@@ -656,6 +759,116 @@ mod tests {
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }       
+    }
+
+    #[test]
+    fn test_hunt_and_kill_orthogonal_bidirectional_links_in_steps_ffi() {
+        let json_request = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 5,
+            "height": 5,
+            "algorithm": "HuntAndKill",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 4, "y": 4 },
+            "capture_steps": true
+        }
+        "#;
+        let json_req_c_string = CString::new(json_request).unwrap().into_raw();
+        
+        let grid_ptr = mazer_generate_maze(json_req_c_string);
+        assert!(!grid_ptr.is_null(), "Failed to generate maze");
+        
+        let steps_count = mazer_get_generation_steps_count(grid_ptr);
+        assert!(steps_count > 0, "Expected some generation steps");
+        
+        for step in 0..steps_count {
+            let mut length: usize = 0;
+            let cells_ptr = mazer_get_generation_step_cells(grid_ptr, step, &mut length as *mut usize);
+            assert!(!cells_ptr.is_null(), "Failed to get cells for step {}", step);
+            
+            let cells: &[FFICell] = unsafe { std::slice::from_raw_parts(cells_ptr, length) };
+            
+            check_bidirectional_links_ffi(cells, MazeType::Orthogonal, 5, 5, step);
+            
+            mazer_free_cells(cells_ptr, length);
+        }
+        
+        mazer_destroy(grid_ptr);
+        unsafe {
+            let _ = CString::from_raw(json_req_c_string);
+        }
+    }
+
+    #[test]
+    fn test_hunt_and_kill_delta_bidirectional_links_in_steps_ffi() {
+        let json_request = r#"
+        {
+            "maze_type": "Delta",
+            "width": 5,
+            "height": 5,
+            "algorithm": "HuntAndKill",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 4, "y": 4 },
+            "capture_steps": true
+        }
+        "#;
+        let json_req_c_string = CString::new(json_request).unwrap().into_raw();
+        
+        let grid_ptr = mazer_generate_maze(json_req_c_string);
+        assert!(!grid_ptr.is_null(), "Failed to generate maze");
+        
+        let steps_count = mazer_get_generation_steps_count(grid_ptr);
+        assert!(steps_count > 0, "Expected some generation steps");
+        
+        for step in 0..steps_count {
+            let mut length: usize = 0;
+            let cells_ptr = mazer_get_generation_step_cells(grid_ptr, step, &mut length as *mut usize);
+            assert!(!cells_ptr.is_null(), "Failed to get cells for step {}", step);
+            
+            let cells: &[FFICell] = unsafe { std::slice::from_raw_parts(cells_ptr, length) };
+            
+            check_bidirectional_links_ffi(cells, MazeType::Delta, 5, 5, step);
+            
+            mazer_free_cells(cells_ptr, length);
+        }
+        
+        mazer_destroy(grid_ptr);
+        unsafe {
+            let _ = CString::from_raw(json_req_c_string);
+        }
+    }
+
+    #[test]
+    fn test_mazer_clear_generation_steps() {
+        let json_request = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 5,
+            "height": 5,
+            "algorithm": "HuntAndKill",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 4, "y": 4 },
+            "capture_steps": true
+        }
+        "#;
+        let json_req_c_string = std::ffi::CString::new(json_request).unwrap().into_raw();
+        
+        let grid_ptr = mazer_generate_maze(json_req_c_string);
+        assert!(!grid_ptr.is_null(), "Failed to generate maze");
+        
+        let steps_count_before = mazer_get_generation_steps_count(grid_ptr);
+        assert!(steps_count_before > 0, "Expected some generation steps");
+        
+        mazer_clear_generation_steps(grid_ptr);
+        
+        let steps_count_after = mazer_get_generation_steps_count(grid_ptr);
+        assert_eq!(steps_count_after, 0, "Expected generation steps to be cleared");
+        
+        mazer_destroy(grid_ptr);
+        unsafe {
+            let _ = std::ffi::CString::from_raw(json_req_c_string);
+        }
     }
 
     #[test]

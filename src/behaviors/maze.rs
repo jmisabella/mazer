@@ -47,7 +47,7 @@ pub trait MazeGeneration {
             // Update open_walls only for changed cells
             for coord in changed_cells {
                 if let Ok(cell) = grid.get_mut(*coord) {
-                    cell.set_open_walls(); // Assumes this only reads linked and sets open_walls
+                    cell.set_open_walls();
                 }
             }
             // Clone the grid minimally for storage

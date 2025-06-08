@@ -697,15 +697,17 @@ impl Grid {
         let (row1, col1) = (coord1.y, coord1.x);
         let (row2, col2) = (coord2.y, coord2.x);
 
-        // Link cell at coord1 to cell at coord2.
+        // Link cell at coord1 to cell at coord2 and update open_walls.
         {
             let cell1 = self.get_mut_by_coords(col1, row1)?;
             cell1.linked.insert(coord2);
+            cell1.set_open_walls();
         }
-        // Link cell at coord2 to cell at coord1.
+        // Link cell at coord2 to cell at coord1 and update open_walls.
         {
             let cell2 = self.get_mut_by_coords(col2, row2)?;
             cell2.linked.insert(coord1);
+            cell2.set_open_walls();
         }
         Ok(())
     }
@@ -715,18 +717,56 @@ impl Grid {
         let (row1, col1) = (coord1.y, coord1.x);
         let (row2, col2) = (coord2.y, coord2.x);
 
-        // Unlink cell at coord1 from cell at coord2.
+        // Unlink cell at coord1 from cell at coord2 and update open_walls.
         {
             let cell1 = self.get_mut_by_coords(col1, row1)?;
             cell1.linked.remove(&coord2);
+            cell1.set_open_walls();
         }
-        // Unlink cell at coord2 from cell at coord1.
+        // Unlink cell at coord2 from cell at coord1 and update open_walls.
         {
             let cell2 = self.get_mut_by_coords(col2, row2)?;
             cell2.linked.remove(&coord1);
+            cell2.set_open_walls();
         }
         Ok(())
     }
+
+    // /// Link two cells together by their coordinates.
+    // pub fn link(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
+    //     let (row1, col1) = (coord1.y, coord1.x);
+    //     let (row2, col2) = (coord2.y, coord2.x);
+
+    //     // Link cell at coord1 to cell at coord2.
+    //     {
+    //         let cell1 = self.get_mut_by_coords(col1, row1)?;
+    //         cell1.linked.insert(coord2);
+    //     }
+    //     // Link cell at coord2 to cell at coord1.
+    //     {
+    //         let cell2 = self.get_mut_by_coords(col2, row2)?;
+    //         cell2.linked.insert(coord1);
+    //     }
+    //     Ok(())
+    // }
+
+    // /// Unlink two cells by their coordinates, removing the connection between them.
+    // pub fn unlink(&mut self, coord1: Coordinates, coord2: Coordinates) -> Result<(), Error> {
+    //     let (row1, col1) = (coord1.y, coord1.x);
+    //     let (row2, col2) = (coord2.y, coord2.x);
+
+    //     // Unlink cell at coord1 from cell at coord2.
+    //     {
+    //         let cell1 = self.get_mut_by_coords(col1, row1)?;
+    //         cell1.linked.remove(&coord2);
+    //     }
+    //     // Unlink cell at coord2 from cell at coord1.
+    //     {
+    //         let cell2 = self.get_mut_by_coords(col2, row2)?;
+    //         cell2.linked.remove(&coord1);
+    //     }
+    //     Ok(())
+    // }
 
     /// Get a map of distances from the start coordinate to all other connected coordinates.
     pub fn distances(&self, start: Coordinates) -> HashMap<Coordinates, u32> {
