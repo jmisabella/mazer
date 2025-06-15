@@ -105,16 +105,6 @@ size_t mazer_get_generation_steps_count(Grid *grid);
 FFICell* mazer_get_generation_step_cells(Grid *grid, size_t step_index, size_t *length);
 
 /**
- * Clears the generation steps of a maze.
- *
- * This function removes the recorded generation steps from the given maze (Grid), releasing
- * any associated memory. If the provided grid pointer is NULL, the function does nothing.
- *
- * @param grid A pointer to the Grid instance whose generation steps are to be cleared.
- */
-void mazer_clear_generation_steps(Grid *grid);
-
-/**
  * Updates the maze by performing a move in the specified direction.
  *
  * This function takes an opaque pointer to the mutable Grid and a null-terminated
