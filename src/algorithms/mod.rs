@@ -12,7 +12,7 @@ use crate::algorithms::hunt_and_kill::HuntAndKill;
 use crate::algorithms::recursive_backtracker::RecursiveBacktracker;
 use crate::algorithms::prims::Prims;
 use crate::algorithms::kruskals::Kruskals;
-use crate::algorithms::growing_tree::GrowingTree;
+use crate::algorithms::growing_tree::{GrowingTree, SelectionStrategy};
 use crate::algorithms::ellers::Ellers;
 use crate::algorithms::recursive_division::RecursiveDivision;
 
@@ -38,7 +38,8 @@ pub enum MazeAlgorithm {
     RecursiveBacktracker,
     Prims,
     Kruskals,
-    GrowingTree,
+    // GrowingTree,
+    GrowingTree(SelectionStrategy),
     Ellers,
     RecursiveDivision,
 }
@@ -54,7 +55,11 @@ impl MazeAlgorithm {
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.build(grid),
             MazeAlgorithm::Prims => Prims.build(grid),
             MazeAlgorithm::Kruskals => Kruskals.build(grid),
-            MazeAlgorithm::GrowingTree => GrowingTree.build(grid),
+            // MazeAlgorithm::GrowingTree => GrowingTree.build(grid),
+            MazeAlgorithm::GrowingTree(strategy) => {
+                let growing_tree = GrowingTree { strategy: *strategy };
+                growing_tree.build(grid)
+            }
             MazeAlgorithm::Ellers => Ellers.build(grid),
             MazeAlgorithm::RecursiveDivision => RecursiveDivision.build(grid),
         }

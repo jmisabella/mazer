@@ -5,7 +5,17 @@ use crate::error::Error;
 
 use std::collections::HashSet;
 
-pub struct GrowingTree;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SelectionStrategy {
+    Random,
+    Newest,
+}
+
+pub struct GrowingTree {
+    pub strategy: SelectionStrategy,
+}
 
 impl MazeGeneration for GrowingTree {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
@@ -27,8 +37,11 @@ impl MazeGeneration for GrowingTree {
         }
 
         while !active.is_empty() {
-            // Choose a random cell from active list (can be modified for other strategies)
-            let index = grid.bounded_random_usize(active.len() - 1);
+            // Choose a cell from active list based on strategy
+            let index = match self.strategy {
+                SelectionStrategy::Random => grid.bounded_random_usize(active.len() - 1),
+                SelectionStrategy::Newest => active.len() - 1,
+            };
             let current_coords = active[index];
 
             // Get unvisited neighbors
@@ -70,6 +83,71 @@ impl MazeGeneration for GrowingTree {
     }
 }
 
+// pub struct GrowingTree;
+
+// impl MazeGeneration for GrowingTree {
+//     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+//         let mut active: Vec<Coordinates> = Vec::new();
+//         let mut visited: HashSet<Coordinates> = HashSet::new();
+
+//         // Start with a random cell
+//         let start_coords = Coordinates {
+//             x: grid.bounded_random_usize(grid.width - 1),
+//             y: grid.bounded_random_usize(grid.height - 1),
+//         };
+//         active.push(start_coords);
+//         visited.insert(start_coords);
+
+//         // Capture initial state with no changed cells
+//         if grid.capture_steps {
+//             let changed_cells = HashSet::new();
+//             self.capture_step(grid, &changed_cells);
+//         }
+
+//         while !active.is_empty() {
+//             // Choose a random cell from active list (can be modified for other strategies)
+//             let index = grid.bounded_random_usize(active.len() - 1);
+//             let current_coords = active[index];
+
+//             // Get unvisited neighbors
+//             let unvisited_neighbors: Vec<Coordinates> = if let Ok(cell) = grid.get(current_coords) {
+//                 cell.neighbors()
+//                     .into_iter()
+//                     .filter(|neighbor| !visited.contains(neighbor))
+//                     .collect()
+//             } else {
+//                 Vec::new()
+//             };
+
+//             if unvisited_neighbors.is_empty() {
+//                 // No unvisited neighbors, remove from active list
+//                 active.swap_remove(index);
+//             } else {
+//                 // Choose a random unvisited neighbor
+//                 let neighbor_index = grid.bounded_random_usize(unvisited_neighbors.len() - 1);
+//                 let next_coords = unvisited_neighbors[neighbor_index];
+
+//                 // Link to the neighbor
+//                 grid.link(current_coords, next_coords)?;
+
+//                 // Mark neighbor as visited and add to active list
+//                 visited.insert(next_coords);
+//                 active.push(next_coords);
+
+//                 // Capture step with changed cells after linking
+//                 if grid.capture_steps {
+//                     let mut changed_cells = HashSet::new();
+//                     changed_cells.insert(current_coords);
+//                     changed_cells.insert(next_coords);
+//                     self.capture_step(grid, &changed_cells);
+//                 }
+//             }
+//         }
+
+//         Ok(())
+//     }
+// }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,7 +158,7 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 println!("\n\nGrowing Tree\n\n{}\n\n", grid.to_asci());
                 assert!(grid.is_perfect_maze().unwrap());
             }
@@ -93,7 +171,7 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 println!("\n\nGrowing Tree\n\n{}\n\n", grid.to_asci());
                 assert!(grid.is_perfect_maze().unwrap());
             }
@@ -106,7 +184,7 @@ mod tests {
         match Grid::new(MazeType::Delta, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -118,7 +196,7 @@ mod tests {
         match Grid::new(MazeType::Delta, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -130,7 +208,7 @@ mod tests {
         match Grid::new(MazeType::Sigma, 4, 4, Coordinates { x: 0, y: 0 }, Coordinates { x: 3, y: 3 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -142,7 +220,7 @@ mod tests {
         match Grid::new(MazeType::Sigma, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -154,7 +232,7 @@ mod tests {
         match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -166,7 +244,7 @@ mod tests {
         match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Growing Tree maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -180,7 +258,7 @@ mod tests {
         match Grid::new(MazeType::Orthogonal, 12, 12, start, goal, true) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree.generate(&mut grid).expect("Maze generation failed");
+                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
                 let steps = grid.generation_steps.as_ref().unwrap();
