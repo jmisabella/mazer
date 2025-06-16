@@ -25,8 +25,8 @@ impl MazeGeneration for Wilsons {
         while visited.len() < grid_size {
             // Choose a random unvisited cell to start the random walk
             let walk_start = loop {
-                let x = grid.bounded_random_usize(grid.width - 1);
-                let y = grid.bounded_random_usize(grid.height - 1);
+                let x = grid.bounded_random_usize(grid.width);
+                let y = grid.bounded_random_usize(grid.height);
                 let coords = Coordinates { x, y };
                 if !visited.contains(&coords) {
                     break coords;
@@ -50,7 +50,7 @@ impl MazeGeneration for Wilsons {
                 if neighbors.is_empty() {
                     return Err(Error::EmptyList); // Handle case where there are no neighbors
                 }
-                let index = grid.bounded_random_usize(neighbors.len() - 1);
+                let index = grid.bounded_random_usize(neighbors.len());
             
                 // Choose a random neighbor
                 let next = neighbors[index];

@@ -346,7 +346,7 @@ impl Grid {
     /// Random unsigned integer within bounds of an upper boundary
     pub fn bounded_random_usize(&mut self, upper_bound: usize) -> usize {
         let mut rng = thread_rng();
-        let seed= rng.gen_range(0..upper_bound + 1);
+        let seed= rng.gen_range(0..upper_bound);
         self.seed = seed as u64;
         return seed;
     }

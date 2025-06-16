@@ -86,7 +86,7 @@ impl MazeGeneration for Ellers {
                 for (_set_id, cells) in cells_by_set {
                     let mut cells = cells;
                     cells.shuffle(&mut rand::thread_rng());
-                    let connect_count = 1 + grid.bounded_random_usize(cells.len() - 1);
+                    let connect_count = 1 + grid.bounded_random_usize(cells.len());
                     for &cell_coords in cells.iter().take(connect_count) {
                         let down_coords = Coordinates {
                             x: cell_coords.x,

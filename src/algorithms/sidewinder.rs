@@ -40,7 +40,7 @@ impl MazeGeneration for Sidewinder {
                     // Close the run by carving upward
                     if !at_northern_boundary {
                         // Get a random index from the run
-                        let random_index = grid.bounded_random_usize(run.len() - 1);
+                        let random_index = grid.bounded_random_usize(run.len());
                         let random_cell = run[random_index];
 
                         let above_coords = Coordinates {
