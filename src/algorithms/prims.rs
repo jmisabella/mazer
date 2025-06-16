@@ -36,8 +36,8 @@ impl MazeGeneration for Prims {
 
         // Step 1: Choose a random starting cell
         let start_coords = Coordinates {
-            x: grid.bounded_random_usize(grid.width - 1),
-            y: grid.bounded_random_usize(grid.height - 1),
+            x: grid.bounded_random_usize(grid.width),
+            y: grid.bounded_random_usize(grid.height),
         };
         visited.insert(start_coords);
         
@@ -85,7 +85,7 @@ impl MazeGeneration for Prims {
 
             // Link to a visited neighbor if available
             if !visited_neighbors.is_empty() {
-                let neighbor_index = grid.bounded_random_usize(visited_neighbors.len() - 1);
+                let neighbor_index = grid.bounded_random_usize(visited_neighbors.len());
                 let neighbor_coords = visited_neighbors[neighbor_index];
                 grid.link(coords, neighbor_coords)?;
                 // Capture state after each link is made

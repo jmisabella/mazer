@@ -15,8 +15,8 @@ impl MazeGeneration for AldousBroder {
         let mut visited = vec![vec![false; cols]; rows];
         let total_cells = rows * cols;
 
-        let rand_x = grid.bounded_random_usize(cols - 1);
-        let rand_y = grid.bounded_random_usize(rows - 1);
+        let rand_x = grid.bounded_random_usize(cols);
+        let rand_y = grid.bounded_random_usize(rows);
         // Step 2: Choose a random starting cell
         let mut current_coords = Coordinates {
             x: rand_x,
@@ -46,7 +46,7 @@ impl MazeGeneration for AldousBroder {
 
                 if !neighbors.is_empty() {
                     // Pick a random neighbor
-                    let random_index = grid.bounded_random_usize(neighbors.len() - 1);
+                    let random_index = grid.bounded_random_usize(neighbors.len());
                     let random_neighbor = neighbors[random_index];
 
                     // If the neighbor hasn't been visited, link it and update visited

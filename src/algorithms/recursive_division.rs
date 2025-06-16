@@ -74,7 +74,8 @@ impl RecursiveDivision {
             }
             // Choose a wall y-coordinate between rows [y, y+height-2)
             let wall_y = if height > 2 {
-                y + grid.bounded_random_usize(height - 2) // [y, y+height-3]
+                // y + grid.bounded_random_usize(height - 2) // [y, y+height-3]
+                y + grid.bounded_random_usize(height - 1) // [y, y+height-3]
             } else {
                 y // Only one possible wall position
             };
@@ -84,7 +85,8 @@ impl RecursiveDivision {
             }
             // Choose a passage x-coordinate within [x, x+width-1)
             let passage_x = if width > 1 {
-                x + grid.bounded_random_usize(width - 1) // [x, x+width-2]
+                // x + grid.bounded_random_usize(width - 1) // [x, x+width-2]
+                x + grid.bounded_random_usize(width) // [x, x+width-2]
             } else {
                 x
             };
@@ -117,7 +119,8 @@ impl RecursiveDivision {
             }
             // Choose a wall x-coordinate between columns [x, x+width-2)
             let wall_x = if width > 2 {
-                x + grid.bounded_random_usize(width - 2) // [x, x+width-3]
+                // x + grid.bounded_random_usize(width - 2) // [x, x+width-3]
+                x + grid.bounded_random_usize(width - 1) // [x, x+width-3]
             } else {
                 x // Only one possible wall position
             };
@@ -127,7 +130,8 @@ impl RecursiveDivision {
             }
             // Choose a passage y-coordinate within [y, y+height-1)
             let passage_y = if height > 1 {
-                y + grid.bounded_random_usize(height - 1) // [y, y+height-2]
+                // y + grid.bounded_random_usize(height - 1) // [y, y+height-2]
+                y + grid.bounded_random_usize(height) // [y, y+height-2]
             } else {
                 y
             };

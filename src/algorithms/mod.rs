@@ -38,8 +38,9 @@ pub enum MazeAlgorithm {
     RecursiveBacktracker,
     Prims,
     Kruskals,
-    // GrowingTree,
-    GrowingTree(SelectionStrategy),
+    // GrowingTree(SelectionStrategy),
+    GrowingTreeRandom,
+    GrowingTreeNewest,
     Ellers,
     RecursiveDivision,
 }
@@ -55,9 +56,12 @@ impl MazeAlgorithm {
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.build(grid),
             MazeAlgorithm::Prims => Prims.build(grid),
             MazeAlgorithm::Kruskals => Kruskals.build(grid),
-            // MazeAlgorithm::GrowingTree => GrowingTree.build(grid),
-            MazeAlgorithm::GrowingTree(strategy) => {
-                let growing_tree = GrowingTree { strategy: *strategy };
+            MazeAlgorithm::GrowingTreeRandom => {
+                let growing_tree = GrowingTree { strategy: SelectionStrategy::Random };
+                growing_tree.build(grid)
+            }
+            MazeAlgorithm::GrowingTreeNewest => {
+                let growing_tree = GrowingTree { strategy: SelectionStrategy::Newest};
                 growing_tree.build(grid)
             }
             MazeAlgorithm::Ellers => Ellers.build(grid),

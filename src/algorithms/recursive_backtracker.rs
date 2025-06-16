@@ -38,7 +38,7 @@ impl MazeGeneration for RecursiveBacktracker {
             } else {
                 // Choose a random unvisited neighbor
                 let random_index = {
-                    let upper_bound = neighbors.len() - 1;
+                    let upper_bound = neighbors.len();
                     grid.bounded_random_usize(upper_bound)
                 };
                 let next_coords = neighbors[random_index];
