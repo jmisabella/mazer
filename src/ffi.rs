@@ -290,17 +290,6 @@ pub extern "C" fn mazer_get_generation_step_cells(
     }
 }
 
-#[no_mangle]
-pub extern "C" fn mazer_clear_generation_steps(grid: *mut Grid) {
-    if grid.is_null() {
-        return;
-    }
-    unsafe {
-        let grid_ref = &mut *grid;
-        grid_ref.generation_steps = None;
-    }
-}
-
 /// Performs a move on the maze grid based on the provided direction.
 ///
 /// This function takes an opaque pointer to a mutable `Grid` instance and a null-terminated C string
@@ -836,38 +825,6 @@ mod tests {
         mazer_destroy(grid_ptr);
         unsafe {
             let _ = CString::from_raw(json_req_c_string);
-        }
-    }
-
-    #[test]
-    fn test_mazer_clear_generation_steps() {
-        let json_request = r#"
-        {
-            "maze_type": "Orthogonal",
-            "width": 5,
-            "height": 5,
-            "algorithm": "HuntAndKill",
-            "start": { "x": 0, "y": 0 },
-            "goal": { "x": 4, "y": 4 },
-            "capture_steps": true
-        }
-        "#;
-        let json_req_c_string = std::ffi::CString::new(json_request).unwrap().into_raw();
-        
-        let grid_ptr = mazer_generate_maze(json_req_c_string);
-        assert!(!grid_ptr.is_null(), "Failed to generate maze");
-        
-        let steps_count_before = mazer_get_generation_steps_count(grid_ptr);
-        assert!(steps_count_before > 0, "Expected some generation steps");
-        
-        mazer_clear_generation_steps(grid_ptr);
-        
-        let steps_count_after = mazer_get_generation_steps_count(grid_ptr);
-        assert_eq!(steps_count_after, 0, "Expected generation steps to be cleared");
-        
-        mazer_destroy(grid_ptr);
-        unsafe {
-            let _ = std::ffi::CString::from_raw(json_req_c_string);
         }
     }
 

@@ -1,6 +1,7 @@
 use crate::cell::Coordinates;
 use crate::cell::MazeType;
 use crate::algorithms::MazeAlgorithm;
+use crate::algorithms::growing_tree::SelectionStrategy;
 use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -101,5 +102,82 @@ mod tests {
         assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
     }
 
+    #[test]
+    fn test_serialization_of_growing_tree_random() {
+        let request = MazeRequest {
+            maze_type: MazeType::Orthogonal,
+            width: 10,
+            height: 10,
+            algorithm: MazeAlgorithm::GrowingTree(SelectionStrategy::Random),
+            start: Some(Coordinates { x: 0, y: 0 }),
+            goal: Some(Coordinates { x: 9, y: 9 }),
+            capture_steps: None,
+        };
+
+        let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
+        assert!(json.contains("\"algorithm\":{\"GrowingTree\":\"Random\"}"));
+    }
+
+    #[test]
+    fn test_serialization_of_growing_tree_newest() {
+        let request = MazeRequest {
+            maze_type: MazeType::Orthogonal,
+            width: 10,
+            height: 10,
+            algorithm: MazeAlgorithm::GrowingTree(SelectionStrategy::Newest),
+            start: Some(Coordinates { x: 0, y: 0 }),
+            goal: Some(Coordinates { x: 9, y: 9 }),
+            capture_steps: None,
+        };
+
+        let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
+        assert!(json.contains("\"algorithm\":{\"GrowingTree\":\"Newest\"}"));
+    }
+
+    #[test]
+    fn test_deserialization_of_growing_tree_random() {
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 10,
+            "height": 10,
+            "algorithm": {"GrowingTree": "Random"},
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 9, "y": 9 }
+        }
+        "#;
+
+        let request: MazeRequest = serde_json::from_str(json).expect("Failed to deserialize MazeRequest");
+
+        assert_eq!(request.maze_type, MazeType::Orthogonal);
+        assert_eq!(request.width, 10);
+        assert_eq!(request.height, 10);
+        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTree(SelectionStrategy::Random));
+        assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
+        assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
+    }
+
+    #[test]
+    fn test_deserialization_of_growing_tree_newest() {
+        let json = r#"
+        {
+            "maze_type": "Orthogonal",
+            "width": 10,
+            "height": 10,
+            "algorithm": {"GrowingTree": "Newest"},
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 9, "y": 9 }
+        }
+        "#;
+
+        let request: MazeRequest = serde_json::from_str(json).expect("Failed to deserialize MazeRequest");
+
+        assert_eq!(request.maze_type, MazeType::Orthogonal);
+        assert_eq!(request.width, 10);
+        assert_eq!(request.height, 10);
+        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTree(SelectionStrategy::Newest));
+        assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
+        assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
+    }
 
 }
