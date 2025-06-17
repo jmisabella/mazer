@@ -8,7 +8,7 @@ use crate::behaviors::collections::FilterKeys;
 use crate::behaviors::display::JsonDisplay;
 use crate::direction::Direction;
 
-#[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Coordinates {
     pub x: usize,
     pub y: usize
