@@ -55,16 +55,19 @@ impl RecursiveDivision {
             return Ok(());
         }
 
-        let divide_horizontally = if width > height {
-            grid.random_bool()
-        } else if height > width {
-            true
+        let divide_horizontally = if height > width {
+            true // Prefer horizontal if taller
+        } else if width > height {
+            false // Prefer vertical if wider
         } else {
-            grid.random_bool()
+            grid.random_bool() // Random if square
         };
 
         if divide_horizontally {
             let wall_y = y + grid.bounded_random_usize(height - 1);
+            if wall_y >= grid.height - 1 {
+                return Ok(());
+            }
             let passage_x = x + grid.bounded_random_usize(width);
 
             let mut changed_cells = HashSet::new();
@@ -90,6 +93,9 @@ impl RecursiveDivision {
             self.divide(grid, x, wall_y + 1, width, bottom_height)?;
         } else {
             let wall_x = x + grid.bounded_random_usize(width - 1);
+            if wall_x >= grid.width - 1 {
+                return Ok(());
+            }
             let passage_y = y + grid.bounded_random_usize(height);
 
             let mut changed_cells = HashSet::new();
