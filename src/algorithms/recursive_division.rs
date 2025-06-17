@@ -10,7 +10,7 @@ pub struct RecursiveDivision;
 impl MazeGeneration for RecursiveDivision {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
-            MazeType::Orthogonal => {} // Proceed for Orthogonal grids
+            MazeType::Orthogonal => {}
             maze_type => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::RecursiveDivision,
@@ -19,15 +19,25 @@ impl MazeGeneration for RecursiveDivision {
             }
         }
 
-        // Capture initial state if capture_steps is true
-        if grid.capture_steps {
-            let changed_cells = HashSet::new();
-            self.capture_step(grid, &changed_cells);
+        // Link all adjacent cells to start with no walls
+        for y in 0..grid.height {
+            for x in 0..grid.width {
+                let coords = Coordinates { x, y };
+                if x + 1 < grid.width {
+                    grid.link(coords, Coordinates { x: x + 1, y })?;
+                }
+                if y + 1 < grid.height {
+                    grid.link(coords, Coordinates { x, y: y + 1 })?;
+                }
+            }
         }
 
-        // Recursively divide the grid
-        self.divide(grid, 0, 0, grid.width, grid.height)?;
+        if grid.capture_steps {
+            let changed_cells = HashSet::new();
+            self.capture_step(grid, &changed_cells); // Captures fully open grid
+        }
 
+        self.divide(grid, 0, 0, grid.width, grid.height)?;
         Ok(())
     }
 }
@@ -41,122 +51,68 @@ impl RecursiveDivision {
         width: usize,
         height: usize,
     ) -> Result<(), Error> {
-        // Stop if the region cannot be divided further
-        if width <= 1 && height <= 1 {
+        if width <= 1 || height <= 1 {
             return Ok(());
         }
 
-        // Ensure we can divide by requiring at least 2 cells in one dimension
-        let can_divide_horizontally = height > 1;
-        let can_divide_vertically = width > 1;
-
-        if !can_divide_horizontally && !can_divide_vertically {
-            return Ok(());
-        }
-
-        // Decide whether to divide horizontally or vertically
-        let divide_horizontally = if !can_divide_vertically {
-            true // Must divide horizontally if width <= 1
-        } else if !can_divide_horizontally {
-            false // Must divide vertically if height <= 1
-        } else if width > height {
-            false // Prefer vertical if wider
+        let divide_horizontally = if width > height {
+            grid.random_bool()
         } else if height > width {
-            true // Prefer horizontal if taller
+            true
         } else {
-            grid.random_bool() // Random choice if equal
+            grid.random_bool()
         };
 
         if divide_horizontally {
-            // Need at least 2 rows to place a wall between them
-            if height < 2 {
-                return Ok(());
-            }
-            // Choose a wall y-coordinate between rows [y, y+height-2)
-            let wall_y = if height > 2 {
-                // y + grid.bounded_random_usize(height - 2) // [y, y+height-3]
-                y + grid.bounded_random_usize(height - 1) // [y, y+height-3]
-            } else {
-                y // Only one possible wall position
-            };
-            // Ensure wall_y is within bounds
-            if wall_y >= grid.height - 1 {
-                return Ok(());
-            }
-            // Choose a passage x-coordinate within [x, x+width-1)
-            let passage_x = if width > 1 {
-                // x + grid.bounded_random_usize(width - 1) // [x, x+width-2]
-                x + grid.bounded_random_usize(width) // [x, x+width-2]
-            } else {
-                x
-            };
-            if passage_x >= grid.width {
-                return Ok(());
+            let wall_y = y + grid.bounded_random_usize(height - 1);
+            let passage_x = x + grid.bounded_random_usize(width);
+
+            let mut changed_cells = HashSet::new();
+            for col in x..x + width {
+                if col != passage_x {
+                    let coords = Coordinates { x: col, y: wall_y };
+                    let below = Coordinates { x: col, y: wall_y + 1 };
+                    grid.unlink(coords, below)?; // Adds wall by removing link
+                    if grid.capture_steps {
+                        changed_cells.insert(coords);
+                        changed_cells.insert(below);
+                    }
+                }
             }
 
-            // Carve a passage by linking cells at the passage position
-            let coords = Coordinates { x: passage_x, y: wall_y };
-            let below = Coordinates { x: passage_x, y: wall_y + 1 };
-            grid.link(coords, below)?;
-
-            // Capture state after passage creation if capture_steps is true
-            if grid.capture_steps {
-                let mut changed_cells = HashSet::new();
-                changed_cells.insert(coords);
-                changed_cells.insert(below);
+            if grid.capture_steps && !changed_cells.is_empty() {
                 self.capture_step(grid, &changed_cells);
             }
 
-            // Recursively divide the two regions
             let top_height = wall_y - y + 1;
             let bottom_height = height - top_height;
-            self.divide(grid, x, y, width, top_height)?; // Top region (includes wall_y row)
-            self.divide(grid, x, wall_y + 1, width, bottom_height)?; // Bottom region
+            self.divide(grid, x, y, width, top_height)?;
+            self.divide(grid, x, wall_y + 1, width, bottom_height)?;
         } else {
-            // Need at least 2 columns to place a wall between them
-            if width < 2 {
-                return Ok(());
-            }
-            // Choose a wall x-coordinate between columns [x, x+width-2)
-            let wall_x = if width > 2 {
-                // x + grid.bounded_random_usize(width - 2) // [x, x+width-3]
-                x + grid.bounded_random_usize(width - 1) // [x, x+width-3]
-            } else {
-                x // Only one possible wall position
-            };
-            // Ensure wall_x is within bounds
-            if wall_x >= grid.width - 1 {
-                return Ok(());
-            }
-            // Choose a passage y-coordinate within [y, y+height-1)
-            let passage_y = if height > 1 {
-                // y + grid.bounded_random_usize(height - 1) // [y, y+height-2]
-                y + grid.bounded_random_usize(height) // [y, y+height-2]
-            } else {
-                y
-            };
-            if passage_y >= grid.height {
-                return Ok(());
+            let wall_x = x + grid.bounded_random_usize(width - 1);
+            let passage_y = y + grid.bounded_random_usize(height);
+
+            let mut changed_cells = HashSet::new();
+            for row in y..y + height {
+                if row != passage_y {
+                    let coords = Coordinates { x: wall_x, y: row };
+                    let right = Coordinates { x: wall_x + 1, y: row };
+                    grid.unlink(coords, right)?; // Adds wall by removing link
+                    if grid.capture_steps {
+                        changed_cells.insert(coords);
+                        changed_cells.insert(right);
+                    }
+                }
             }
 
-            // Carve a passage by linking cells at the passage position
-            let coords = Coordinates { x: wall_x, y: passage_y };
-            let right = Coordinates { x: wall_x + 1, y: passage_y };
-            grid.link(coords, right)?;
-
-            // Capture state after passage creation if capture_steps is true
-            if grid.capture_steps {
-                let mut changed_cells = HashSet::new();
-                changed_cells.insert(coords);
-                changed_cells.insert(right);
+            if grid.capture_steps && !changed_cells.is_empty() {
                 self.capture_step(grid, &changed_cells);
             }
 
-            // Recursively divide the two regions
             let left_width = wall_x - x + 1;
             let right_width = width - left_width;
-            self.divide(grid, x, y, left_width, height)?; // Left region (includes wall_x column)
-            self.divide(grid, wall_x + 1, y, right_width, height)?; // Right region
+            self.divide(grid, x, y, left_width, height)?;
+            self.divide(grid, wall_x + 1, y, right_width, height)?;
         }
 
         Ok(())
@@ -249,7 +205,6 @@ mod tests {
                 assert!(grid.is_perfect_maze().unwrap());
                 assert!(grid.generation_steps.is_some());
                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
-                // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
                     step.cells.iter().any(|cell| !cell.linked.is_empty())
                 });
