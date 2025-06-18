@@ -332,7 +332,6 @@ pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_cha
         // on successful move, return the same pointer to the grid.
         grid_ptr
     } else {
-        eprintln!("mazer_make_move failed on {:?} at {:?}", dir_enum, grid_ptr);
         std::ptr::null_mut()
     }
 }
