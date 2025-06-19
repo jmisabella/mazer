@@ -205,18 +205,6 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_23_kruskals_rhombille_maze() {
-        match Grid::new(MazeType::Rhombille, 12, 23, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 22 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                Kruskals.generate(&mut grid).expect("Growing Tree maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
     fn test_kruskals_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 19, y: 19 };

@@ -35,7 +35,6 @@ pub enum MazeType {
     Orthogonal,
     Sigma,
     Delta,
-    Rhombille,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
