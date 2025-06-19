@@ -195,20 +195,6 @@ mod tests {
     }
 
     #[test]
-    fn reject_12_x_12_polar_ellers_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                match Ellers.generate(&mut grid) {
-                    Ok(()) => panic!("Successfully generated an Eller's maze for a Polar grid, which should have been rejected!"),
-                    Err(e) => println!("As expected, Polar grid is rejected for Eller's maze generation: {:?}", e),
-                }
-            }
-            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
-        }
-    }
-
-    #[test]
     fn test_ellers_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 19, y: 19 };

@@ -21,7 +21,7 @@ pub struct Grid {
     pub width: usize,
     /// The height of the grid.
     pub height: usize,
-    /// The maze type, which determines the style of the maze (e.g., Orthogonal, Delta, Sigma, or Polar).
+    /// The maze type, which determines the style of the maze (e.g., Orthogonal, Delta, Sigma).
     pub maze_type: MazeType,
     /// A flattened array of cells that make up the maze.
     pub cells: Vec<Cell>,
@@ -172,7 +172,7 @@ impl Grid {
                                        Down, LowerLeft, Left, UpperLeft],
             MazeType::Delta      => &[Up, UpperLeft, UpperRight,
                                        Down, LowerLeft, LowerRight],
-            MazeType::Polar      => &[Inward, Outward, Clockwise, CounterClockwise],
+            MazeType::Rhombille => &[UpperRight, UpperLeft, LowerLeft, LowerRight],
         }
     }
 
@@ -271,8 +271,8 @@ impl Grid {
                         .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
                         .or_else(|| try_direction(active_cell, &Direction::LowerRight))
                 },
-                // If the provided direction isn't one of the Delta-specific ones, use it as given.
-                _ => Some(direction.clone()),
+                // // If the provided direction isn't one of the Delta-specific ones, use it as given.
+                // _ => Some(direction.clone()),
             }
         }; 
 
@@ -497,7 +497,7 @@ impl Grid {
             MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
-            MazeType::Polar      => self.assign_neighbors_polar(),
+            MazeType::Rhombille => self.assign_neighbors_rhombille(),
         }
     }
 
@@ -650,41 +650,24 @@ impl Grid {
         Ok(())
     }
 
-    /// Assign neighbors for Polar mazes.
-    fn assign_neighbors_polar(&mut self) -> Result<(), Error> {
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let mut cell = self.get_mut_by_coords(col, row)?.clone();
-                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
-
-                // Inward and outward neighbors.
-                if row > 0 {
-                    neighbors.insert(
-                        Direction::Inward, 
-                        self.get_by_coords(col, row - 1)?.coords,
-                    );
+    /// Assign neighbors for Rhombille mazes.
+    fn assign_neighbors_rhombille(&mut self) -> Result<(), Error> {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let mut cell = self.get_mut(Coordinates { x, y })?.clone();
+                let mut neighbors = HashMap::new();
+                if y > 0 {
+                    neighbors.insert(Direction::UpperRight, Coordinates { x, y: y - 1 });
                 }
-                if row < self.height - 1 {
-                    neighbors.insert(
-                        Direction::Outward, 
-                        self.get_by_coords(col, row + 1)?.coords,
-                    );
+                if x < self.width - 1 {
+                    neighbors.insert(Direction::LowerRight, Coordinates { x: x + 1, y });
                 }
-                
-                // Clockwise and counter-clockwise neighbors.
-                if col > 0 {
-                    neighbors.insert(
-                        Direction::CounterClockwise, 
-                        self.get_by_coords((col - 1) % self.width, row)?.coords,
-                    );
+                if y < self.height - 1 {
+                    neighbors.insert(Direction::LowerLeft, Coordinates { x, y: y + 1 });
                 }
-                if col < self.width - 1 {
-                    neighbors.insert(
-                        Direction::Clockwise, 
-                        self.get_by_coords((col + 1) % self.width, row)?.coords,
-                    );
+                if x > 0 {
+                    neighbors.insert(Direction::UpperLeft, Coordinates { x: x - 1, y });
                 }
-                
                 cell.set_neighbors(neighbors);
                 self.set(cell)?;
             }
@@ -1527,6 +1510,92 @@ mod tests {
             }
         }
     }
+
+    fn run_make_move_rhombille_test(algorithm: &str) {
+        let json = format!(r#"
+        {{
+            "maze_type": "Rhombille",
+            "width": 3,
+            "height": 3,
+            "algorithm": "{algorithm}",
+            "start": {{ "x": 1, "y": 1 }},
+            "goal":  {{ "x": 2, "y": 2 }}
+        }}
+        "#);
+
+        let mut maze = Grid::try_from(json).expect("Failed to create Rhombille maze");
+        assert!(maze.is_perfect_maze().unwrap(), "Maze should be perfect");
+
+        // Initial state
+        let original_coords = maze.start_coords;
+        let active_cell = maze.get_active_cell().unwrap();
+        assert_eq!(active_cell.coords, original_coords, "Active cell should be at start");
+        assert!(active_cell.is_visited, "Start cell should be visited");
+        assert!(active_cell.has_been_visited, "Start cell should have been visited");
+        let available_moves = active_cell.open_walls.clone();
+
+        // Test 1: Valid Move
+        if let Some(&direction) = available_moves.iter().find(|&&d| d == Direction::UpperRight) {
+            let result = maze.make_move(direction);
+            assert!(result.is_ok(), "Valid move UpperRight should succeed");
+            let new_active = maze.get_active_cell().unwrap();
+            assert_eq!(new_active.coords, Coordinates { x: 1, y: 0 }, "Should move up to (1,0)");
+            assert!(new_active.is_visited, "New cell should be visited");
+            assert!(new_active.has_been_visited, "New cell should have been visited");
+            assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 2, "Two cells visited");
+        } else {
+            panic!("UpperRight should be available from (1,1)");
+        }
+
+        // Test 2: Backtracking
+        let current_cell = maze.get_active_cell().unwrap();
+        let back_direction = current_cell.neighbors_by_direction.iter()
+            .find_map(|(dir, &coords)| if coords == original_coords { Some(*dir) } else { None })
+            .expect("Should have a direction back to start");
+        let result = maze.make_move(back_direction);
+        assert!(result.is_ok(), "Backtracking should succeed");
+        let active_after_back = maze.get_active_cell().unwrap();
+        assert_eq!(active_after_back.coords, original_coords, "Should return to start");
+        assert!(active_after_back.is_visited, "Start should remain visited");
+        assert!(active_after_back.has_been_visited, "Start should remain has_been_visited");
+        let backtracked_cell = maze.get(Coordinates { x: 1, y: 0 }).unwrap();
+        assert!(!backtracked_cell.is_visited, "Backtracked cell should not be visited");
+        assert!(backtracked_cell.has_been_visited, "Backtracked cell should have been visited");
+        assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 1, "Only start visited");
+
+        // Test 3: Invalid Move
+        let all_possible = maze.all_moves();
+        let invalid_direction = all_possible.iter()
+            .find(|d| !available_moves.contains(d))
+            .expect("Should find an unavailable direction");
+        let result = maze.make_move(*invalid_direction);
+        assert!(result.is_err(), "Invalid move should fail");
+        let active_after_invalid = maze.get_active_cell().unwrap();
+        assert_eq!(active_after_invalid.coords, original_coords, "Active cell should not change");
+
+        // Test 4: Boundary Move (move to edge)
+        let mut maze_edge = maze.clone();
+        if available_moves.contains(&Direction::LowerRight) {
+            maze_edge.make_move(Direction::LowerRight).unwrap();
+            let edge_cell = maze_edge.get_active_cell().unwrap();
+            assert_eq!(edge_cell.coords, Coordinates { x: 2, y: 1 }, "Should move right to (2,1)");
+            let edge_moves = edge_cell.open_walls.clone();
+            if edge_moves.contains(&Direction::LowerLeft) {
+                maze_edge.make_move(Direction::LowerLeft).unwrap();
+                assert_eq!(maze_edge.get_active_cell().unwrap().coords, Coordinates { x: 2, y: 2 }, "Should move to bottom-right corner");
+            }
+        }
+    }
+
+    #[test]
+    fn test_make_move_rhombille_recursive_backtracker() {
+        run_make_move_rhombille_test("RecursiveBacktracker");
+    }
+    
+    #[test]
+    fn test_make_move_rhombille_aldous_broder() {
+        run_make_move_rhombille_test("AldousBroder");
+    }
     
     #[test]
     fn test_make_move_orthogonal_binary_tree() {
@@ -1694,4 +1763,20 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_hunt_and_kill_rhombille_bidirectional_links_in_steps() {
+        let start = Coordinates { x: 0, y: 0 };
+        let goal = Coordinates { x: 11, y: 11 };
+        let mut grid = Grid::new(MazeType::Rhombille, 12, 12, start, goal, true).unwrap();
+        
+        HuntAndKill.generate(&mut grid).unwrap();
+        
+        assert!(grid.is_perfect_maze().unwrap(), "Generated maze should be perfect");
+        let steps = grid.generation_steps.unwrap();
+        assert!(!steps.is_empty(), "Expected some generation steps");
+        
+        for (i, step) in steps.iter().enumerate() {
+            check_bidirectional_links(step, i);
+        }
+    }
 }
