@@ -165,10 +165,10 @@ fn test_recursive_backtracker_delta_24_x_12_maze_generation_from_json() {
 }
 
 #[test]
-fn test_recursive_backtracker_polar_12_x_12_maze_generation_from_json() {
+fn test_recursive_backtracker_rhombille_12_x_12_maze_generation_from_json() {
     let json = r#"
     {
-        "maze_type": "Polar",
+        "maze_type": "Rhombille",
         "width": 12,
         "height": 12,
         "algorithm": "RecursiveBacktracker",

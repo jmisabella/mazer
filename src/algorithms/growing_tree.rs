@@ -163,20 +163,8 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_12_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
-    fn generate_12_x_6_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+    fn generate_12_x_23_growing_tree_rhombille_maze() {
+        match Grid::new(MazeType::Rhombille, 12, 23, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 22 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
@@ -185,6 +173,7 @@ mod tests {
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
+
 
     #[test]
     fn test_growing_tree_with_capture_steps() {

@@ -9,8 +9,6 @@ pub enum Direction {
     // Orthogonal & intercardinal
     Up, Right, Down, Left,
     UpperRight, LowerRight, LowerLeft, UpperLeft,
-    // Polar‑only
-    Inward, Outward, Clockwise, CounterClockwise,
 }
 
 impl fmt::Display for Direction {
@@ -24,10 +22,6 @@ impl fmt::Display for Direction {
             Direction::LowerRight       => "LowerRight",
             Direction::LowerLeft        => "LowerLeft",
             Direction::UpperLeft        => "UpperLeft",
-            Direction::Inward           => "Inward",
-            Direction::Outward          => "Outward",
-            Direction::Clockwise        => "Clockwise",
-            Direction::CounterClockwise => "CounterClockwise",
         };
         write!(f, "{}", s)
     }
@@ -45,10 +39,6 @@ impl TryFrom<&str> for Direction {
             "LowerRight"       => Direction::LowerRight,
             "LowerLeft"        => Direction::LowerLeft,
             "UpperLeft"        => Direction::UpperLeft,
-            "Inward"           => Direction::Inward,
-            "Outward"          => Direction::Outward,
-            "Clockwise"        => Direction::Clockwise,
-            "CounterClockwise" => Direction::CounterClockwise,
             other =>
                 return Err(crate::Error::InvalidDirection { direction: other.to_string() }),
         })
@@ -68,10 +58,6 @@ impl TryFrom<u32> for Direction {
             5  => LowerRight,
             6  => LowerLeft,
             7  => UpperLeft,
-            8  => Inward,
-            9  => Outward,
-            10 => Clockwise,
-            11 => CounterClockwise,
             _  => return Err(crate::Error::InvalidDirection { direction: code.to_string() }),
         })
     }
@@ -85,7 +71,7 @@ impl Direction {
             MazeType::Orthogonal => matches!(self, Up | Right | Down | Left),
             MazeType::Sigma      => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
             MazeType::Delta      => matches!(self, Up | Down | UpperLeft | UpperRight | LowerLeft | LowerRight),
-            MazeType::Polar      => matches!(self, Inward | Outward | Clockwise | CounterClockwise),
+            MazeType::Rhombille => matches!(self, UpperLeft | UpperRight | LowerLeft | LowerRight),
         }
     }
 
@@ -94,7 +80,6 @@ impl Direction {
         &[
             Up, Right, Down, Left,
             UpperRight, LowerRight, LowerLeft, UpperLeft,
-            Inward, Outward, Clockwise, CounterClockwise,
         ]
     }
 
@@ -137,10 +122,6 @@ impl Direction {
             Direction::UpperLeft        => Direction::LowerRight,
             Direction::Right            => Direction::Left,
             Direction::Left             => Direction::Right,
-            Direction::Inward           => Direction::Outward,
-            Direction::Outward          => Direction::Inward,
-            Direction::Clockwise        => Direction::CounterClockwise,
-            Direction::CounterClockwise => Direction::Clockwise,
         }
     }
 

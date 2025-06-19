@@ -35,7 +35,7 @@ pub enum MazeType {
     Orthogonal,
     Sigma,
     Delta,
-    Polar
+    Rhombille,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -57,7 +57,7 @@ pub enum CellOrientation {
 pub struct Cell {
     /// The x,y coordinates of the cell.
     pub coords: Coordinates,
-    /// The maze type (e.g., Orthogonal, Delta, Sigma, Polar).
+    /// The maze type (e.g., Orthogonal, Delta, Sigma).
     pub maze_type: MazeType,
     /// Maps directions to the coordinates of neighboring cells.
     pub neighbors_by_direction: HashMap<Direction, Coordinates>,
