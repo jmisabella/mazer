@@ -168,10 +168,9 @@ impl Grid {
         use Direction::*;
         match self.maze_type {
             MazeType::Orthogonal => &[Up, Right, Down, Left],
-            MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight,
-                                       Down, LowerLeft, Left, UpperLeft],
-            MazeType::Delta      => &[Up, UpperLeft, UpperRight,
-                                       Down, LowerLeft, LowerRight],
+            MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight, Down, LowerLeft, Left, UpperLeft],
+            MazeType::Delta      => &[Up, UpperLeft, UpperRight, Down, LowerLeft, LowerRight],
+            MazeType::OctoSquare => &[Up, Right, Down, Left, UpperRight, LowerRight, LowerLeft, UpperLeft], 
         }
     }
 
@@ -420,6 +419,11 @@ impl Grid {
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
+                let is_square = match self.maze_type {
+                    MazeType::OctoSquare => row % 2 != col % 2,
+                    MazeType::Orthogonal => true,
+                    _ => false,
+                };
                 let cell: Cell = CellBuilder::new(
                     col, 
                     row, 
@@ -430,6 +434,7 @@ impl Grid {
                 .is_active(is_start) // start cell is cell user starts on (so, is active)
                 .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
                 .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
+                .is_square(is_square) 
                 .build();
     
                 // Calculate the index in the 1D vector
@@ -496,6 +501,7 @@ impl Grid {
             MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
+            MazeType::OctoSquare => self.assign_neighbors_octosquare(),
         }
     }
 
@@ -640,6 +646,33 @@ impl Grid {
                         Direction::LowerRight,
                         self.get_by_coords(col + 1, south_diagonal)?.coords,
                     );
+                }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn assign_neighbors_octosquare(&mut self) -> Result<(), Error> {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let mut cell = self.get_mut(Coordinates { x, y })?.clone();
+                let mut neighbors = HashMap::new();
+                if cell.is_square {
+                    if y > 0 { neighbors.insert(Direction::Up, Coordinates { x, y: y - 1 }); }
+                    if x < self.width - 1 { neighbors.insert(Direction::Right, Coordinates { x: x + 1, y }); }
+                    if y < self.height - 1 { neighbors.insert(Direction::Down, Coordinates { x, y: y + 1 }); }
+                    if x > 0 { neighbors.insert(Direction::Left, Coordinates { x: x - 1, y }); }
+                } else {
+                    if y > 0 { neighbors.insert(Direction::Up, Coordinates { x, y: y - 1 }); }
+                    if x < self.width - 1 { neighbors.insert(Direction::Right, Coordinates { x: x + 1, y }); }
+                    if y < self.height - 1 { neighbors.insert(Direction::Down, Coordinates { x, y: y + 1 }); }
+                    if x > 0 { neighbors.insert(Direction::Left, Coordinates { x: x - 1, y }); }
+                    if x < self.width - 1 && y > 0 { neighbors.insert(Direction::UpperRight, Coordinates { x: x + 1, y: y - 1 }); }
+                    if x < self.width - 1 && y < self.height - 1 { neighbors.insert(Direction::LowerRight, Coordinates { x: x + 1, y: y + 1 }); }
+                    if x > 0 && y < self.height - 1 { neighbors.insert(Direction::LowerLeft, Coordinates { x: x - 1, y: y + 1 }); }
+                    if x > 0 && y > 0 { neighbors.insert(Direction::UpperLeft, Coordinates { x: x - 1, y: y - 1 }); }
                 }
                 cell.set_neighbors(neighbors);
                 self.set(cell)?;

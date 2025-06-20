@@ -35,6 +35,7 @@ pub enum MazeType {
     Orthogonal,
     Sigma,
     Delta,
+    OctoSquare,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -86,6 +87,8 @@ pub struct Cell {
     pub orientation: CellOrientation,
     /// The directions in which there are no walls restricting movement.
     pub open_walls: Vec<Direction>,
+    /// Used primarily for OctoSquare maze_type, to indicate whether cell's square or octagon
+    pub is_square: bool,
 }
 
 impl Default for Cell {
@@ -104,6 +107,7 @@ impl Default for Cell {
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
             open_walls: Vec::new(),
+            is_square: false,
         }
     }
 }
@@ -125,6 +129,7 @@ impl Serialize for Cell {
         state.serialize_field("is_visited", &self.is_visited)?;
         state.serialize_field("has_been_visited", &self.has_been_visited)?;
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
+        state.serialize_field("is_square", &self.is_square)?;
         state.end()
     }
 }
@@ -265,6 +270,7 @@ impl CellBuilder {
             on_solution_path: false,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
+            is_square: false,
         })
     }
 
@@ -308,6 +314,10 @@ impl CellBuilder {
         self
     }
 
+    pub fn is_square(mut self, is_square: bool) -> Self { 
+        self.0.is_square = is_square; 
+        self 
+    } 
 }
 
 #[cfg(test)]
@@ -432,6 +442,7 @@ mod tests {
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
+            is_square: true,
         };
 
         let json = cell.to_string();
@@ -442,6 +453,7 @@ mod tests {
         assert!(json.contains("\"Right\""));
         assert!(json.contains("\"Down\""));
         assert!(json.contains("\"on_solution_path\":true"));
+        assert!(json.contains("\"is_square\":true"));
     }
 
 
