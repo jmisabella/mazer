@@ -49,6 +49,8 @@ pub struct FFICell {
     // *const c_char is a pointer to a single null-terminated C string
     // (e.g., "North"). Required for FFI compatibility with Swift.
     pub orientation: *const c_char,
+
+    pub is_square: bool,
 }
 
 impl From<&Cell> for FFICell {
@@ -89,6 +91,7 @@ impl From<&Cell> for FFICell {
             has_been_visited: cell.has_been_visited,
             on_solution_path: cell.on_solution_path,
             orientation: orientation_c,
+            is_square: cell.is_square,
         }
     }
 }
@@ -476,6 +479,7 @@ mod tests {
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: open_walls,
+            is_square: false,
         };
 
         let ffi_cell: FFICell = (&cell).into();

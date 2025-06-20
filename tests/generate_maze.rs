@@ -164,4 +164,27 @@ fn test_recursive_backtracker_delta_24_x_12_maze_generation_from_json() {
     }
 }
 
+#[test]
+fn test_recursive_backtracker_octosquare_24_x_12_maze_generation_from_json() {
+    let json = r#"
+    {
+        "maze_type": "OctoSquare",
+        "width": 24,
+        "height": 12,
+        "algorithm": "RecursiveBacktracker",
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 23, "y": 11 }
+    }
+    "#;
+    match generate(json) {
+        Ok(maze) => {
+            assert!(maze.is_perfect_maze().unwrap());
+        }
+        Err(e) => {
+            dbg!(&e);
+            panic!("Error occured: {}", e);
+        }
+    }
+}
+
 
