@@ -28,6 +28,7 @@ typedef struct FFICell {
     bool has_been_visited;
     bool on_solution_path;
     const char* orientation;
+    bool is_square;
 } FFICell;
 
 /**
