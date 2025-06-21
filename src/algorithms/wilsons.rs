@@ -171,8 +171,8 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_6_octosquare_maze() {
-        match Grid::new(MazeType::OctoSquare, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+    fn generate_12_x_6_upsilon_maze() {
+        match Grid::new(MazeType::Upsilon, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 Wilsons.generate(&mut grid).expect("Wilson's maze generation failed");

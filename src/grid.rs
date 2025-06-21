@@ -170,7 +170,7 @@ impl Grid {
             MazeType::Orthogonal => &[Up, Right, Down, Left],
             MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight, Down, LowerLeft, Left, UpperLeft],
             MazeType::Delta      => &[Up, UpperLeft, UpperRight, Down, LowerLeft, LowerRight],
-            MazeType::OctoSquare => &[Up, Right, Down, Left, UpperRight, LowerRight, LowerLeft, UpperLeft], 
+            MazeType::Upsilon => &[Up, Right, Down, Left, UpperRight, LowerRight, LowerLeft, UpperLeft], 
         }
     }
 
@@ -420,7 +420,7 @@ impl Grid {
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
                 let is_square = match self.maze_type {
-                    MazeType::OctoSquare => row % 2 != col % 2,
+                    MazeType::Upsilon => row % 2 != col % 2,
                     MazeType::Orthogonal => true,
                     _ => false,
                 };
@@ -501,7 +501,7 @@ impl Grid {
             MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
-            MazeType::OctoSquare => self.assign_neighbors_octosquare(),
+            MazeType::Upsilon    => self.assign_neighbors_upsilon(),
         }
     }
 
@@ -654,7 +654,7 @@ impl Grid {
         Ok(())
     }
 
-    fn assign_neighbors_octosquare(&mut self) -> Result<(), Error> {
+    fn assign_neighbors_upsilon(&mut self) -> Result<(), Error> {
         for y in 0..self.height {
             for x in 0..self.width {
                 let mut cell = self.get_mut(Coordinates { x, y })?.clone();
