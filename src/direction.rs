@@ -71,7 +71,7 @@ impl Direction {
             MazeType::Orthogonal => matches!(self, Up | Right | Down | Left),
             MazeType::Sigma      => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
             MazeType::Delta      => matches!(self, Up | Down | UpperLeft | UpperRight | LowerLeft | LowerRight),
-            MazeType::OctoSquare => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
+            MazeType::Upsilon    => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
         }
     }
 

@@ -35,7 +35,7 @@ pub enum MazeType {
     Orthogonal,
     Sigma,
     Delta,
-    OctoSquare,
+    Upsilon,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -87,7 +87,7 @@ pub struct Cell {
     pub orientation: CellOrientation,
     /// The directions in which there are no walls restricting movement.
     pub open_walls: Vec<Direction>,
-    /// Used primarily for OctoSquare maze_type, to indicate whether cell's square or octagon
+    /// Used primarily for Upsilon maze_type, to indicate whether cell's square or octagon
     pub is_square: bool,
 }
 
