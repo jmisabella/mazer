@@ -171,6 +171,7 @@ impl Grid {
             MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight, Down, LowerLeft, Left, UpperLeft],
             MazeType::Delta      => &[Up, UpperLeft, UpperRight, Down, LowerLeft, LowerRight],
             MazeType::Upsilon => &[Up, Right, Down, Left, UpperRight, LowerRight, LowerLeft, UpperLeft], 
+            MazeType::Rhombille => &[UpperRight, LowerRight, LowerLeft, UpperLeft],
         }
     }
 
@@ -200,21 +201,34 @@ impl Grid {
 
     /// Manually make a user move to a specified direction.
     pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
+        // Store the original direction for error reporting.
+        let original_direction = direction;
+
+        // For Rhombille mazes, map diagonal directions to internal cardinal directions.
+        let direction = if self.maze_type == MazeType::Rhombille {
+            match direction {
+                Direction::UpperRight => Direction::Up,
+                Direction::LowerRight => Direction::Right,
+                Direction::LowerLeft => Direction::Down,
+                Direction::UpperLeft => Direction::Left,
+                // Pass through cardinal directions unchanged, though typically not used in Rhombille.
+                d => d,
+            }
+        } else {
+            direction
+        };
+
         // Get the current active cell and record its coordinates.
         let active_cell = self.get_active_cell()?;
         let original_coords = active_cell.coords;
 
-        // Determine the effective direction to use, accounting for Delta maze fallback logic.
-        // let picked: Option<Direction> = if maze_type == MazeType::Delta {
         // Determine the effective direction to use, accounting for fallback logic.
         let picked: Option<Direction> = {
             // Define a helper closure: it checks whether a candidate move is both open (in open_walls)
             // and valid (exists in neighbors_by_direction).
             let try_direction = |cell: &Cell, cand: &Direction| -> Option<Direction> {
-                if cell.open_walls.contains(&cand)
-                    && cell.neighbors_by_direction.contains_key(cand)
-                {
-                    Some(cand.clone())
+                if cell.open_walls.contains(cand) && cell.neighbors_by_direction.contains_key(cand) {
+                    Some(*cand)
                 } else {
                     None
                 }
@@ -233,7 +247,7 @@ impl Grid {
                         .or_else(|| try_direction(active_cell, &Direction::UpperRight))
                         .or_else(|| try_direction(active_cell, &Direction::LowerRight))
                 },
-                Direction::UpperLeft =>{
+                Direction::UpperLeft => {
                     // For "UpperLeft", try UpperLeft then Up then Left.
                     try_direction(active_cell, &Direction::UpperLeft)
                         .or_else(|| try_direction(active_cell, &Direction::Up))
@@ -269,25 +283,20 @@ impl Grid {
                         .or_else(|| try_direction(active_cell, &Direction::LowerLeft))
                         .or_else(|| try_direction(active_cell, &Direction::LowerRight))
                 },
-                // // If the provided direction isn't one of the Delta-specific ones, use it as given.
-                // _ => Some(direction.clone()),
             }
-        }; 
+        };
 
-        let effective_direction = picked
-            .ok_or_else(|| Error::MoveUnavailable {
-                attempted_move: direction,
-                available_moves: active_cell.open_walls.clone(),
-            })?;
+        // If no valid direction is picked, return an error with the original direction and user-facing available moves.
+        let effective_direction = picked.ok_or_else(|| Error::MoveUnavailable {
+            attempted_move: original_direction,
+            available_moves: active_cell.get_user_facing_open_walls(),
+        })?;
 
-        // this is the actual move made successfully, should be returned (used to programmatically backtrack Delta mazes, for example)
-        let actual_move = effective_direction.clone();
-
-        // Optional: Verify that the effective direction is valid.
+        // Optional: Verify that the effective direction is valid (kept from original logic).
         if !active_cell.open_walls.contains(&effective_direction) {
             return Err(Error::MoveUnavailable {
-                attempted_move: effective_direction.clone(),
-                available_moves: active_cell.open_walls.clone(),
+                attempted_move: original_direction,
+                available_moves: active_cell.get_user_facing_open_walls(),
             });
         }
 
@@ -318,6 +327,20 @@ impl Grid {
             // Mark the previous cell as no longer active.
             previous_cell.set_active(false);
         }
+
+        // Map the effective direction back to a user-facing direction for Rhombille mazes.
+        let actual_move = if self.maze_type == MazeType::Rhombille {
+            match effective_direction {
+                Direction::Up => Direction::UpperRight,
+                Direction::Right => Direction::LowerRight,
+                Direction::Down => Direction::LowerLeft,
+                Direction::Left => Direction::UpperLeft,
+                d => d, // Pass through other directions unchanged (though unlikely in Rhombille).
+            }
+        } else {
+            effective_direction
+        };
+
         Ok(actual_move)
     }
 
@@ -498,7 +521,7 @@ impl Grid {
     /// Assign neighbor relationships for each cell based on the maze type.
     fn assign_neighbors(&mut self) -> Result<(), Error> {
         match self.maze_type {
-            MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
+            MazeType::Orthogonal | MazeType::Rhombille => self.assign_neighbors_orthogonal(),
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
             MazeType::Upsilon    => self.assign_neighbors_upsilon(),

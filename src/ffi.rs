@@ -55,33 +55,27 @@ pub struct FFICell {
 
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
-        // Convert maze_type and orientation into raw C strings.
-        let maze_type_c = CString::new(format!("{:?}", cell.maze_type))
-            .unwrap()
-            .into_raw();
-        let orientation_c = CString::new(format!("{:?}", cell.orientation))
-            .unwrap()
-            .into_raw();
+        // Get the user-facing open walls, adjusted for Rhombille maze if applicable
+        let open_walls = cell.get_user_facing_open_walls();
         
-        // Create a vector of raw pointers for the open_walls strings.
-        let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
-            .map(|direction| {
-                // Convert each Rust string into a raw C string.
-                CString::new(direction.to_string())
-                    .unwrap()
-                    .into_raw() as *const c_char
+        // Convert each direction to a C-compatible string
+        let open_walls_raw: Vec<*const c_char> = open_walls
+            .iter()
+            .map(|&direction| {
+                CString::new(direction.to_string()).unwrap().into_raw() as *const c_char
             })
             .collect();
-
-        // Leak the vector of pointers by converting it into a boxed slice.
+        
+        // Leak the vector into a boxed slice and get its pointer and length
         let open_walls_len = open_walls_raw.len();
         let open_walls_ptr = Box::leak(open_walls_raw.into_boxed_slice()).as_ptr();
-
+        
+        // Construct the FFICell with all fields
         FFICell {
             x: cell.coords.x,
             y: cell.coords.y,
-            maze_type: maze_type_c,
-            linked: open_walls_ptr, // now holds the open_walls raw pointers
+            maze_type: CString::new(format!("{:?}", cell.maze_type)).unwrap().into_raw(),
+            linked: open_walls_ptr,
             linked_len: open_walls_len,
             distance: cell.distance,
             is_start: cell.is_start,
@@ -90,7 +84,7 @@ impl From<&Cell> for FFICell {
             is_visited: cell.is_visited,
             has_been_visited: cell.has_been_visited,
             on_solution_path: cell.on_solution_path,
-            orientation: orientation_c,
+            orientation: CString::new(format!("{:?}", cell.orientation)).unwrap().into_raw(),
             is_square: cell.is_square,
         }
     }
