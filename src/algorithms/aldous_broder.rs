@@ -165,6 +165,18 @@ mod tests {
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
+    
+    #[test]
+    fn generate_12_x_6_rhombille_maze_aldous_broder() {
+        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                AldousBroder.generate(&mut grid).expect("AldousBroder maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
 
     #[test]
     fn test_aldous_broder_with_capture_steps() {

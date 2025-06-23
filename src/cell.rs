@@ -36,6 +36,7 @@ pub enum MazeType {
     Sigma,
     Delta,
     Upsilon,
+    Rhombille,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -117,10 +118,12 @@ impl Serialize for Cell {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("Cell", 7)?;
+        let mut state = serializer.serialize_struct("Cell", 10)?;
         state.serialize_field("coords", &self.coords)?;
-        
-        let linked_dirs: HashSet<String> = self.linked_directions().iter().map(|dir| dir.to_string()).collect();
+        let linked_dirs: Vec<String> = self.get_user_facing_linked_directions()
+            .iter()
+            .map(|d| d.to_string())
+            .collect();
         state.serialize_field("linked", &linked_dirs)?;
         state.serialize_field("distance", &self.distance)?;
         state.serialize_field("is_start", &self.is_start)?;
@@ -131,8 +134,9 @@ impl Serialize for Cell {
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
         state.serialize_field("is_square", &self.is_square)?;
         state.end()
-    }
+    } 
 }
+
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.to_json() {
@@ -238,6 +242,60 @@ impl Cell {
                     .map(|(direction, _)| direction.clone())
             })
             .collect()
+    }
+
+    /// Returns neighbors mapped to user-facing directions (diagonal for Rhombille).
+    pub fn get_user_facing_neighbors(&self) -> HashMap<Direction, Coordinates> {
+        if self.maze_type == MazeType::Rhombille {
+            let mut mapped = HashMap::new();
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Up) {
+                mapped.insert(Direction::UpperRight, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Right) {
+                mapped.insert(Direction::LowerRight, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Down) {
+                mapped.insert(Direction::LowerLeft, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Left) {
+                mapped.insert(Direction::UpperLeft, coords);
+            }
+            mapped
+        } else {
+            self.neighbors_by_direction.clone()
+        }
+    }
+
+    /// Returns linked directions mapped to user-facing directions (diagonal for Rhombille).
+    pub fn get_user_facing_linked_directions(&self) -> Vec<Direction> {
+        if self.maze_type == MazeType::Rhombille {
+            self.linked_directions()
+                .iter()
+                .map(|&d| match d {
+                    Direction::Up => Direction::UpperRight,
+                    Direction::Right => Direction::LowerRight,
+                    Direction::Down => Direction::LowerLeft,
+                    Direction::Left => Direction::UpperLeft,
+                    _ => d,
+                })
+                .collect()
+        } else {
+            self.linked_directions().into_iter().collect()
+        }
+    }
+
+    pub fn get_user_facing_open_walls(&self) -> Vec<Direction> {
+        if self.maze_type == MazeType::Rhombille {
+            self.open_walls.iter().map(|&d| match d {
+                Direction::Up => Direction::UpperRight,
+                Direction::Right => Direction::LowerRight,
+                Direction::Down => Direction::LowerLeft,
+                Direction::Left => Direction::UpperLeft,
+                d => d,
+            }).collect()
+        } else {
+            self.open_walls.clone()
+        }
     }
 }
 

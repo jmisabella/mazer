@@ -117,4 +117,17 @@ mod tests {
         let steps = grid.generation_steps.unwrap();
         assert!(!steps.is_empty());
     }
+
+    #[test]
+    fn generate_12_x_6_rhombille_maze_reverse_delete() {
+        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                ReverseDelete.generate(&mut grid).expect("ReverseDelete maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
 }

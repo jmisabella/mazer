@@ -183,6 +183,18 @@ mod tests {
     }
 
     #[test]
+    fn generate_12_x_6_rhombille_maze_wilsons() {
+        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                Wilsons.generate(&mut grid).expect("Wilsons maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+
+    #[test]
     fn test_wilsons_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 11, y: 11 };
