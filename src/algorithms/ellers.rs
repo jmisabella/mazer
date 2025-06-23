@@ -14,6 +14,7 @@ impl MazeGeneration for Ellers {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
             MazeType::Orthogonal => {} // Proceed for Orthogonal grids
+            MazeType::Rhombille => {} // Proceed for Orthogonal grids
             maze_type => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::Ellers,
@@ -191,6 +192,18 @@ mod tests {
                 }
             }
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn generate_12_x_6_rhombille_maze_ellers() {
+        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                Ellers.generate(&mut grid).expect("Ellers maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
 

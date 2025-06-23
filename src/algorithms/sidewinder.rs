@@ -11,6 +11,7 @@ impl MazeGeneration for Sidewinder {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
             MazeType::Orthogonal => {} // proceed with maze generation for allowed Orthogonal (square) grid type
+            MazeType::Rhombille => {} // proceed with maze generation for allowed Rhombille (diamons) grid type
             maze_type => {
                 return Err(Error::AlgorithmUnavailableForMazeType{algorithm:MazeAlgorithm::Sidewinder, maze_type:maze_type});
             }
@@ -148,6 +149,18 @@ mod tests {
                 }
             }    
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn generate_12_x_6_rhombille_maze_sidewinder() {
+        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+            Ok(mut grid) => {
+                assert!(!grid.is_perfect_maze().unwrap());
+                Sidewinder.generate(&mut grid).expect("Sidewinder maze generation failed");
+                assert!(grid.is_perfect_maze().unwrap());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
         }
     }
 
