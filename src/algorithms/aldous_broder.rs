@@ -9,20 +9,21 @@ pub struct AldousBroder;
 
 impl MazeGeneration for AldousBroder {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
-        // Step 1: Initialize visited tracking using Vec<Vec<bool>>
-        let rows = grid.height;
-        let cols = grid.width;
-        let mut visited = vec![vec![false; cols]; rows];
-        let total_cells = rows * cols;
+        // Step 1: Calculate the number of actual cells and initialize visited tracking
+        let total_cells = grid.cells.iter().filter(|opt| opt.is_some()).count();
+        let mut visited = HashSet::new();
 
-        let rand_x = grid.bounded_random_usize(cols);
-        let rand_y = grid.bounded_random_usize(rows);
-        // Step 2: Choose a random starting cell
-        let mut current_coords = Coordinates {
-            x: rand_x,
-            y: rand_y,
+        // Step 2: Choose a random starting cell that exists
+        let start_coords = loop {
+            let rand_x = grid.bounded_random_usize(grid.width);
+            let rand_y = grid.bounded_random_usize(grid.height);
+            let coords = Coordinates { x: rand_x, y: rand_y };
+            if grid.get(coords).is_ok() {
+                break coords;
+            }
         };
-        visited[current_coords.y][current_coords.x] = true; // Mark as visited
+        let mut current_coords = start_coords;
+        visited.insert(current_coords);
         let mut visited_count = 1;
 
         // Capture initial state if capture_steps is true
@@ -33,14 +34,14 @@ impl MazeGeneration for AldousBroder {
             grid.generation_steps.as_mut().unwrap().push(grid_clone);
         }
 
-        // Step 3: Loop until all cells are visited
+        // Step 3: Loop until all existing cells are visited
         while visited_count < total_cells {
             if let Ok(current_cell) = grid.get(current_coords) {
-                // Get neighbors of the current cell
+                // Get neighbors that exist (i.e., have Some(Cell))
                 let neighbors: Vec<Coordinates> = current_cell
                     .neighbors()
                     .iter()
-                    .filter(|&&coords| coords.y < rows && coords.x < cols)
+                    .filter(|&&coords| grid.get(coords).is_ok())
                     .cloned()
                     .collect();
 
@@ -50,9 +51,9 @@ impl MazeGeneration for AldousBroder {
                     let random_neighbor = neighbors[random_index];
 
                     // If the neighbor hasn't been visited, link it and update visited
-                    if !visited[random_neighbor.y][random_neighbor.x] {
+                    if !visited.contains(&random_neighbor) {
                         grid.link(current_coords, random_neighbor)?;
-                        visited[random_neighbor.y][random_neighbor.x] = true;
+                        visited.insert(random_neighbor);
                         visited_count += 1;
 
                         if grid.capture_steps {
@@ -65,15 +66,95 @@ impl MazeGeneration for AldousBroder {
 
                     // Move to the selected neighbor
                     current_coords = random_neighbor;
+                } else {
+                    // If no unvisited neighbors, jump to another unvisited existing cell
+                    current_coords = loop {
+                        let rand_x = grid.bounded_random_usize(grid.width);
+                        let rand_y = grid.bounded_random_usize(grid.height);
+                        let coords = Coordinates { x: rand_x, y: rand_y };
+                        if grid.get(coords).is_ok() && !visited.contains(&coords) {
+                            break coords;
+                        }
+                    };
                 }
             } else {
-                // If the current cell is invalid (edge case), break out
-                break;
+                // This should not occur with proper movement logic
+                return Err(Error::InvalidCellCoordinates {
+                    coordinates: current_coords,
+                });
             }
         }
         Ok(())
     }
 }
+
+// impl MazeGeneration for AldousBroder {
+//     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+//         // Step 1: Initialize visited tracking using Vec<Vec<bool>>
+//         let rows = grid.height;
+//         let cols = grid.width;
+//         let mut visited = vec![vec![false; cols]; rows];
+//         let total_cells = rows * cols;
+
+//         let rand_x = grid.bounded_random_usize(cols);
+//         let rand_y = grid.bounded_random_usize(rows);
+//         // Step 2: Choose a random starting cell
+//         let mut current_coords = Coordinates {
+//             x: rand_x,
+//             y: rand_y,
+//         };
+//         visited[current_coords.y][current_coords.x] = true; // Mark as visited
+//         let mut visited_count = 1;
+
+//         // Capture initial state if capture_steps is true
+//         if grid.capture_steps {
+//             let mut grid_clone = grid.clone();
+//             grid_clone.capture_steps = false;
+//             grid_clone.generation_steps = None;
+//             grid.generation_steps.as_mut().unwrap().push(grid_clone);
+//         }
+
+//         // Step 3: Loop until all cells are visited
+//         while visited_count < total_cells {
+//             if let Ok(current_cell) = grid.get(current_coords) {
+//                 // Get neighbors of the current cell
+//                 let neighbors: Vec<Coordinates> = current_cell
+//                     .neighbors()
+//                     .iter()
+//                     .filter(|&&coords| coords.y < rows && coords.x < cols)
+//                     .cloned()
+//                     .collect();
+
+//                 if !neighbors.is_empty() {
+//                     // Pick a random neighbor
+//                     let random_index = grid.bounded_random_usize(neighbors.len());
+//                     let random_neighbor = neighbors[random_index];
+
+//                     // If the neighbor hasn't been visited, link it and update visited
+//                     if !visited[random_neighbor.y][random_neighbor.x] {
+//                         grid.link(current_coords, random_neighbor)?;
+//                         visited[random_neighbor.y][random_neighbor.x] = true;
+//                         visited_count += 1;
+
+//                         if grid.capture_steps {
+//                             let mut changed_cells = HashSet::new();
+//                             changed_cells.insert(current_coords);
+//                             changed_cells.insert(random_neighbor);
+//                             self.capture_step(grid, &changed_cells);
+//                         }
+//                     }
+
+//                     // Move to the selected neighbor
+//                     current_coords = random_neighbor;
+//                 }
+//             } else {
+//                 // If the current cell is invalid (edge case), break out
+//                 break;
+//             }
+//         }
+//         Ok(())
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -192,11 +273,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

@@ -14,6 +14,7 @@ impl MazeGeneration for ReverseDelete {
         let links: Vec<(Coordinates, Coordinates)> = grid
             .cells
             .iter()
+            .filter_map(|opt| opt.as_ref()) // Converts &Option<Cell> to Option<&Cell>, skipping None
             .flat_map(|cell| {
                 cell.neighbors_by_direction
                     .values()
@@ -71,11 +72,13 @@ impl MazeGeneration for ReverseDelete {
 /// Collects all unique edges in the grid, ensuring each edge is represented as (min, max) coordinates
 fn collect_all_edges(grid: &Grid) -> Vec<(Coordinates, Coordinates)> {
     let mut edges = HashSet::new();
-    for cell in &grid.cells {
-        for &neighbor in cell.neighbors_by_direction.values() {
-            let mut pair = [cell.coords, neighbor];
-            pair.sort(); // Ensure consistent ordering: smaller coord first
-            edges.insert((pair[0], pair[1]));
+    for opt in grid.cells.iter() {
+        if let Some(cell) = opt.as_ref() {
+            for &neighbor in cell.neighbors_by_direction.values() {
+                let mut pair = [cell.coords, neighbor];
+                pair.sort(); // Ensure consistent ordering: smaller coord first
+                edges.insert((pair[0], pair[1]));
+            }
         }
     }
     edges.into_iter().collect()

@@ -18,6 +18,8 @@ pub enum Error {
     InvalidDirection { direction: String },
     MoveUnavailable { attempted_move: Direction, available_moves: Vec<Direction>},
     GridDimensionsExceedLimitForCaptureSteps { width: usize, height: usize },
+    NoCellAtCoordinates { coordinates: Coordinates },
+    InvalidCellCoordinates { coordinates: Coordinates },
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -60,6 +62,12 @@ impl fmt::Display for Error {
             }
             Error::GridDimensionsExceedLimitForCaptureSteps  { width, height } => {
                 write!(f, "Grid dimensions {:?},{:?} exceed limit for enabling capture_steps. Neither width nor height can exceed 100 for this feature to be enabled", width, height )
+            }
+            Error::NoCellAtCoordinates{ coordinates } => {
+                write!(f, "No cell exists at coordinates {:?}", coordinates )
+            }
+            Error::InvalidCellCoordinates{ coordinates } => {
+                write!(f, "Invalid cell coordinates {:?}", coordinates )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)

@@ -1,6 +1,7 @@
 use crate::behaviors::maze::MazeGeneration;
+use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
-use crate::cell::Coordinates;
+use crate::cell::{Coordinates, MazeType};
 use crate::error::Error;
 
 use std::collections::HashSet;
@@ -9,6 +10,15 @@ pub struct HuntAndKill;
 
 impl MazeGeneration for HuntAndKill {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+        match grid.maze_type {
+            MazeType::Rhombille => {
+                return Err(Error::AlgorithmUnavailableForMazeType {
+                    algorithm: MazeAlgorithm::HuntAndKill,
+                    maze_type: MazeType::Rhombille,
+                });
+            }
+            _ => {} // proceed with maze generation for all maze types other than Rhombille
+        }
         let mut visited = HashSet::new();
         let mut current_coords = Coordinates {
             x: grid.bounded_random_usize(grid.width),
@@ -191,19 +201,6 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_6_rhombille_maze_hunt_and_kill() {
-        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                HuntAndKill.generate(&mut grid).expect("HuntAndKill maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-
-    #[test]
     fn test_hunt_and_kill_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 11, y: 11 };
@@ -217,11 +214,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }
