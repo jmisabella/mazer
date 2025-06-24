@@ -11,7 +11,6 @@ impl MazeGeneration for RecursiveDivision {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
             MazeType::Orthogonal => {}
-            MazeType::Rhombille => {}
             maze_type => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::RecursiveDivision,
@@ -188,18 +187,6 @@ mod tests {
     }
     
     #[test]
-    fn generate_12_x_6_rhombille_maze_recursive_division() {
-        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                RecursiveDivision.generate(&mut grid).expect("RecursiveDivision maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
     fn test_recursive_division_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 11, y: 11 };
@@ -211,11 +198,11 @@ mod tests {
                 assert!(grid.generation_steps.is_some());
                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

@@ -1,6 +1,7 @@
 use crate::behaviors::maze::MazeGeneration;
+use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
-use crate::cell::Coordinates;
+use crate::cell::{Coordinates, MazeType};
 use crate::error::Error;
 
 use std::collections::HashSet;
@@ -19,6 +20,21 @@ pub struct GrowingTree {
 
 impl MazeGeneration for GrowingTree {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+        if grid.maze_type == MazeType::Rhombille {
+            match self.strategy {
+                SelectionStrategy::Newest | SelectionStrategy::Random => {
+                    return Err(Error::AlgorithmUnavailableForMazeType {
+                        algorithm: match self.strategy {
+                            SelectionStrategy::Newest => MazeAlgorithm::GrowingTreeNewest,
+                            SelectionStrategy::Random => MazeAlgorithm::GrowingTreeRandom,
+                            _ => unreachable!(), // Shouldn't hit this due to outer match
+                        },
+                        maze_type: MazeType::Rhombille,
+                    });
+                }
+                _ => {} // Proceed for other strategies
+            }
+        }
         let mut active: Vec<Coordinates> = Vec::new();
         let mut visited: HashSet<Coordinates> = HashSet::new();
 
@@ -163,19 +179,6 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_6_rhombille_maze_growing_tree() {
-        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree{ strategy: SelectionStrategy::Newest}.generate(&mut grid).expect("GrowingTree maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-
-    #[test]
     fn test_growing_tree_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 11, y: 11 };
@@ -189,11 +192,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

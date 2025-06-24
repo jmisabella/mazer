@@ -167,11 +167,11 @@ mod tests {
                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

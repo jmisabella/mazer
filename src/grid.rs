@@ -24,7 +24,7 @@ pub struct Grid {
     /// The maze type, which determines the style of the maze (e.g., Orthogonal, Delta, Sigma).
     pub maze_type: MazeType,
     /// A flattened array of cells that make up the maze.
-    pub cells: Vec<Cell>,
+    pub cells: Vec<Option<Cell>>,
     /// The random seed used to generate the maze.
     pub seed: u64,
     /// The coordinates of the start cell within the grid.
@@ -43,8 +43,9 @@ impl Serialize for Grid {
         S: Serializer,
     {
         let mut grid_map = serializer.serialize_struct("Grid", 1)?;
-        grid_map.serialize_field("rows", &self.cells)?;
-        return grid_map.end(); 
+        let cells: Vec<&Cell> = self.cells.iter().filter_map(|opt| opt.as_ref()).collect();
+        grid_map.serialize_field("rows", &cells)?;
+        grid_map.end()
     }
 }
 
@@ -125,42 +126,67 @@ impl Grid {
         // when unflattened to become a 2D vector, cells are stored in row-major order 
         y * self.width + x
     }
+
+    pub fn has_cell(&self, x: usize, y: usize) -> bool {
+        match self.maze_type {
+            MazeType::Rhombille => (x + y) % 2 == 0,
+            _ => true,
+        }
+    }
     
     /// Retrieve a cell by its coordinates
     pub fn get(&self, coords: Coordinates) -> Result<&Cell, Error> {
         let index = self.get_flattened_index(coords.x, coords.y);
-        self.cells
-            .get(index)
-            .ok_or_else(|| Error::OutOfBoundsCoordinates {
+        match self.cells.get(index) {
+            Some(Some(cell)) => Ok(cell),
+            Some(None) => Err(Error::NoCellAtCoordinates { coordinates: coords }),
+            None => Err(Error::OutOfBoundsCoordinates {
                 coordinates: coords,
                 maze_width: self.width,
-                maze_height: self.height
-            })
+                maze_height: self.height,
+            }),
+        }
     }
 
     // retrieve a mutable cell by its coordinates
     pub fn get_mut(&mut self, coords: Coordinates) -> Result<&mut Cell, Error> {
         let index = self.get_flattened_index(coords.x, coords.y);
-        self.cells
-            .get_mut(index)
-            .ok_or_else(|| Error::OutOfBoundsCoordinates {
+        match self.cells.get_mut(index) {
+            Some(Some(cell)) => Ok(cell),
+            Some(None) => Err(Error::NoCellAtCoordinates { coordinates: coords }),
+            None => Err(Error::OutOfBoundsCoordinates {
                 coordinates: coords,
                 maze_width: self.width,
-                maze_height: self.height
-            })
+                maze_height: self.height,
+            }),
+        }
     }
-
     /// Get the currently active Cell
     pub fn get_active_cell(&mut self) -> Result<&mut Cell, Error> {
-        let active_count = self.cells.iter().filter(|cell| cell.is_active).count();
-        if active_count > 1 {
-            return Err(Error::MultipleActiveCells { count: active_count });
+        let active_coords: Vec<Coordinates> = self.cells.iter()
+            .enumerate()
+            .filter_map(|(index, opt)| {
+                opt.as_ref().and_then(|cell| {
+                    if cell.is_active {
+                        Some(self.index_to_coords(index))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        match active_coords.len() {
+            0 => Err(Error::NoActiveCells),
+            1 => self.get_mut(active_coords[0]), // Assumes get_mut returns Result<&mut Cell, Error>
+            count => Err(Error::MultipleActiveCells { count }),
         }
-        if let Some(active_cell) = self.cells.iter_mut().find(|cell| cell.is_active) {
-            return Ok(active_cell);
-        } else {
-            return Err(Error::NoActiveCells);
-        }
+    }
+
+    fn index_to_coords(&self, index: usize) -> Coordinates {
+        let x = index % self.width;
+        let y = index / self.width;
+        Coordinates { x, y }
     }
 
     /// All the “raw” directions this maze shape can ever use.
@@ -203,20 +229,6 @@ impl Grid {
     pub fn make_move(&mut self, direction: Direction) -> Result<Direction, Error> {
         // Store the original direction for error reporting.
         let original_direction = direction;
-
-        // For Rhombille mazes, map diagonal directions to internal cardinal directions.
-        let direction = if self.maze_type == MazeType::Rhombille {
-            match direction {
-                Direction::UpperRight => Direction::Up,
-                Direction::LowerRight => Direction::Right,
-                Direction::LowerLeft => Direction::Down,
-                Direction::UpperLeft => Direction::Left,
-                // Pass through cardinal directions unchanged, though typically not used in Rhombille.
-                d => d,
-            }
-        } else {
-            direction
-        };
 
         // Get the current active cell and record its coordinates.
         let active_cell = self.get_active_cell()?;
@@ -328,20 +340,7 @@ impl Grid {
             previous_cell.set_active(false);
         }
 
-        // Map the effective direction back to a user-facing direction for Rhombille mazes.
-        let actual_move = if self.maze_type == MazeType::Rhombille {
-            match effective_direction {
-                Direction::Up => Direction::UpperRight,
-                Direction::Right => Direction::LowerRight,
-                Direction::Down => Direction::LowerLeft,
-                Direction::Left => Direction::UpperLeft,
-                d => d, // Pass through other directions unchanged (though unlikely in Rhombille).
-            }
-        } else {
-            effective_direction
-        };
-
-        Ok(actual_move)
+        Ok(effective_direction)
     }
 
     /// Retrieve a cell by its coordinates
@@ -356,11 +355,19 @@ impl Grid {
 
     /// Set a particular cell in the grid
     pub fn set(&mut self, cell: Cell) -> Result<(), Error> {
-        if cell.x() >= self.width || cell.y() >= self.height {
-            return Err(Error::OutOfBoundsCoordinates { coordinates: cell.coords, maze_width: self.width, maze_height: self.height } );
+        let coords = cell.coords;
+        if coords.x >= self.width || coords.y >= self.height {
+            return Err(Error::OutOfBoundsCoordinates {
+                coordinates: coords,
+                maze_width: self.width,
+                maze_height: self.height,
+            });
         }
-        let index = self.get_flattened_index(cell.x(), cell.y());
-        self.cells[index] = cell;
+        if !self.has_cell(coords.x, coords.y) {
+            return Err(Error::NoCellAtCoordinates { coordinates: coords });
+        }
+        let index = self.get_flattened_index(coords.x, coords.y);
+        self.cells[index] = Some(cell);
         Ok(())
     }
 
@@ -379,7 +386,7 @@ impl Grid {
     }
  
     /// Transform 1D (flattened) cells into a unflattened 2D vector
-    pub fn unflatten(&self) -> Vec<Vec<Cell>> {
+    pub fn unflatten(&self) -> Vec<Vec<Option<Cell>>> {
         self.cells
             .chunks(self.width) // split into row-sized slices
             .map(|chunk| chunk.to_vec()) // convert row slices to Vec<Cell>
@@ -435,10 +442,13 @@ impl Grid {
             return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type });
         }
         let grid_width = self.width;
-        let grid_height = self.height; 
+        let grid_height = self.height;
         (0..grid_height)
-            .flat_map(|row| (0..grid_width).map(move |col| (row, col))) // Combine row and column
-            .for_each(|(row, col)| { 
+            .flat_map(|row| (0..grid_width).map(move |col| (row, col)))
+            .for_each(|(row, col)| {
+                if !self.has_cell(col, row) {
+                    return; // Skip positions where no cell should exist (e.g., Rhombille)
+                }
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
                 let is_goal = coords == self.goal_coords;
@@ -447,65 +457,100 @@ impl Grid {
                     MazeType::Orthogonal => true,
                     _ => false,
                 };
-                let cell: Cell = CellBuilder::new(
-                    col, 
-                    row, 
+                let cell = CellBuilder::new(
+                    col,
+                    row,
                     self.maze_type
                 )
                 .is_start(is_start)
                 .is_goal(is_goal)
-                .is_active(is_start) // start cell is cell user starts on (so, is active)
-                .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
-                .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
-                .is_square(is_square) 
+                .is_active(is_start)
+                .is_visited(is_start)
+                .has_been_visited(is_start)
+                .is_square(is_square)
                 .build();
-    
-                // Calculate the index in the 1D vector
+
                 let index = self.get_flattened_index(col, row);
-                
-                // Set the cell in the flattened vector
-                self.cells[index] = cell;
+                self.cells[index] = Some(cell);
             });
-    
+
         Ok(())
     }
+
+    // pub fn initialize_non_triangle_cells(&mut self) -> Result<(), Error> {
+    //     if self.maze_type == MazeType::Delta {
+    //         return Err(Error::InvalidCellForDeltaMaze { cell_maze_type: self.maze_type });
+    //     }
+    //     let grid_width = self.width;
+    //     let grid_height = self.height; 
+    //     (0..grid_height)
+    //         .flat_map(|row| (0..grid_width).map(move |col| (row, col))) // Combine row and column
+    //         .for_each(|(row, col)| { 
+    //             let coords = Coordinates { x: col, y: row };
+    //             let is_start = coords == self.start_coords;
+    //             let is_goal = coords == self.goal_coords;
+    //             let is_square = match self.maze_type {
+    //                 MazeType::Upsilon => row % 2 != col % 2,
+    //                 MazeType::Orthogonal => true,
+    //                 _ => false,
+    //             };
+    //             let cell: Cell = CellBuilder::new(
+    //                 col, 
+    //                 row, 
+    //                 self.maze_type
+    //             )
+    //             .is_start(is_start)
+    //             .is_goal(is_goal)
+    //             .is_active(is_start) // start cell is cell user starts on (so, is active)
+    //             .is_visited(is_start) // start cell is cell user starts on (so, is also visited)
+    //             .has_been_visited(is_start) // start cell is cell user starts on (so, is also visited)
+    //             .is_square(is_square) 
+    //             .build();
+    
+    //             // Calculate the index in the 1D vector
+    //             let index = self.get_flattened_index(col, row);
+                
+    //             // Set the cell in the flattened vector
+    //             self.cells[index] = Some(cell);
+    //         });
+    
+    //     Ok(())
+    // }
     
 
     /// Create a new grid based on the maze type, dimensions, start, and goal.
     pub fn new(
-        maze_type: MazeType, 
-        width: usize, 
-        height: usize, 
-        start: Coordinates, 
+        maze_type: MazeType,
+        width: usize,
+        height: usize,
+        start: Coordinates,
         goal: Coordinates,
         capture_steps: bool,
     ) -> Result<Self, Error> {
         if capture_steps && (width > 100 || height > 100) {
-            return Err(Error::GridDimensionsExceedLimitForCaptureSteps{width: width, height: height});
+            return Err(Error::GridDimensionsExceedLimitForCaptureSteps { width, height });
         }
 
         let seed = Self::generate_seed(width, height);
-
-        // Initialize the grid with a flattened vector of cells using CellBuilder.
-        let mut grid = Grid { 
-            width, 
-            height, 
+        let mut grid = Grid {
+            width,
+            height,
             maze_type,
-            cells: vec![CellBuilder::new(0, 0, maze_type).build(); width * height],
-            seed, 
-            start_coords: start, 
+            cells: vec![None; width * height],  // Initialize with None instead of CellBuilder
+            seed,
+            start_coords: start,
             goal_coords: goal,
-            capture_steps: capture_steps,
-            generation_steps: if capture_steps { Some(Vec::new()) } else { None }, 
+            capture_steps,
+            generation_steps: if capture_steps { Some(Vec::new()) } else { None },
         };
 
-        // Generate different types of cells based on maze_type.
+        // Generate different types of cells based on maze_type
         match maze_type {
-            MazeType::Delta => grid.initialize_triangle_cells()?,
-            _             => grid.initialize_non_triangle_cells()?,
+            MazeType::Delta => grid.initialize_triangle_cells()?,  // Preserve delta-specific initialization
+            _ => grid.initialize_non_triangle_cells()?,  // Handle other maze types
         };
 
-        // Assign neighbor information based on maze type.
+        // Assign neighbor information based on maze type
         grid.assign_neighbors()?;
 
         Ok(grid)
@@ -521,43 +566,34 @@ impl Grid {
     /// Assign neighbor relationships for each cell based on the maze type.
     fn assign_neighbors(&mut self) -> Result<(), Error> {
         match self.maze_type {
-            MazeType::Orthogonal | MazeType::Rhombille => self.assign_neighbors_orthogonal(),
+            MazeType::Orthogonal => self.assign_neighbors_orthogonal(),
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
             MazeType::Upsilon    => self.assign_neighbors_upsilon(),
+            MazeType::Rhombille  => self.assign_neighbors_rhombille(),
         }
     }
 
     /// Assign neighbors for Orthogonal mazes.
     fn assign_neighbors_orthogonal(&mut self) -> Result<(), Error> {
-        for row in 0..self.height {
-            for col in 0..self.width {
-                let mut cell = self.get_mut_by_coords(col, row)?.clone();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                if !self.has_cell(x, y) {
+                    continue;
+                }
+                let mut cell = self.get_mut_by_coords(x, y)?.clone();
                 let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
-
-                if cell.y() != 0 {
-                    neighbors.insert(
-                        Direction::Up, 
-                        self.get_by_coords(cell.x(), cell.y() - 1)?.coords
-                    );
+                if y > 0 && self.has_cell(x, y - 1) {
+                    neighbors.insert(Direction::Up, Coordinates { x, y: y - 1 });
                 }
-                if cell.x() < self.width - 1 {
-                    neighbors.insert(
-                        Direction::Right, 
-                        self.get_by_coords(cell.x() + 1, cell.y())?.coords
-                    );
+                if x < self.width - 1 && self.has_cell(x + 1, y) {
+                    neighbors.insert(Direction::Right, Coordinates { x: x + 1, y });
                 }
-                if cell.y() < self.height - 1 {
-                    neighbors.insert(
-                        Direction::Down, 
-                        self.get_by_coords(cell.x(), cell.y() + 1)?.coords
-                    );
+                if y < self.height - 1 && self.has_cell(x, y + 1) {
+                    neighbors.insert(Direction::Down, Coordinates { x, y: y + 1 });
                 }
-                if cell.x() != 0 {
-                    neighbors.insert(
-                        Direction::Left, 
-                        self.get_by_coords(cell.x() - 1, cell.y())?.coords
-                    );
+                if x > 0 && self.has_cell(x - 1, y) {
+                    neighbors.insert(Direction::Left, Coordinates { x: x - 1, y });
                 }
                 cell.set_neighbors(neighbors);
                 self.set(cell)?;
@@ -697,6 +733,39 @@ impl Grid {
                     if x > 0 && y < self.height - 1 { neighbors.insert(Direction::LowerLeft, Coordinates { x: x - 1, y: y + 1 }); }
                     if x > 0 && y > 0 { neighbors.insert(Direction::UpperLeft, Coordinates { x: x - 1, y: y - 1 }); }
                 }
+                cell.set_neighbors(neighbors);
+                self.set(cell)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn assign_neighbors_rhombille(&mut self) -> Result<(), Error> {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                if !self.has_cell(x, y) {
+                    continue;
+                }
+                let mut cell = self.get_mut_by_coords(x, y)?.clone();
+                let mut neighbors: HashMap<Direction, Coordinates> = HashMap::new();
+
+                // UpperRight neighbor
+                if x + 1 < self.width && y > 0 {
+                    neighbors.insert(Direction::UpperRight, Coordinates { x: x + 1, y: y - 1 });
+                }
+                // LowerRight neighbor
+                if x + 1 < self.width && y + 1 < self.height {
+                    neighbors.insert(Direction::LowerRight, Coordinates { x: x + 1, y: y + 1 });
+                }
+                // LowerLeft neighbor
+                if x > 0 && y + 1 < self.height {
+                    neighbors.insert(Direction::LowerLeft, Coordinates { x: x - 1, y: y + 1 });
+                }
+                // UpperLeft neighbor
+                if x > 0 && y > 0 {
+                    neighbors.insert(Direction::UpperLeft, Coordinates { x: x - 1, y: y - 1 });
+                }
+
                 cell.set_neighbors(neighbors);
                 self.set(cell)?;
             }
@@ -852,24 +921,23 @@ impl Grid {
         graph::all_connected(start, neighbor_fn)
     }
     
-
     /// Count the number of edges in the maze
     pub fn count_edges(&self) -> usize {
         self.cells
-            .iter()
-            .map(|cell| cell.linked.len()) // For each cell, get the number of linked cells
-            .sum::<usize>() // Sum the number of edges
-        / 2 // Each edge is stored twice (once for each linked cell)
+            .iter()                         // Yields &Option<Cell>
+            .filter_map(|opt| opt.as_ref()) // Converts to Option<&Cell>, filters out None, yields &Cell
+            .map(|cell| cell.linked.len())  // Access linked field on &Cell and get its length
+            .sum::<usize>()                 // Sum the total number of linked connections
+            / 2                             // Divide by 2 since each edge is counted twice
     }
 
     /// Whether the maze is perfect
     pub fn is_perfect_maze(&self) -> Result<bool, Error> {
-        // Total number of cells
-        let total_cells = self.width * self.height;
+        // Total number of cells (only count positions with Some(Cell))
+        let total_cells = self.cells.iter().filter(|opt| opt.is_some()).count();
 
         // Fully connected check
         let start_coords = self.start_coords;
-        //let connected_cells = self.all_connected_cells(&start_coords)?;
         let connected_cells = self.all_connected_cells(start_coords);
         if connected_cells.len() != total_cells {
             return Ok(false);
@@ -883,10 +951,14 @@ impl Grid {
     /// ASCI display, only applicable to Orthogonal (square cell) mazes
     pub fn to_asci(&self) -> String {
         assert!(self.maze_type == MazeType::Orthogonal, "Rejecting displaying ASCI for MazeType {}! ASCI display behavior is only applicable to the Orthogonal MazeType", self.maze_type.to_string());
-        let mut output = format!("+{}\n", "---+".repeat(self.width)); 
-        let unflattened: Vec<Vec<Cell>> = self.unflatten(); 
+        let mut output = format!("+{}\n", "---+".repeat(self.width));
+        // For orthogonal mazes, all cells should be Some(Cell), so unwrapping is safe
+        let unflattened: Vec<Vec<Cell>> = self.unflatten()
+            .into_iter()
+            .map(|row| row.into_iter().map(|opt| opt.unwrap()).collect())
+            .collect();
         for row in unflattened {
-            let mut top =String::from( "|");
+            let mut top = String::from("|");
             let mut bottom = String::from("+");
             for cell in row {
                 let body = "   ";
@@ -898,19 +970,20 @@ impl Grid {
                 top.push_str(east_boundary);
                 let south_boundary = match cell.neighbors_by_direction.get(&Direction::Down).is_some() {
                     true if cell.is_linked_direction(Direction::Down) => "   ",
-                    _ => "---"
+                    _ => "---",
                 };
-                let corner ="+";
+                let corner = "+";
                 bottom.push_str(south_boundary);
                 bottom.push_str(corner);
             }
             output.push_str(top.as_str());
             output.push_str("\n");
-            output.push_str(bottom.as_str());
+            output.push_str(bottom.as_str()); // Fixed to bottom.as_str()
             output.push_str("\n");
         }
-        return output;
+        output
     }
+
 
 }
 
@@ -1212,7 +1285,7 @@ mod tests {
                 let nonzero_count = maze
                     .cells
                     .iter()
-                    .filter(|cell| cell.distance > 0)
+                    .filter(|opt| matches!(opt, Some(cell) if cell.distance > 0))
                     .count();
                 assert!(
                     nonzero_count > 0,
@@ -1222,7 +1295,7 @@ mod tests {
                 let solution_path_count = maze
                     .cells
                     .iter()
-                    .filter(|cell| cell.on_solution_path)
+                    .filter(|opt| matches!(opt, Some(cell) if cell.on_solution_path)) 
                     .count();
                 assert!(
                     solution_path_count > 0,
@@ -1275,12 +1348,12 @@ mod tests {
 
         // --- initial counts ---
         assert_eq!(
-            maze.cells.iter().filter(|c| c.is_visited).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(cell) if cell.is_visited)).count(),
             1,
             "1 visited cell at start"
         );
         assert_eq!(
-            maze.cells.iter().filter(|c| c.has_been_visited).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.has_been_visited)).count(),
             1,
             "1 permanently visited cell at start"
         );
@@ -1316,12 +1389,12 @@ mod tests {
             let bad = &unavailable_moves[0];
             assert!(copy.make_move(*bad).is_err(), "Unavailable move `{}` should fail", bad);
             assert_eq!(
-                copy.cells.iter().filter(|c| c.is_visited).count(),
+                copy.cells.iter().filter(|opt| matches!(opt, Some(c) if c.is_visited)).count(),
                 1,
                 "Visited count unchanged after bad move"
             );
             assert_eq!(
-                copy.cells.iter().filter(|c| c.has_been_visited).count(),
+                copy.cells.iter().filter(|opt| matches!(opt, Some(c) if c.has_been_visited)).count(),
                 1,
                 "Permanent‐visited count unchanged after bad move"
             );
@@ -1335,17 +1408,17 @@ mod tests {
 
         // after first move
         assert_eq!(
-            maze.cells.iter().filter(|c| c.is_active).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.is_active)).count(),
             1,
             "Exactly one active cell after first move"
         );
         assert_eq!(
-            maze.cells.iter().filter(|c| c.is_visited).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.is_visited)).count(),
             2,
             "Two visited cells after first move"
         );
         assert_eq!(
-            maze.cells.iter().filter(|c| c.has_been_visited).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.has_been_visited)).count(),
             2,
             "Two permanent‐visited cells after first move"
         );
@@ -1375,7 +1448,7 @@ mod tests {
         // after backtrack
         // exactly one active (the start)
         assert_eq!(
-            maze.cells.iter().filter(|c| c.is_active).count(),
+            maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.is_active)).count(),
             1,
             "Exactly one active cell after backtrack"
         );
@@ -1386,18 +1459,19 @@ mod tests {
         );
 
         // dynamic‐visited count goes back to 1
-        let visited_count = maze.cells.iter().filter(|c| c.is_visited).count();
+        let visited_count = maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.is_visited)).count();
         assert_eq!(visited_count, 1, "Visited count should drop back to 1 after backtrack");
 
         // permanent‐visited remains at 2
-        let perm_count = maze.cells.iter().filter(|c| c.has_been_visited).count();
+        let perm_count = maze.cells.iter().filter(|opt| matches!(opt, Some(c) if c.has_been_visited)).count();
         assert_eq!(perm_count, 2, "Permanent‐visited count stays at 2 after backtrack");
 
         // ensure the cell we backtracked from is no longer visited but still permanent
         let back_cell = maze
             .cells
             .iter()
-            .find(|c| c.coords == cell1_coords)
+            .filter_map(|opt| opt.as_ref())
+            .find(|cell| cell.coords == cell1_coords)
             .expect("Backtracked cell not found");
         assert!(!back_cell.is_visited, "Backtracked cell should no longer be marked visited");
         assert!(back_cell.has_been_visited, "Backtracked cell should keep has_been_visited flag");
@@ -1406,6 +1480,7 @@ mod tests {
         let start_cell = maze
             .cells
             .iter()
+            .filter_map(|opt| opt.as_ref())
             .find(|c| c.coords == original_coords)
             .unwrap();
         assert!(start_cell.is_visited, "Start cell should remain is_visited");
@@ -1448,8 +1523,9 @@ mod tests {
             .collect();
 
         // sanity: only one visited
-        assert_eq!(maze.cells.iter().filter(|c| c.is_visited).count(), 1);
-        assert_eq!(maze.cells.iter().filter(|c| c.has_been_visited).count(), 1);
+        
+        assert_eq!(maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|c| c.is_visited).count(), 1);
+        assert_eq!(maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|c| c.has_been_visited).count(), 1);
     
         // unavailable move must error
         {
@@ -1640,34 +1716,38 @@ mod tests {
         "#;
         let maze = Grid::try_from(json).unwrap();
 
-        for cell in &maze.cells {
-            for &neighbor_coords in &cell.linked {
-                let neighbor = maze.get(neighbor_coords).unwrap();
-                assert!(
-                    neighbor.linked.contains(&cell.coords),
-                    "Link not mutual: {:?} → {:?} exists but not {:?} → {:?}",
-                    cell.coords,
-                    neighbor.coords,
-                    neighbor.coords,
-                    cell.coords
-                );
-            }
-        }
+        maze.cells
+            .iter()
+            .filter_map(|opt| opt.as_ref())
+            .for_each(|cell| {
+                for &neighbor_coords in &cell.linked {
+                    let neighbor = maze.get(neighbor_coords).unwrap();
+                    assert!(
+                        neighbor.linked.contains(&cell.coords),
+                        "Link not mutual: {:?} → {:?} exists but not {:?}", // Truncated for brevity
+                        cell.coords,
+                        neighbor.coords,
+                        neighbor.coords
+                    );
+                }
+            });
     }
 
 
     // Helper function to check bidirectional links in a grid
     fn check_bidirectional_links(grid: &Grid, step_index: usize) {
-        for cell in &grid.cells {
-            for &neighbor_coords in &cell.linked {
-                let neighbor = grid.get(neighbor_coords).unwrap();
-                assert!(
-                    neighbor.linked.contains(&cell.coords),
-                    "Link from {:?} to {:?} is not bidirectional in step {}",
-                    cell.coords,
-                    neighbor_coords,
-                    step_index
-                );
+        for opt in grid.cells.iter() {
+            if let Some(cell) = opt.as_ref() {
+                for &neighbor_coords in &cell.linked {
+                    let neighbor = grid.get(neighbor_coords).unwrap();
+                    assert!(
+                        neighbor.linked.contains(&cell.coords),
+                        "Link from {:?} to {:?} is not bidirectional in step {}",
+                        cell.coords,
+                        neighbor_coords,
+                        step_index
+                    );
+                }
             }
         }
     }

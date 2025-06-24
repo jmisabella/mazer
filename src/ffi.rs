@@ -207,7 +207,7 @@ pub extern "C" fn mazer_get_cells(maze: *mut Grid, length: *mut usize) -> *mut F
     let grid = unsafe { &*maze };
 
     // Convert each Cell into an FFICell.
-    let ffi_cells: Vec<FFICell> = grid.cells.iter().map(FFICell::from).collect();
+    let ffi_cells: Vec<FFICell> = grid.cells.iter().filter_map(|opt| opt.as_ref().map(FFICell::from)).collect();
 
     // Write the number of FFICells into the provided length pointer.
     let len = ffi_cells.len();
@@ -273,7 +273,7 @@ pub extern "C" fn mazer_get_generation_step_cells(
     if let Some(steps) = &grid.generation_steps {
         if step_index < steps.len() {
             let step_grid = &steps[step_index];
-            let ffi_cells: Vec<FFICell> = step_grid.cells.iter().map(FFICell::from).collect();
+            let ffi_cells: Vec<FFICell> = step_grid.cells.iter().filter_map(|opt| opt.as_ref().map(FFICell::from)).collect(); 
             let len = ffi_cells.len();
             unsafe {
                 *length = len;
@@ -644,13 +644,13 @@ mod tests {
                 println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     1,
                     "There should be 1 visited cell on dynamic path at the beginning"
                 );
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     1,
                     "There should be 1 visited cell on permenant path at the beginning"
                 );
@@ -695,13 +695,13 @@ mod tests {
                 );
 
                 assert_eq!(
-                    copied_maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    copied_maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     1,
                     "There should be 1 visited cell on dynamic path before a successful move is made"
                 );
                 
                 assert_eq!(
-                    copied_maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    copied_maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     1,
                     "There should be 1 visited cell on permenant path before a successful move is made"
                 );
@@ -712,19 +712,19 @@ mod tests {
 
                 // Verify that exactly one cell is active.
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_active).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_active).count(),
                     1,
                     "There should be exactly one active cell"
                 );
 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     2,
                     "There should be 2 visited cells on dynamic path after first successful move (start cell and current)"
                 );
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     2,
                     "There should be 2 visited cells on permenant path after first successful move (start cell and current)"
                 );
