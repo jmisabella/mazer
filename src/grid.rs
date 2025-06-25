@@ -65,7 +65,7 @@ impl TryFrom<MazeRequest> for Grid {
         // decide start/goal, falling back to sensible defaults
         let (start_coords, goal_coords) = match (request.start, request.goal) {
             (Some(s), Some(g)) => (s, g),
-            _ => Grid::default_endpoints(request.width, request.height),
+            _ => Grid::default_endpoints(request.width, request.height, request.maze_type),
         };
 
         let mut grid = Grid::new(
@@ -108,17 +108,41 @@ impl Grid {
     pub fn default_endpoints(
         width: usize,
         height: usize,
+        maze_type: MazeType,
     ) -> (Coordinates, Coordinates) {
+        let mut start_x = width / 2;
+        let mut start_y = height - 1;
+        let mut goal_x = width / 2;
+        let mut goal_y = 0;
+
         // stronger preference towards start/goal coords being bottom/top rows
-        if height as f64 * 1.35 >= width as f64 {
-            let x = width / 2;
-            ( Coordinates { x, y: height - 1 },
-            Coordinates { x, y: 0 } )
-        } else {
-            let y = height / 2;
-            ( Coordinates { x: 0, y },
-            Coordinates { x: width - 1, y } )
+        if height as f64 * 1.35 < width as f64 {
+            start_x = 0;
+            start_y = height / 2;
+            goal_x = width - 1;
+            goal_y = height / 2;
         }
+
+        if maze_type == MazeType::Rhombille {
+            // Adjust start to satisfy (x + y) % 2 == 0
+            if (start_x + start_y) % 2 != 0 {
+                if start_x > 0 {
+                    start_x -= 1; // Prefer adjusting x if possible
+                } else if start_y > 0 {
+                    start_y -= 1;
+                }
+            }
+            // Adjust goal similarly
+            if (goal_x + goal_y) % 2 != 0 {
+                if goal_x > 0 {
+                    goal_x -= 1;
+                } else if goal_y < height - 1 {
+                    goal_y += 1;
+                }
+            }
+        }
+
+        (Coordinates { x: start_x, y: start_y }, Coordinates { x: goal_x, y: goal_y })
     }
 
     /// Get x,y coordinate's index in the flattened 1D vector
@@ -517,6 +541,16 @@ impl Grid {
     //     Ok(())
     // }
     
+    /// Validates that the start and goal coordinates correspond to actual cells in the grid.
+    pub fn validate_endpoints(&self) -> Result<(), Error> {
+        if !self.has_cell(self.start_coords.x, self.start_coords.y) {
+            return Err(Error::InvalidStartCoordinates { coordinates: self.start_coords });
+        }
+        if !self.has_cell(self.goal_coords.x, self.goal_coords.y) {
+            return Err(Error::InvalidGoalCoordinates { coordinates: self.goal_coords });
+        }
+        Ok(())
+    }
 
     /// Create a new grid based on the maze type, dimensions, start, and goal.
     pub fn new(
@@ -527,6 +561,7 @@ impl Grid {
         goal: Coordinates,
         capture_steps: bool,
     ) -> Result<Self, Error> {
+
         if capture_steps && (width > 100 || height > 100) {
             return Err(Error::GridDimensionsExceedLimitForCaptureSteps { width, height });
         }
@@ -552,6 +587,9 @@ impl Grid {
 
         // Assign neighbor information based on maze type
         grid.assign_neighbors()?;
+
+        // Validate start and goal coordinates
+        grid.validate_endpoints()?;
 
         Ok(grid)
     }
