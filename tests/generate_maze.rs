@@ -210,4 +210,26 @@ fn test_recursive_backtracker_rhombille_24_x_12_maze_generation_from_json() {
     }
 }
 
+#[test]
+fn test_aldous_broder_rhombille_23_x_11_maze_generation_from_json() {
+    let json = r#"
+    {
+        "maze_type": "Rhombille",
+        "width": 23,
+        "height": 11,
+        "algorithm": "RecursiveBacktracker",
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 22, "y": 10 }
+    }
+    "#;
+    match generate(json) {
+        Ok(maze) => {
+            assert!(maze.is_perfect_maze().unwrap());
+        }
+        Err(e) => {
+            dbg!(&e);
+            panic!("Error occured: {}", e);
+        }
+    }
+}
 

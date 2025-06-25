@@ -20,6 +20,8 @@ pub enum Error {
     GridDimensionsExceedLimitForCaptureSteps { width: usize, height: usize },
     NoCellAtCoordinates { coordinates: Coordinates },
     InvalidCellCoordinates { coordinates: Coordinates },
+    InvalidStartCoordinates { coordinates: Coordinates },
+    InvalidGoalCoordinates { coordinates: Coordinates },
     SerializationError(serde_json::Error),
     EmptyList,
 }
@@ -68,6 +70,12 @@ impl fmt::Display for Error {
             }
             Error::InvalidCellCoordinates{ coordinates } => {
                 write!(f, "Invalid cell coordinates {:?}", coordinates )
+            }
+            Error::InvalidStartCoordinates{ coordinates } => {
+                write!(f, "Invalid start coordinates {:?}", coordinates )
+            }
+            Error::InvalidGoalCoordinates{ coordinates } => {
+                write!(f, "Invalid goal coordinates {:?}", coordinates )
             }
             Error::SerializationError(e) => {
                 write!(f, "Serialization error: {}", e)
