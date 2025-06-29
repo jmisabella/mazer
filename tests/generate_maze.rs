@@ -188,10 +188,10 @@ fn test_recursive_backtracker_upsilon_24_x_12_maze_generation_from_json() {
 }
 
 #[test]
-fn test_recursive_backtracker_rhombille_24_x_12_maze_generation_from_json() {
+fn test_recursive_backtracker_rhombic_24_x_12_maze_generation_from_json() {
     let json = r#"
     {
-        "maze_type": "Rhombille",
+        "maze_type": "Rhombic",
         "width": 24,
         "height": 12,
         "algorithm": "RecursiveBacktracker",
@@ -211,10 +211,10 @@ fn test_recursive_backtracker_rhombille_24_x_12_maze_generation_from_json() {
 }
 
 #[test]
-fn test_aldous_broder_rhombille_23_x_11_maze_generation_from_json() {
+fn test_aldous_broder_rhombic_23_x_11_maze_generation_from_json() {
     let json = r#"
     {
-        "maze_type": "Rhombille",
+        "maze_type": "Rhombic",
         "width": 23,
         "height": 11,
         "algorithm": "RecursiveBacktracker",
