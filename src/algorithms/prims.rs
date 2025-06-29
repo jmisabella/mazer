@@ -32,13 +32,13 @@ pub struct Prims;
 impl MazeGeneration for Prims {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
-            MazeType::Rhombille => {
+            MazeType::Rhombic => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::Prims,
-                    maze_type: MazeType::Rhombille,
+                    maze_type: MazeType::Rhombic,
                 });
             }
-            _ => {} // proceed with maze generation for all maze types other than Rhombille
+            _ => {} // proceed with maze generation for all maze types other than Rhombic
         }
         let mut visited: HashSet<Coordinates> = HashSet::new();
         let mut frontier: BinaryHeap<FrontierCell> = BinaryHeap::new();

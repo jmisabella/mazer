@@ -248,8 +248,8 @@ mod tests {
     }
     
     #[test]
-    fn generate_12_x_6_rhombille_maze_aldous_broder() {
-        match Grid::new(MazeType::Rhombille, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
+    fn generate_12_x_6_rhombic_maze_aldous_broder() {
+        match Grid::new(MazeType::Rhombic, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
                 AldousBroder.generate(&mut grid).expect("AldousBroder maze generation failed");

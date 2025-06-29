@@ -123,7 +123,7 @@ impl Grid {
             goal_y = height / 2;
         }
 
-        if maze_type == MazeType::Rhombille {
+        if maze_type == MazeType::Rhombic {
             // Adjust start to satisfy (x + y) % 2 == 0
             if (start_x + start_y) % 2 != 0 {
                 if start_x > 0 {
@@ -153,7 +153,7 @@ impl Grid {
 
     pub fn has_cell(&self, x: usize, y: usize) -> bool {
         match self.maze_type {
-            MazeType::Rhombille => (x + y) % 2 == 0,
+            MazeType::Rhombic => (x + y) % 2 == 0,
             _ => true,
         }
     }
@@ -221,7 +221,7 @@ impl Grid {
             MazeType::Sigma      => &[Up, UpperRight, Right, LowerRight, Down, LowerLeft, Left, UpperLeft],
             MazeType::Delta      => &[Up, UpperLeft, UpperRight, Down, LowerLeft, LowerRight],
             MazeType::Upsilon => &[Up, Right, Down, Left, UpperRight, LowerRight, LowerLeft, UpperLeft], 
-            MazeType::Rhombille => &[UpperRight, LowerRight, LowerLeft, UpperLeft],
+            MazeType::Rhombic => &[UpperRight, LowerRight, LowerLeft, UpperLeft],
         }
     }
 
@@ -471,7 +471,7 @@ impl Grid {
             .flat_map(|row| (0..grid_width).map(move |col| (row, col)))
             .for_each(|(row, col)| {
                 if !self.has_cell(col, row) {
-                    return; // Skip positions where no cell should exist (e.g., Rhombille)
+                    return; // Skip positions where no cell should exist (e.g., Rhombic)
                 }
                 let coords = Coordinates { x: col, y: row };
                 let is_start = coords == self.start_coords;
@@ -608,7 +608,7 @@ impl Grid {
             MazeType::Delta      => self.assign_neighbors_delta(),
             MazeType::Sigma      => self.assign_neighbors_sigma(),
             MazeType::Upsilon    => self.assign_neighbors_upsilon(),
-            MazeType::Rhombille  => self.assign_neighbors_rhombille(),
+            MazeType::Rhombic  => self.assign_neighbors_rhombic(),
         }
     }
 
@@ -778,7 +778,7 @@ impl Grid {
         Ok(())
     }
 
-    fn assign_neighbors_rhombille(&mut self) -> Result<(), Error> {
+    fn assign_neighbors_rhombic(&mut self) -> Result<(), Error> {
         for y in 0..self.height {
             for x in 0..self.width {
                 if !self.has_cell(x, y) {

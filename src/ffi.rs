@@ -55,7 +55,7 @@ pub struct FFICell {
 
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
-        // Get the user-facing open walls, adjusted for Rhombille maze if applicable
+        // Get the user-facing open walls, adjusted for Rhombic maze if applicable
         let open_walls = cell.get_user_facing_open_walls();
         
         // Convert each direction to a C-compatible string
@@ -826,19 +826,19 @@ mod tests {
     }
 
     #[test]
-    fn test_mazer_generate_maze_rhombille() {
+    fn test_mazer_generate_maze_rhombic() {
         let request_json = r#"
         {
             "width": 8,
             "height": 12,
-            "maze_type": "Rhombille",
+            "maze_type": "Rhombic",
             "capture_steps": false,
             "algorithm": "RecursiveBacktracker"
         }
         "#;
         let c_str = CString::new(request_json).expect("Failed to create C string");
         let ptr = mazer_generate_maze(c_str.as_ptr());
-        assert!(!ptr.is_null(), "Maze generation failed for Rhombille maze");
+        assert!(!ptr.is_null(), "Maze generation failed for Rhombic maze");
     }
 
     #[test]

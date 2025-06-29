@@ -20,7 +20,7 @@ pub struct GrowingTree {
 
 impl MazeGeneration for GrowingTree {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
-        if grid.maze_type == MazeType::Rhombille {
+        if grid.maze_type == MazeType::Rhombic {
             match self.strategy {
                 SelectionStrategy::Newest | SelectionStrategy::Random => {
                     return Err(Error::AlgorithmUnavailableForMazeType {
@@ -29,7 +29,7 @@ impl MazeGeneration for GrowingTree {
                             SelectionStrategy::Random => MazeAlgorithm::GrowingTreeRandom,
                             _ => unreachable!(), // Shouldn't hit this due to outer match
                         },
-                        maze_type: MazeType::Rhombille,
+                        maze_type: MazeType::Rhombic,
                     });
                 }
                 _ => {} // Proceed for other strategies

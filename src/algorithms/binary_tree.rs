@@ -12,6 +12,7 @@ impl MazeGeneration for BinaryTree {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
             MazeType::Orthogonal => {} // proceed with maze generation for allowed Orthogonal (square) grid type
+            // MazeType::Rhombic => {} // proceed with maze generation for allowed Rhombic (diamons) grid type
             maze_type => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::BinaryTree,
