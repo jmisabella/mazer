@@ -151,10 +151,21 @@ impl Grid {
         y * self.width + x
     }
 
+    // pub fn has_cell(&self, x: usize, y: usize) -> bool {
+    //     match self.maze_type {
+    //         MazeType::Rhombic => (x + y) % 2 == 0,
+    //         _ => true,
+    //     }
+    // }
+
     pub fn has_cell(&self, x: usize, y: usize) -> bool {
-        match self.maze_type {
-            MazeType::Rhombic => (x + y) % 2 == 0,
-            _ => true,
+        if x >= self.width || y >= self.height {
+            false
+        } else {
+            match self.maze_type {
+                MazeType::Rhombic => (x + y) % 2 == 0,
+                _ => true,
+            }
         }
     }
     
