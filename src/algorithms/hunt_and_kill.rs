@@ -11,13 +11,13 @@ pub struct HuntAndKill;
 impl MazeGeneration for HuntAndKill {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
         match grid.maze_type {
-            MazeType::Rhombille => {
+            MazeType::Rhombic => {
                 return Err(Error::AlgorithmUnavailableForMazeType {
                     algorithm: MazeAlgorithm::HuntAndKill,
-                    maze_type: MazeType::Rhombille,
+                    maze_type: MazeType::Rhombic,
                 });
             }
-            _ => {} // proceed with maze generation for all maze types other than Rhombille
+            _ => {} // proceed with maze generation for all maze types other than Rhomicb
         }
         let mut visited = HashSet::new();
         let mut current_coords = Coordinates {

@@ -72,7 +72,7 @@ impl Direction {
             MazeType::Sigma      => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
             MazeType::Delta      => matches!(self, Up | Down | UpperLeft | UpperRight | LowerLeft | LowerRight),
             MazeType::Upsilon    => matches!(self, Up | Right | Down | Left | UpperRight | LowerRight | LowerLeft | UpperLeft),
-            MazeType::Rhombille  => matches!(self, UpperRight | LowerRight | LowerLeft | UpperLeft),
+            MazeType::Rhombic  => matches!(self, UpperRight | LowerRight | LowerLeft | UpperLeft),
         }
     }
 

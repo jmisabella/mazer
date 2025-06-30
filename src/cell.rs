@@ -36,7 +36,7 @@ pub enum MazeType {
     Sigma,
     Delta,
     Upsilon,
-    Rhombille,
+    Rhombic,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -244,9 +244,9 @@ impl Cell {
             .collect()
     }
 
-    /// Returns neighbors mapped to user-facing directions (diagonal for Rhombille).
+    /// Returns neighbors mapped to user-facing directions (diagonal for Rhombic).
     pub fn get_user_facing_neighbors(&self) -> HashMap<Direction, Coordinates> {
-        if self.maze_type == MazeType::Rhombille {
+        if self.maze_type == MazeType::Rhombic {
             let mut mapped = HashMap::new();
             if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Up) {
                 mapped.insert(Direction::UpperRight, coords);
@@ -266,9 +266,9 @@ impl Cell {
         }
     }
 
-    /// Returns linked directions mapped to user-facing directions (diagonal for Rhombille).
+    /// Returns linked directions mapped to user-facing directions (diagonal for Rhombic).
     pub fn get_user_facing_linked_directions(&self) -> Vec<Direction> {
-        if self.maze_type == MazeType::Rhombille {
+        if self.maze_type == MazeType::Rhombic {
             self.linked_directions()
                 .iter()
                 .map(|&d| match d {
@@ -285,7 +285,7 @@ impl Cell {
     }
 
     pub fn get_user_facing_open_walls(&self) -> Vec<Direction> {
-        if self.maze_type == MazeType::Rhombille {
+        if self.maze_type == MazeType::Rhombic {
             self.open_walls.iter().map(|&d| match d {
                 Direction::Up => Direction::UpperRight,
                 Direction::Right => Direction::LowerRight,
