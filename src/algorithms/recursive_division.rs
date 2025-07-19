@@ -25,7 +25,6 @@ impl MazeGeneration for RecursiveDivision {
             for x in 0..grid.width {
                 if grid.has_cell(x, y) {
                     let coords = Coordinates { x, y };
-                    let cell = grid.get(coords).unwrap();
 
                     let neighbors: Vec<Coordinates> = grid.get(coords).unwrap().neighbors_by_direction.values().copied().collect();
                     for neighbor_coords in neighbors {
@@ -107,7 +106,7 @@ impl RecursiveDivision {
             // Create wall with a passage
             if !wall_pairs.is_empty() {
                 let passage_index = grid.bounded_random_usize(wall_pairs.len());
-                let passage = wall_pairs.remove(passage_index);
+                wall_pairs.remove(passage_index);
                 let mut changed_cells = HashSet::new();
                 for (c1, c2) in wall_pairs {
                     grid.unlink(c1, c2)?;
@@ -154,7 +153,7 @@ impl RecursiveDivision {
             // Create wall with a passage
             if !wall_pairs.is_empty() {
                 let passage_index = grid.bounded_random_usize(wall_pairs.len());
-                let passage = wall_pairs.remove(passage_index);
+                wall_pairs.remove(passage_index);
                 let mut changed_cells = HashSet::new();
                 for (c1, c2) in wall_pairs {
                     grid.unlink(c1, c2)?;
