@@ -27,12 +27,10 @@ impl MazeGeneration for GrowingTree {
                         algorithm: match self.strategy {
                             SelectionStrategy::Newest => MazeAlgorithm::GrowingTreeNewest,
                             SelectionStrategy::Random => MazeAlgorithm::GrowingTreeRandom,
-                            _ => unreachable!(), // Shouldn't hit this due to outer match
                         },
                         maze_type: MazeType::Rhombic,
                     });
                 }
-                _ => {} // Proceed for other strategies
             }
         }
         let mut active: Vec<Coordinates> = Vec::new();
