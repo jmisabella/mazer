@@ -1,7 +1,6 @@
 use crate::behaviors::maze::MazeGeneration;
-use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
-use crate::cell::{Coordinates, MazeType};
+use crate::cell::Coordinates;
 use crate::error::Error;
 
 use std::collections::{BinaryHeap, HashSet};
@@ -36,7 +35,7 @@ impl MazeGeneration for Prims {
         let mut rng = rand::thread_rng();
 
         // Step 1: Choose a random starting cell that exists in the grid
-        let mut start_coords;
+        let start_coords;
         loop {
             let x = grid.bounded_random_usize(grid.width);
             let y = grid.bounded_random_usize(grid.height);
