@@ -842,6 +842,26 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_thread_independent() {
+        use std::thread;
+        let handles: Vec<_> = (0..20).map(|_| {
+            thread::spawn(|| {
+                let json = r#"{"maze_type":"Orthogonal","width":20,"height":20,"algorithm":"Wilsons"}"#;
+                let ptr = mazer_generate_maze(CString::new(json).unwrap().as_ptr());
+                // Dereference the pointer to call is_perfect_maze()
+                let is_perfect = unsafe {
+                    let grid_ref: &Grid = &*ptr;  // Obtain immutable reference
+                    grid_ref.is_perfect_maze().unwrap()  // Call the method (unwrap for test; handle Error in prod)
+                };
+                assert!(is_perfect, "Generated maze should be perfect"); 
+                    assert!(!ptr.is_null());
+                    mazer_destroy(ptr);
+                })
+        }).collect();
+        for h in handles { h.join().unwrap(); }
+    }
+
+    #[test]
     fn test_ffi_integration_returns_42() {
         let result = mazer_ffi_integration_test();
         // this FFI integration test function simply returns 42, useful to show integration of the .a C library at Swift, etc... environment 
