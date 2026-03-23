@@ -1,7 +1,6 @@
 use crate::cell::Coordinates;
 use crate::cell::MazeType;
 use crate::algorithms::MazeAlgorithm;
-use crate::algorithms::growing_tree::SelectionStrategy;
 use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -108,14 +107,14 @@ mod tests {
             maze_type: MazeType::Orthogonal,
             width: 10,
             height: 10,
-            algorithm: MazeAlgorithm::GrowingTree(SelectionStrategy::Random),
+            algorithm: MazeAlgorithm::GrowingTreeRandom,
             start: Some(Coordinates { x: 0, y: 0 }),
             goal: Some(Coordinates { x: 9, y: 9 }),
             capture_steps: None,
         };
 
         let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
-        assert!(json.contains("\"algorithm\":{\"GrowingTree\":\"Random\"}"));
+        assert!(json.contains("\"algorithm\":\"GrowingTreeRandom\""));
     }
 
     #[test]
@@ -124,14 +123,14 @@ mod tests {
             maze_type: MazeType::Orthogonal,
             width: 10,
             height: 10,
-            algorithm: MazeAlgorithm::GrowingTree(SelectionStrategy::Newest),
+            algorithm: MazeAlgorithm::GrowingTreeNewest,
             start: Some(Coordinates { x: 0, y: 0 }),
             goal: Some(Coordinates { x: 9, y: 9 }),
             capture_steps: None,
         };
 
         let json = serde_json::to_string(&request).expect("Failed to serialize MazeRequest");
-        assert!(json.contains("\"algorithm\":{\"GrowingTree\":\"Newest\"}"));
+        assert!(json.contains("\"algorithm\":\"GrowingTreeNewest\""));
     }
 
     #[test]
@@ -141,7 +140,7 @@ mod tests {
             "maze_type": "Orthogonal",
             "width": 10,
             "height": 10,
-            "algorithm": {"GrowingTree": "Random"},
+            "algorithm": "GrowingTreeRandom",
             "start": { "x": 0, "y": 0 },
             "goal": { "x": 9, "y": 9 }
         }
@@ -152,7 +151,7 @@ mod tests {
         assert_eq!(request.maze_type, MazeType::Orthogonal);
         assert_eq!(request.width, 10);
         assert_eq!(request.height, 10);
-        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTree(SelectionStrategy::Random));
+        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTreeRandom);
         assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
         assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
     }
@@ -164,7 +163,7 @@ mod tests {
             "maze_type": "Orthogonal",
             "width": 10,
             "height": 10,
-            "algorithm": {"GrowingTree": "Newest"},
+            "algorithm": "GrowingTreeNewest",
             "start": { "x": 0, "y": 0 },
             "goal": { "x": 9, "y": 9 }
         }
@@ -175,7 +174,7 @@ mod tests {
         assert_eq!(request.maze_type, MazeType::Orthogonal);
         assert_eq!(request.width, 10);
         assert_eq!(request.height, 10);
-        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTree(SelectionStrategy::Newest));
+        assert_eq!(request.algorithm, MazeAlgorithm::GrowingTreeNewest);
         assert_eq!(request.start, Some(Coordinates { x: 0, y: 0 }));
         assert_eq!(request.goal, Some(Coordinates { x: 9, y: 9 }));
     }

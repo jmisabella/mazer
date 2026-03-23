@@ -14,7 +14,7 @@ pub mod error;
 pub mod ffi;
 
 // algorithms: BinaryTree, Sidewinder, AldousBroder, HuntAndKill, RecursiveBacktracker
-// maze_types: Orthogonal, Delta, Hex, Polar
+// maze_types: Orthogonal, Delta, Hex
 // example json maze request, all fields are required:
 // {
 //     "maze_type": "Orthogonal",

@@ -86,7 +86,7 @@ impl MazeGeneration for Ellers {
                 for (_set_id, cells) in cells_by_set {
                     let mut cells = cells;
                     cells.shuffle(&mut rand::thread_rng());
-                    let connect_count = 1 + grid.bounded_random_usize(cells.len() - 1);
+                    let connect_count = 1 + grid.bounded_random_usize(cells.len());
                     for &cell_coords in cells.iter().take(connect_count) {
                         let down_coords = Coordinates {
                             x: cell_coords.x,
@@ -193,21 +193,7 @@ mod tests {
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
-    #[test]
-    fn reject_12_x_12_polar_ellers_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                match Ellers.generate(&mut grid) {
-                    Ok(()) => panic!("Successfully generated an Eller's maze for a Polar grid, which should have been rejected!"),
-                    Err(e) => println!("As expected, Polar grid is rejected for Eller's maze generation: {:?}", e),
-                }
-            }
-            Err(e) => panic!("Unexpected error generating grid: {:?}", e),
-        }
-    }
-
+    
     #[test]
     fn test_ellers_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
@@ -222,11 +208,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

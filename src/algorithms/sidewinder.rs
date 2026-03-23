@@ -40,7 +40,7 @@ impl MazeGeneration for Sidewinder {
                     // Close the run by carving upward
                     if !at_northern_boundary {
                         // Get a random index from the run
-                        let random_index = grid.bounded_random_usize(run.len() - 1);
+                        let random_index = grid.bounded_random_usize(run.len());
                         let random_cell = run[random_index];
 
                         let above_coords = Coordinates {
@@ -150,7 +150,7 @@ mod tests {
             Err(e) => panic!("Unexpected error generating grid: {:?}", e),
         }
     }
-
+    
     #[test]
     fn test_sidewinder_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
@@ -164,11 +164,11 @@ mod tests {
                 let steps = grid.generation_steps.as_ref().unwrap(); assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

@@ -15,6 +15,7 @@ use crate::algorithms::kruskals::Kruskals;
 use crate::algorithms::growing_tree::{GrowingTree, SelectionStrategy};
 use crate::algorithms::ellers::Ellers;
 use crate::algorithms::recursive_division::RecursiveDivision;
+use crate::algorithms::reverse_delete::ReverseDelete;
 
 pub mod binary_tree;
 pub mod sidewinder;
@@ -27,6 +28,7 @@ pub mod kruskals;
 pub mod growing_tree;
 pub mod ellers;
 pub mod recursive_division;
+pub mod reverse_delete;
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MazeAlgorithm {
@@ -38,10 +40,12 @@ pub enum MazeAlgorithm {
     RecursiveBacktracker,
     Prims,
     Kruskals,
-    // GrowingTree,
-    GrowingTree(SelectionStrategy),
+    // GrowingTree(SelectionStrategy),
+    GrowingTreeRandom,
+    GrowingTreeNewest,
     Ellers,
     RecursiveDivision,
+    ReverseDelete,
 }
 
 impl MazeAlgorithm {
@@ -55,13 +59,17 @@ impl MazeAlgorithm {
             MazeAlgorithm::RecursiveBacktracker => RecursiveBacktracker.build(grid),
             MazeAlgorithm::Prims => Prims.build(grid),
             MazeAlgorithm::Kruskals => Kruskals.build(grid),
-            // MazeAlgorithm::GrowingTree => GrowingTree.build(grid),
-            MazeAlgorithm::GrowingTree(strategy) => {
-                let growing_tree = GrowingTree { strategy: *strategy };
+            MazeAlgorithm::GrowingTreeRandom => {
+                let growing_tree = GrowingTree { strategy: SelectionStrategy::Random };
+                growing_tree.build(grid)
+            }
+            MazeAlgorithm::GrowingTreeNewest => {
+                let growing_tree = GrowingTree { strategy: SelectionStrategy::Newest};
                 growing_tree.build(grid)
             }
             MazeAlgorithm::Ellers => Ellers.build(grid),
             MazeAlgorithm::RecursiveDivision => RecursiveDivision.build(grid),
+            MazeAlgorithm::ReverseDelete => ReverseDelete.build(grid),
         }
     }
 }
@@ -95,6 +103,26 @@ mod tests {
             Ok(maze) => {
                 assert!(maze.is_perfect_maze().unwrap());
                 println!("\n\nRecursive Backtracker\n\n{}\n\n", maze.to_asci());
+            }
+            Err(e) => panic!("Unexpected error running test: {:?}", e),
+        }
+    }
+    
+    #[test]
+    fn test_reverse_delete_sigma_12_x_12_maze_generation_from_json() {
+        let json = r#"
+        {
+            "maze_type": "Sigma",
+            "width": 12,
+            "height": 12,
+            "algorithm": "ReverseDelete",
+            "start": { "x": 0, "y": 0 },
+            "goal": { "x": 11, "y": 11 }
+        }
+        "#;
+        match generate(json) {
+            Ok(maze) => {
+                assert!(maze.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
         }

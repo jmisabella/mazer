@@ -205,23 +205,11 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_12_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
+    fn generate_12_x_6_rhombic_maze_kruskals() {
+        match Grid::new(MazeType::Rhombic, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
             Ok(mut grid) => {
                 assert!(!grid.is_perfect_maze().unwrap());
-                Kruskals.generate(&mut grid).expect("Kruskal's maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
-    fn generate_12_x_6_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                Kruskals.generate(&mut grid).expect("Kruskal's maze generation failed");
+                Kruskals.generate(&mut grid).expect("Kruskals maze generation failed");
                 assert!(grid.is_perfect_maze().unwrap());
             }
             Err(e) => panic!("Unexpected error running test: {:?}", e),
@@ -242,11 +230,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

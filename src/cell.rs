@@ -8,7 +8,7 @@ use crate::behaviors::collections::FilterKeys;
 use crate::behaviors::display::JsonDisplay;
 use crate::direction::Direction;
 
-#[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Coordinates {
     pub x: usize,
     pub y: usize
@@ -35,7 +35,8 @@ pub enum MazeType {
     Orthogonal,
     Sigma,
     Delta,
-    Polar
+    Upsilon,
+    Rhombic,
 }
 impl fmt::Display for MazeType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -57,7 +58,7 @@ pub enum CellOrientation {
 pub struct Cell {
     /// The x,y coordinates of the cell.
     pub coords: Coordinates,
-    /// The maze type (e.g., Orthogonal, Delta, Sigma, Polar).
+    /// The maze type (e.g., Orthogonal, Delta, Sigma).
     pub maze_type: MazeType,
     /// Maps directions to the coordinates of neighboring cells.
     pub neighbors_by_direction: HashMap<Direction, Coordinates>,
@@ -87,6 +88,8 @@ pub struct Cell {
     pub orientation: CellOrientation,
     /// The directions in which there are no walls restricting movement.
     pub open_walls: Vec<Direction>,
+    /// Used primarily for Upsilon maze_type, to indicate whether cell's square or octagon
+    pub is_square: bool,
 }
 
 impl Default for Cell {
@@ -105,6 +108,7 @@ impl Default for Cell {
             on_solution_path: false,
             orientation: CellOrientation::Normal, // Assuming CellOrientation has a Normal variant
             open_walls: Vec::new(),
+            is_square: false,
         }
     }
 }
@@ -114,10 +118,12 @@ impl Serialize for Cell {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("Cell", 7)?;
+        let mut state = serializer.serialize_struct("Cell", 10)?;
         state.serialize_field("coords", &self.coords)?;
-        
-        let linked_dirs: HashSet<String> = self.linked_directions().iter().map(|dir| dir.to_string()).collect();
+        let linked_dirs: Vec<String> = self.get_user_facing_linked_directions()
+            .iter()
+            .map(|d| d.to_string())
+            .collect();
         state.serialize_field("linked", &linked_dirs)?;
         state.serialize_field("distance", &self.distance)?;
         state.serialize_field("is_start", &self.is_start)?;
@@ -126,9 +132,11 @@ impl Serialize for Cell {
         state.serialize_field("is_visited", &self.is_visited)?;
         state.serialize_field("has_been_visited", &self.has_been_visited)?;
         state.serialize_field("on_solution_path", &self.on_solution_path)?;
+        state.serialize_field("is_square", &self.is_square)?;
         state.end()
-    }
+    } 
 }
+
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.to_json() {
@@ -235,6 +243,60 @@ impl Cell {
             })
             .collect()
     }
+
+    /// Returns neighbors mapped to user-facing directions (diagonal for Rhombic).
+    pub fn get_user_facing_neighbors(&self) -> HashMap<Direction, Coordinates> {
+        if self.maze_type == MazeType::Rhombic {
+            let mut mapped = HashMap::new();
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Up) {
+                mapped.insert(Direction::UpperRight, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Right) {
+                mapped.insert(Direction::LowerRight, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Down) {
+                mapped.insert(Direction::LowerLeft, coords);
+            }
+            if let Some(&coords) = self.neighbors_by_direction.get(&Direction::Left) {
+                mapped.insert(Direction::UpperLeft, coords);
+            }
+            mapped
+        } else {
+            self.neighbors_by_direction.clone()
+        }
+    }
+
+    /// Returns linked directions mapped to user-facing directions (diagonal for Rhombic).
+    pub fn get_user_facing_linked_directions(&self) -> Vec<Direction> {
+        if self.maze_type == MazeType::Rhombic {
+            self.linked_directions()
+                .iter()
+                .map(|&d| match d {
+                    Direction::Up => Direction::UpperRight,
+                    Direction::Right => Direction::LowerRight,
+                    Direction::Down => Direction::LowerLeft,
+                    Direction::Left => Direction::UpperLeft,
+                    _ => d,
+                })
+                .collect()
+        } else {
+            self.linked_directions().into_iter().collect()
+        }
+    }
+
+    pub fn get_user_facing_open_walls(&self) -> Vec<Direction> {
+        if self.maze_type == MazeType::Rhombic {
+            self.open_walls.iter().map(|&d| match d {
+                Direction::Up => Direction::UpperRight,
+                Direction::Right => Direction::LowerRight,
+                Direction::Down => Direction::LowerLeft,
+                Direction::Left => Direction::UpperLeft,
+                d => d,
+            }).collect()
+        } else {
+            self.open_walls.clone()
+        }
+    }
 }
 
 /// A builder for creating and customizing a `Cell` using the builder pattern.
@@ -266,6 +328,7 @@ impl CellBuilder {
             on_solution_path: false,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
+            is_square: false,
         })
     }
 
@@ -309,6 +372,10 @@ impl CellBuilder {
         self
     }
 
+    pub fn is_square(mut self, is_square: bool) -> Self { 
+        self.0.is_square = is_square; 
+        self 
+    } 
 }
 
 #[cfg(test)]
@@ -433,6 +500,7 @@ mod tests {
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: Vec::new(),
+            is_square: true,
         };
 
         let json = cell.to_string();
@@ -443,6 +511,7 @@ mod tests {
         assert!(json.contains("\"Right\""));
         assert!(json.contains("\"Down\""));
         assert!(json.contains("\"on_solution_path\":true"));
+        assert!(json.contains("\"is_square\":true"));
     }
 
 

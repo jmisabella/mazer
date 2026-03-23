@@ -49,37 +49,33 @@ pub struct FFICell {
     // *const c_char is a pointer to a single null-terminated C string
     // (e.g., "North"). Required for FFI compatibility with Swift.
     pub orientation: *const c_char,
+
+    pub is_square: bool,
 }
 
 impl From<&Cell> for FFICell {
     fn from(cell: &Cell) -> Self {
-        // Convert maze_type and orientation into raw C strings.
-        let maze_type_c = CString::new(format!("{:?}", cell.maze_type))
-            .unwrap()
-            .into_raw();
-        let orientation_c = CString::new(format!("{:?}", cell.orientation))
-            .unwrap()
-            .into_raw();
+        // Get the user-facing open walls, adjusted for Rhombic maze if applicable
+        let open_walls = cell.get_user_facing_open_walls();
         
-        // Create a vector of raw pointers for the open_walls strings.
-        let open_walls_raw: Vec<*const c_char> = cell.open_walls.iter()
-            .map(|direction| {
-                // Convert each Rust string into a raw C string.
-                CString::new(direction.to_string())
-                    .unwrap()
-                    .into_raw() as *const c_char
+        // Convert each direction to a C-compatible string
+        let open_walls_raw: Vec<*const c_char> = open_walls
+            .iter()
+            .map(|&direction| {
+                CString::new(direction.to_string()).unwrap().into_raw() as *const c_char
             })
             .collect();
-
-        // Leak the vector of pointers by converting it into a boxed slice.
+        
+        // Leak the vector into a boxed slice and get its pointer and length
         let open_walls_len = open_walls_raw.len();
         let open_walls_ptr = Box::leak(open_walls_raw.into_boxed_slice()).as_ptr();
-
+        
+        // Construct the FFICell with all fields
         FFICell {
             x: cell.coords.x,
             y: cell.coords.y,
-            maze_type: maze_type_c,
-            linked: open_walls_ptr, // now holds the open_walls raw pointers
+            maze_type: CString::new(format!("{:?}", cell.maze_type)).unwrap().into_raw(),
+            linked: open_walls_ptr,
             linked_len: open_walls_len,
             distance: cell.distance,
             is_start: cell.is_start,
@@ -88,7 +84,8 @@ impl From<&Cell> for FFICell {
             is_visited: cell.is_visited,
             has_been_visited: cell.has_been_visited,
             on_solution_path: cell.on_solution_path,
-            orientation: orientation_c,
+            orientation: CString::new(format!("{:?}", cell.orientation)).unwrap().into_raw(),
+            is_square: cell.is_square,
         }
     }
 }
@@ -210,7 +207,7 @@ pub extern "C" fn mazer_get_cells(maze: *mut Grid, length: *mut usize) -> *mut F
     let grid = unsafe { &*maze };
 
     // Convert each Cell into an FFICell.
-    let ffi_cells: Vec<FFICell> = grid.cells.iter().map(FFICell::from).collect();
+    let ffi_cells: Vec<FFICell> = grid.cells.iter().filter_map(|opt| opt.as_ref().map(FFICell::from)).collect();
 
     // Write the number of FFICells into the provided length pointer.
     let len = ffi_cells.len();
@@ -276,7 +273,7 @@ pub extern "C" fn mazer_get_generation_step_cells(
     if let Some(steps) = &grid.generation_steps {
         if step_index < steps.len() {
             let step_grid = &steps[step_index];
-            let ffi_cells: Vec<FFICell> = step_grid.cells.iter().map(FFICell::from).collect();
+            let ffi_cells: Vec<FFICell> = step_grid.cells.iter().filter_map(|opt| opt.as_ref().map(FFICell::from)).collect(); 
             let len = ffi_cells.len();
             unsafe {
                 *length = len;
@@ -332,7 +329,6 @@ pub extern "C" fn mazer_make_move(grid_ptr: *mut c_void, direction: *const c_cha
         // on successful move, return the same pointer to the grid.
         grid_ptr
     } else {
-        eprintln!("mazer_make_move failed on {:?} at {:?}", dir_enum, grid_ptr);
         std::ptr::null_mut()
     }
 }
@@ -477,6 +473,7 @@ mod tests {
             on_solution_path: true,
             orientation: CellOrientation::Normal,
             open_walls: open_walls,
+            is_square: false,
         };
 
         let ffi_cell: FFICell = (&cell).into();
@@ -647,13 +644,13 @@ mod tests {
                 println!("\n\nMaze:\n\n{}\n\n", maze.to_asci());
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     1,
                     "There should be 1 visited cell on dynamic path at the beginning"
                 );
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     1,
                     "There should be 1 visited cell on permenant path at the beginning"
                 );
@@ -698,13 +695,13 @@ mod tests {
                 );
 
                 assert_eq!(
-                    copied_maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    copied_maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     1,
                     "There should be 1 visited cell on dynamic path before a successful move is made"
                 );
                 
                 assert_eq!(
-                    copied_maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    copied_maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     1,
                     "There should be 1 visited cell on permenant path before a successful move is made"
                 );
@@ -715,19 +712,19 @@ mod tests {
 
                 // Verify that exactly one cell is active.
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_active).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_active).count(),
                     1,
                     "There should be exactly one active cell"
                 );
 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.is_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.is_visited).count(),
                     2,
                     "There should be 2 visited cells on dynamic path after first successful move (start cell and current)"
                 );
                 
                 assert_eq!(
-                    maze.cells.iter().filter(|cell| cell.has_been_visited).count(),
+                    maze.cells.iter().filter_map(|opt| opt.as_ref()).filter(|cell| cell.has_been_visited).count(),
                     2,
                     "There should be 2 visited cells on permenant path after first successful move (start cell and current)"
                 );
@@ -826,6 +823,42 @@ mod tests {
         unsafe {
             let _ = CString::from_raw(json_req_c_string);
         }
+    }
+
+    #[test]
+    fn test_mazer_generate_maze_rhombic() {
+        let request_json = r#"
+        {
+            "width": 8,
+            "height": 12,
+            "maze_type": "Rhombic",
+            "capture_steps": false,
+            "algorithm": "RecursiveBacktracker"
+        }
+        "#;
+        let c_str = CString::new(request_json).expect("Failed to create C string");
+        let ptr = mazer_generate_maze(c_str.as_ptr());
+        assert!(!ptr.is_null(), "Maze generation failed for Rhombic maze");
+    }
+
+    #[test]
+    fn test_multi_thread_independent() {
+        use std::thread;
+        let handles: Vec<_> = (0..20).map(|_| {
+            thread::spawn(|| {
+                let json = r#"{"maze_type":"Orthogonal","width":20,"height":20,"algorithm":"Wilsons"}"#;
+                let ptr = mazer_generate_maze(CString::new(json).unwrap().as_ptr());
+                // Dereference the pointer to call is_perfect_maze()
+                let is_perfect = unsafe {
+                    let grid_ref: &Grid = &*ptr;  // Obtain immutable reference
+                    grid_ref.is_perfect_maze().unwrap()  // Call the method (unwrap for test; handle Error in prod)
+                };
+                assert!(is_perfect, "Generated maze should be perfect"); 
+                    assert!(!ptr.is_null());
+                    mazer_destroy(ptr);
+                })
+        }).collect();
+        for h in handles { h.join().unwrap(); }
     }
 
     #[test]

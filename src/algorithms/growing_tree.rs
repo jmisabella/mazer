@@ -1,6 +1,7 @@
 use crate::behaviors::maze::MazeGeneration;
+use crate::algorithms::MazeAlgorithm;
 use crate::grid::Grid;
-use crate::cell::Coordinates;
+use crate::cell::{Coordinates, MazeType};
 use crate::error::Error;
 
 use std::collections::HashSet;
@@ -19,13 +20,26 @@ pub struct GrowingTree {
 
 impl MazeGeneration for GrowingTree {
     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
+        if grid.maze_type == MazeType::Rhombic {
+            match self.strategy {
+                SelectionStrategy::Newest | SelectionStrategy::Random => {
+                    return Err(Error::AlgorithmUnavailableForMazeType {
+                        algorithm: match self.strategy {
+                            SelectionStrategy::Newest => MazeAlgorithm::GrowingTreeNewest,
+                            SelectionStrategy::Random => MazeAlgorithm::GrowingTreeRandom,
+                        },
+                        maze_type: MazeType::Rhombic,
+                    });
+                }
+            }
+        }
         let mut active: Vec<Coordinates> = Vec::new();
         let mut visited: HashSet<Coordinates> = HashSet::new();
 
         // Start with a random cell
         let start_coords = Coordinates {
-            x: grid.bounded_random_usize(grid.width - 1),
-            y: grid.bounded_random_usize(grid.height - 1),
+            x: grid.bounded_random_usize(grid.width),
+            y: grid.bounded_random_usize(grid.height),
         };
         active.push(start_coords);
         visited.insert(start_coords);
@@ -39,7 +53,7 @@ impl MazeGeneration for GrowingTree {
         while !active.is_empty() {
             // Choose a cell from active list based on strategy
             let index = match self.strategy {
-                SelectionStrategy::Random => grid.bounded_random_usize(active.len() - 1),
+                SelectionStrategy::Random => grid.bounded_random_usize(active.len()),
                 SelectionStrategy::Newest => active.len() - 1,
             };
             let current_coords = active[index];
@@ -59,7 +73,7 @@ impl MazeGeneration for GrowingTree {
                 active.swap_remove(index);
             } else {
                 // Choose a random unvisited neighbor
-                let neighbor_index = grid.bounded_random_usize(unvisited_neighbors.len() - 1);
+                let neighbor_index = grid.bounded_random_usize(unvisited_neighbors.len());
                 let next_coords = unvisited_neighbors[neighbor_index];
 
                 // Link to the neighbor
@@ -82,71 +96,6 @@ impl MazeGeneration for GrowingTree {
         Ok(())
     }
 }
-
-// pub struct GrowingTree;
-
-// impl MazeGeneration for GrowingTree {
-//     fn generate(&self, grid: &mut Grid) -> Result<(), Error> {
-//         let mut active: Vec<Coordinates> = Vec::new();
-//         let mut visited: HashSet<Coordinates> = HashSet::new();
-
-//         // Start with a random cell
-//         let start_coords = Coordinates {
-//             x: grid.bounded_random_usize(grid.width - 1),
-//             y: grid.bounded_random_usize(grid.height - 1),
-//         };
-//         active.push(start_coords);
-//         visited.insert(start_coords);
-
-//         // Capture initial state with no changed cells
-//         if grid.capture_steps {
-//             let changed_cells = HashSet::new();
-//             self.capture_step(grid, &changed_cells);
-//         }
-
-//         while !active.is_empty() {
-//             // Choose a random cell from active list (can be modified for other strategies)
-//             let index = grid.bounded_random_usize(active.len() - 1);
-//             let current_coords = active[index];
-
-//             // Get unvisited neighbors
-//             let unvisited_neighbors: Vec<Coordinates> = if let Ok(cell) = grid.get(current_coords) {
-//                 cell.neighbors()
-//                     .into_iter()
-//                     .filter(|neighbor| !visited.contains(neighbor))
-//                     .collect()
-//             } else {
-//                 Vec::new()
-//             };
-
-//             if unvisited_neighbors.is_empty() {
-//                 // No unvisited neighbors, remove from active list
-//                 active.swap_remove(index);
-//             } else {
-//                 // Choose a random unvisited neighbor
-//                 let neighbor_index = grid.bounded_random_usize(unvisited_neighbors.len() - 1);
-//                 let next_coords = unvisited_neighbors[neighbor_index];
-
-//                 // Link to the neighbor
-//                 grid.link(current_coords, next_coords)?;
-
-//                 // Mark neighbor as visited and add to active list
-//                 visited.insert(next_coords);
-//                 active.push(next_coords);
-
-//                 // Capture step with changed cells after linking
-//                 if grid.capture_steps {
-//                     let mut changed_cells = HashSet::new();
-//                     changed_cells.insert(current_coords);
-//                     changed_cells.insert(next_coords);
-//                     self.capture_step(grid, &changed_cells);
-//                 }
-//             }
-//         }
-
-//         Ok(())
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -228,30 +177,6 @@ mod tests {
     }
 
     #[test]
-    fn generate_12_x_12_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 12, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 11 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree{ strategy: SelectionStrategy::Random }.generate(&mut grid).expect("Growing Tree maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
-    fn generate_12_x_6_polar_maze() {
-        match Grid::new(MazeType::Polar, 12, 6, Coordinates { x: 0, y: 0 }, Coordinates { x: 11, y: 5 }, false) {
-            Ok(mut grid) => {
-                assert!(!grid.is_perfect_maze().unwrap());
-                GrowingTree{ strategy: SelectionStrategy::Newest }.generate(&mut grid).expect("Growing Tree maze generation failed");
-                assert!(grid.is_perfect_maze().unwrap());
-            }
-            Err(e) => panic!("Unexpected error running test: {:?}", e),
-        }
-    }
-
-    #[test]
     fn test_growing_tree_with_capture_steps() {
         let start = Coordinates { x: 0, y: 0 };
         let goal = Coordinates { x: 11, y: 11 };
@@ -265,11 +190,11 @@ mod tests {
                 assert!(!steps.is_empty());
                 // Check if any cells become linked across all generation steps
                 let has_linked_cells = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.linked.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.linked.is_empty())
                 });
                 assert!(has_linked_cells, "No cells were linked during maze generation");
                 let has_open_walls = steps.iter().any(|step| {
-                    step.cells.iter().any(|cell| !cell.open_walls.is_empty())
+                    step.cells.iter().filter_map(|opt| opt.as_ref()).any(|cell| !cell.open_walls.is_empty())
                 });
                 assert!(has_open_walls, "No cells have open walls in generation steps");
             }

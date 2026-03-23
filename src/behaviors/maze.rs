@@ -26,12 +26,14 @@ pub trait MazeGeneration {
                 }
             }
         }
-    
-        for cell in grid.cells.iter_mut() {
-            cell.set_open_walls();
+   
+        for cell_option in grid.cells.iter_mut() {
+            if let Some(cell) = cell_option {
+                cell.set_open_walls();
+            }
         }
     
-        let active_count = grid.cells.iter().filter(|cell| cell.is_visited).count();
+        let active_count = grid.cells.iter().filter(|cell| cell.as_ref().map_or(false, |c| c.is_visited)).count();
         if active_count > 1 {
             Err(Error::MultipleActiveCells { count: active_count })
         } else if active_count == 0 {
